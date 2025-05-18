@@ -20,6 +20,7 @@ pymongo==4.9.1
 python-dotenv==1.0.1
 python-jose==3.3.0
 python-multipart==0.0.10
+requests # Added for Google OAuth
 rsa==4.9
 six==1.16.0
 sniffio==1.3.1
