@@ -26,6 +26,7 @@ const SignUp = () => {
   const [otp, setOtp] = useState("");
   const [enteredOtp, setEnteredOtp] = useState("");
   const [otpError, setOtpError] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (token) navigate("/");
@@ -97,24 +98,31 @@ const SignUp = () => {
   // Google sign up/sign in handler
   const { setUserAndToken } = useGlobalProvider();
   const onGoogleAuth = async (credentialResponse) => {
+    setGoogleLoading(true);
     setIsSubmit(true);
     setMessage({ message: '', color: '' });
     try {
-      // Send Google credential to backend for sign up/login
+      // Make sure Google Cloud Console has https://monkeyz.co.il and https://www.monkeyz.co.il as authorized origins!
       const { data, error } = await apiService.post('/user/google', {
         credential: credentialResponse.credential,
         skip_otp: true, // Tell backend to skip OTP for Google
       });
       setIsSubmit(false);
+      setGoogleLoading(false);
       if (error) {
         setMessage({ message: error, color: '#DC2626' });
         return;
       }
+      if (data.user_created) {
+        setMessage({ message: t('user_created_successfully') || 'Signed up with Google successfully!', color: '#16A34A' });
+      } else {
+        setMessage({ message: t('user_login_success') || 'Signed in with Google successfully!', color: '#16A34A' });
+      }
       setUserAndToken(data); // Set user and token in context (auto-login)
-      setMessage({ message: t('user_login_success') || 'Signed in with Google successfully!', color: '#16A34A' });
       navigate('/'); // Redirect to home or profile
     } catch (err) {
       setIsSubmit(false);
+      setGoogleLoading(false);
       setMessage({ message: t('google_signin_failed') || 'Google sign in failed.', color: '#DC2626' });
     }
   };
@@ -224,12 +232,12 @@ const SignUp = () => {
         <div className="flex flex-col items-center gap-2 mt-2">
           <GoogleLogin
             onSuccess={onGoogleAuth}
-            onError={() => setMessage({ message: t('google_signin_failed') || 'Google sign in failed.', color: '#DC2626' })}
-            // width prop removed to avoid warning
+            onError={() => { setMessage({ message: t('google_signin_failed') || 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
             locale={document.documentElement.lang || 'en'}
             theme="filled_blue"
             text="signup_with"
             shape="pill"
+            disabled={googleLoading}
           />
           {/* NOTE: Your backend must implement POST /user/google for Google sign-in to work! */}
           {message.message && message.color === '#DC2626' && (

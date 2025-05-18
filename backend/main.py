@@ -38,14 +38,15 @@ app.include_router(grow_router.router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://monkeyz.co.il",
-        "https://www.monkeyz.co.il"
-    ],
+    allow_origins=["*"],  # TEMP: Allow all origins for debugging. Change to production domains before deploying!
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/health", tags=["default"])
+def health_check():
+    return {"status": "ok"}
 
 app.include_router(users_router)
 app.include_router(product_router)

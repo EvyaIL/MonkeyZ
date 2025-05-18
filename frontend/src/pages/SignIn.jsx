@@ -18,6 +18,7 @@ const SignIn = () => {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMsg, setResetMsg] = useState("");
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (token) navigate("/");
@@ -43,8 +44,8 @@ const SignIn = () => {
     }
 
     const formData = new URLSearchParams();
-    // Send as username or email, backend should accept either
-    formData.append("username_or_email", form.username);
+    // Send as username (can be username or email), backend expects 'username'
+    formData.append("username", form.username);
     formData.append("password", form.password);
 
     const { data, error } = await apiService.post(
@@ -66,23 +67,29 @@ const SignIn = () => {
 
   // Google sign in handler
   const onGoogleSignIn = async (credentialResponse) => {
+    setGoogleLoading(true);
     setIsSubmit(true);
     setMessage({ message: '', color: '' });
     try {
-      // Send Google credential to backend for sign in
       const { data, error } = await apiService.post('/user/google', {
         credential: credentialResponse.credential,
       });
       setIsSubmit(false);
+      setGoogleLoading(false);
       if (error) {
         setMessage({ message: error, color: '#DC2626' });
         return;
       }
-      setMessage({ message: 'Signed in with Google successfully!', color: '#16A34A' });
+      if (data.user_created) {
+        setMessage({ message: 'Signed up with Google successfully!', color: '#16A34A' });
+      } else {
+        setMessage({ message: 'Signed in with Google successfully!', color: '#16A34A' });
+      }
       setUserAndToken(data);
       // navigate('/');
     } catch (err) {
       setIsSubmit(false);
+      setGoogleLoading(false);
       setMessage({ message: 'Google sign in failed.', color: '#DC2626' });
     }
   };
@@ -150,12 +157,12 @@ const SignIn = () => {
         <div className="flex flex-col items-center gap-2 mt-2">
           <GoogleLogin
             onSuccess={onGoogleSignIn}
-            onError={() => setMessage({ message: 'Google sign in failed.', color: '#DC2626' })}
-            width="100%"
+            onError={() => { setMessage({ message: 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
             locale={document.documentElement.lang || 'en'}
             theme="filled_blue"
             text="signin_with"
             shape="pill"
+            disabled={googleLoading}
           />
         </div>
         <SecondaryButton

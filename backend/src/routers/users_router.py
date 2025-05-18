@@ -9,6 +9,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from src.lib.token_handler import ACCESS_TOKEN_EXPIRE_MINUTES
 from pydantic import BaseModel
 import requests
+import logging
 
 
 @contextlib.asynccontextmanager
@@ -50,33 +51,48 @@ async def get_current_user_(user_controller:UserController = Depends(get_user_co
    response = LoginResponse(access_token=current_user.access_token, user=user,token_type="Bearer")
    return response
 
-GOOGLE_CLIENT_ID = "946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com"
-
 class GoogleAuthRequest(BaseModel):
     credential: str
     skip_otp: bool = True
 
 @users_router.post("/google")
 async def google_login(data: GoogleAuthRequest, user_controller: UserController = Depends(get_user_controller_dependency)):
-    # 1. Verify Google token
+    GOOGLE_CLIENT_ID = "946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com"
+    logging.info("[Google OAuth] Attempting Google login/signup")
     google_token_info_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={data.credential}"
     resp = requests.get(google_token_info_url)
     if resp.status_code != 200:
+        logging.error(f"[Google OAuth] Invalid Google token: {resp.text}")
         raise HTTPException(status_code=401, detail="Invalid Google token")
     token_info = resp.json()
     if token_info.get("aud") != GOOGLE_CLIENT_ID:
+        logging.error(f"[Google OAuth] Invalid client ID: {token_info.get('aud')}")
         raise HTTPException(status_code=401, detail="Invalid client ID")
-
     email = token_info.get("email")
+    if not email:
+        logging.error("[Google OAuth] No email found in Google token.")
+        raise HTTPException(status_code=400, detail="No email found in Google token.")
     name = token_info.get("name", email.split("@")[0])
-
-    # 2. Find or create user in your DB
     user = await user_controller.user_collection.get_user_by_email(email)
+    user_created = False
     if not user:
-        # You may want to set a random password or mark as Google user
-        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number="", role="user")
+        # Create new user with Google info
+        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number=0)
         user = await user_controller.user_collection.create_user(user_req)
-    # 3. Generate JWT token
+        user_created = True
+        logging.info(f"[Google OAuth] Created new user: {email}")
+    else:
+        # If user exists but has missing phone_number or password, fill them
+        update_needed = False
+        if not getattr(user, 'phone_number', None):
+            user.phone_number = 0
+            update_needed = True
+        if not getattr(user, 'password', None) or user.password == "":
+            user.password = "google-oauth"
+            update_needed = True
+        if update_needed:
+            await user.save()
+        logging.info(f"[Google OAuth] Existing user logged in: {email}")
     from src.lib.token_handler import create_access_token
     token = create_access_token({"sub": user.username})
-    return {"access_token": token, "user": user}
+    return {"access_token": token, "user": user, "user_created": user_created}
