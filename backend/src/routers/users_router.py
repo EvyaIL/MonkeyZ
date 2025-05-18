@@ -114,8 +114,9 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
     token = create_access_token({"sub": user.username})
     return {"access_token": token, "user": user, "user_created": user_created}
 
-class PasswordResetRequestPayload(BaseModel):
-    email: str
+class PasswordResetConfirmPayload(BaseModel):
+    token: str
+    new_password: str
 
 # Endpoint to request a password reset
 @users_router.post("/password-reset/request")
