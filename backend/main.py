@@ -13,6 +13,9 @@ from src.routers.keys_router import key_router
 load_dotenv()
 app = FastAPI()
 
+from routers import grow_router
+
+app.include_router(grow_router.router)
 
 
 app.add_middleware(
