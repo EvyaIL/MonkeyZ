@@ -1,3 +1,11 @@
-# https://www.robotstxt.org/robotstxt.html
+# robots.txt for https://monkeyz.co.il/
+# Learn more: https://www.robotstxt.org/robotstxt.html
+
 User-agent: *
 Disallow:
+
+# Allow crawling of all content
+Allow: /
+
+# Sitemap location (update if your sitemap URL changes)
+Sitemap: https://monkeyz.co.il/sitemap.xml

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
+import axios from "axios";
 
-const Login = ({setIsAuthenticated  }) => {
+const Login = ({ setIsAuthenticated }) => {
   const [user, setUser] = useState({ username: "", password: "" });
-  const [error, setError] = useState()
-  const [loding ,setLoding] = useState(false)
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setUser((prevUser) => ({
@@ -13,53 +14,84 @@ const Login = ({setIsAuthenticated  }) => {
     }));
   };
 
-  const login = () => {
-    setError("")
-    setLoding(true)
+  const login = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     const formData = new URLSearchParams();
-    formData.append('username', user.username);
-    formData.append('password', user.password);
-    const apiUrl = `http://${process.env.REACT_APP_BACKENDS_SERVER_HOST}:${process.env.REACT_APP_BACKENDS_SERVER_PORT}/auth/login`;
+    formData.append("username", user.username);
+    formData.append("password", user.password);
 
-    axios.post(apiUrl, formData)
-      .then(response => {
-        const { access_token, token_type ,token_expiry } = response.data;
-        const expiryTime = new Date(new Date().getTime() + token_expiry * 1000);
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('token_expiry', expiryTime);
-        localStorage.setItem('is_authenticated',true);
-        setLoding(false)
-        setIsAuthenticated(true)
-      })
-      .catch(error => (setError('Error during login:'+ error?.response?.data?.error),setLoding(false)));
+    const apiUrl = `https://${process.env.REACT_APP_BACKENDS_SERVER_HOST}:${process.env.REACT_APP_BACKENDS_SERVER_PORT}/auth/login`;
+
+    try {
+      const response = await axios.post(apiUrl, formData);
+      const { access_token, token_expiry } = response.data;
+      const expiryTime = new Date(new Date().getTime() + token_expiry * 1000);
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("token_expiry", expiryTime);
+      localStorage.setItem("is_authenticated", true);
+      setIsAuthenticated(true);
+    } catch (error) {
+      setError(
+        "Error during login: " +
+          (error?.response?.data?.error || error.message),
+      );
+    }
+    setLoading(false);
   };
 
   return (
     <div className="container mx-auto p-4">
-      <div className="mb-4">
-        <input
-          type="text"
-          name="username"
-          value={user.username}
-          onChange={handleChange}
-          placeholder="Username"
-          className="border p-2 mr-2"
-        />
-        <input
-          type="password"
-          name="password"
-          value={user.password}
-          onChange={handleChange}
-          placeholder="Password"
-          className="border p-2 mr-2"
-        />
-      </div>
-      <div>
-          <h3 className='text-red-700'> {error}</h3>
-      </div>
-      <div>
-        <button onClick={login} className="bg-blue-500 text-white p-2">{loding?"login...":"login"}</button>
-      </div>
+      <form onSubmit={login} className="mb-4 space-y-3" aria-label="Login form">
+        <div>
+          <label htmlFor="username" className="sr-only">
+            Username
+          </label>
+          <input
+            id="username"
+            type="text"
+            name="username"
+            value={user.username}
+            onChange={handleChange}
+            placeholder="Username"
+            className="border p-2 mr-2"
+            autoComplete="username"
+            required
+          />
+          <label htmlFor="password" className="sr-only">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            value={user.password}
+            onChange={handleChange}
+            placeholder="Password"
+            className="border p-2 mr-2"
+            autoComplete="current-password"
+            required
+          />
+        </div>
+        {error && (
+          <div>
+            <h3 className="text-red-700" role="alert">
+              {error}
+            </h3>
+          </div>
+        )}
+        <div>
+          <button
+            type="submit"
+            className="bg-blue-500 text-white p-2"
+            disabled={loading}
+            aria-busy={loading}
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
