@@ -33,6 +33,7 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     }
 
     response = requests.post(EMAILJS_API_URL, json=payload)
+    print("EmailJS response:", response.status_code, response.text)  # Debug line
     if response.status_code != 200:
         print(f"Error sending password reset email: {response.status_code} - {response.text}")
     return response.status_code == 200
@@ -76,6 +77,7 @@ def send_otp_email(to_email: str, otp: str) -> bool:
     }
 
     response = requests.post(EMAILJS_API_URL, json=payload)
+    print("EmailJS response:", response.status_code, response.text)  # Debug line
     if response.status_code != 200:
         print(f"Error sending OTP email: {response.status_code} - {response.text}")
     return response.status_code == 200
