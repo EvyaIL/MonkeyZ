@@ -6,7 +6,6 @@ import SecondaryButton from "../components/buttons/SecondaryButton";
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { validateEmail, validatePassword } from "../lib/authUtils";
-import { sendPasswordResetEmail } from "../lib/emailService";
 import { GoogleLogin } from '@react-oauth/google';
 
 const SignIn = () => {
@@ -101,13 +100,23 @@ const SignIn = () => {
       setResetMsg("Invalid email address.");
       return;
     }
+    setIsSubmit(true); // Indicate loading/submission state
     try {
-      // Generate a dummy reset link (replace with real logic)
-      const reset_link = `${window.location.origin}/reset-password?email=${encodeURIComponent(resetEmail)}`;
-      await sendPasswordResetEmail({ to_email: resetEmail, reset_link });
-      setResetMsg("Password reset email sent.");
+      // Call the backend endpoint to request a password reset
+      const { data, error } = await apiService.post(
+        `/user/password-reset/request`, // Remove email from query params
+        { email: resetEmail } // Send email in the request body
+      );
+
+      if (error) {
+        setResetMsg(error || "Failed to send reset email.");
+      } else {
+        setResetMsg(data?.message || "Password reset link sent. Please check your email.");
+      }
     } catch (err) {
-      setResetMsg("Failed to send reset email.");
+      setResetMsg("An unexpected error occurred. Failed to send reset email.");
+    } finally {
+      setIsSubmit(false); // Reset loading/submission state
     }
   };
 

@@ -12,6 +12,7 @@ import Checkout from "./pages/Checkout";
 import FAQ from "./pages/FAQ";
 import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
+import ResetPassword from "./pages/ResetPassword";
 
 const AppRouter = () => {
   return (
@@ -24,6 +25,7 @@ const AppRouter = () => {
         <Route path="/account" element={<Profile />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/products" element={<AllProducts />} />
         <Route path="/product/:name" element={<ProductPage />} />
         <Route path="/faq" element={<FAQ />} />

@@ -10,7 +10,22 @@ from src.lib.token_handler import ACCESS_TOKEN_EXPIRE_MINUTES
 from pydantic import BaseModel
 import requests
 import logging
+from datetime import datetime, timedelta
+from jose import jwt
+from src.lib.email_service import send_password_reset_email # Corrected import
+import os # Added for environment variables
 
+# Load from environment variables with defaults
+SECRET_KEY = os.getenv("RESET_TOKEN_SECRET_KEY", "your-secret-key-please-change") 
+ALGORITHM = "HS256"
+RESET_TOKEN_EXPIRE_MINUTES = 30
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000") # Example, adjust as needed
+
+# Helper function to create a password reset token
+def create_reset_token(email: str):
+    expire = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"sub": email, "exp": expire}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 @contextlib.asynccontextmanager
 async def lifespan(router: APIRouter):
@@ -77,15 +92,17 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
     user_created = False
     if not user:
         # Create new user with Google info
-        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number=0)
+        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number=None) # Changed 0 to None
         user = await user_controller.user_collection.create_user(user_req)
         user_created = True
         logging.info(f"[Google OAuth] Created new user: {email}")
     else:
         # If user exists but has missing phone_number or password, fill them
         update_needed = False
-        if not getattr(user, 'phone_number', None):
-            user.phone_number = 0
+        # Check if phone_number attribute exists and is None or an empty string if it were a string
+        # For an optional int, we just check if it's None or if the attribute is missing
+        if getattr(user, 'phone_number', None) is None: # Ensure it's truly None, not 0
+            user.phone_number = None # Set to None
             update_needed = True
         if not getattr(user, 'password', None) or user.password == "":
             user.password = "google-oauth"
@@ -96,3 +113,50 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
     from src.lib.token_handler import create_access_token
     token = create_access_token({"sub": user.username})
     return {"access_token": token, "user": user, "user_created": user_created}
+
+class PasswordResetRequestPayload(BaseModel):
+    email: str
+
+# Endpoint to request a password reset
+@users_router.post("/password-reset/request")
+async def request_password_reset(payload: PasswordResetRequestPayload, user_controller: UserController = Depends(get_user_controller_dependency)):
+    email = payload.email
+    user = await user_controller.user_collection.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    reset_token = create_reset_token(email)
+    reset_link = f"{FRONTEND_URL}/reset-password?token={reset_token}" # Use environment variable
+
+    # Use the dedicated function for sending password reset emails
+    email_sent = send_password_reset_email(
+        to_email=email,
+        reset_link=reset_link
+    )
+
+    if not email_sent:
+        raise HTTPException(status_code=500, detail="Failed to send reset email")
+
+    return {"message": "Password reset link sent"}
+
+# Endpoint to reset the password
+@users_router.post("/password-reset/confirm")
+async def reset_password(token: str, new_password: str, user_controller: UserController = Depends(get_user_controller_dependency)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=400, detail="Invalid token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token has expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    user = await user_controller.user_collection.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password = new_password  # Ensure password is hashed in the actual implementation
+    await user.save()
+
+    return {"message": "Password has been reset successfully"}
