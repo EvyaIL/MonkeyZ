@@ -7,11 +7,12 @@ import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
 import AllProducts from "./pages/AllProducts";
 import ProductPage from "./pages/ProductPage";
+import Checkout from "./pages/Checkout";
 
 const AppRouter = () => {
     return (
         <Router>
-            <Navbar /> 
+            <Navbar />
             <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/profile" element={<Profile />} />
@@ -20,7 +21,12 @@ const AppRouter = () => {
                 <Route path="/products" element={<AllProducts />} />
                 <Route path="/product/:name" element={<ProductPage />} />
 
-                <Route path="*" element={<NotFound />} /> 
+                {/* Grow payment routes */}
+                <Route path="/checkout" element={<Checkout />} />
+                <Route path="/success" element={<div className="p-4 text-green-600 text-center text-xl">Payment Successful!</div>} />
+                <Route path="/fail" element={<div className="p-4 text-red-600 text-center text-xl">Payment Failed. Please try again.</div>} />
+
+                <Route path="*" element={<NotFound />} />
             </Routes>
         </Router>
     );
