@@ -139,12 +139,18 @@ async def request_password_reset(payload: PasswordResetRequestPayload, user_cont
 
     return {"message": "Password reset link sent"}
 
+class PasswordResetConfirmPayload(BaseModel):
+    token: str
+    new_password: str
+
 # Endpoint to reset the password
 @users_router.post("/password-reset/confirm")
-async def reset_password(token: str, new_password: str, user_controller: UserController = Depends(get_user_controller_dependency)):
+async def reset_password(payload: PasswordResetConfirmPayload, user_controller: UserController = Depends(get_user_controller_dependency)):
+    token = payload.token
+    new_password = payload.new_password
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
+        payload_data = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload_data.get("sub")
         if email is None:
             raise HTTPException(status_code=400, detail="Invalid token")
     except jwt.ExpiredSignatureError:
