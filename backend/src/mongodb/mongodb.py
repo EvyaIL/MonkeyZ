@@ -35,7 +35,9 @@ def is_valid_mongodb_uri(uri: str) -> bool:
 class MongoDb:
     """
         A class for interacting with a MongoDB database
-    """    def __init__(self) -> None:
+    """
+    
+    def __init__(self) -> None:
         """
             Initializes the MongoDb class with no client initially connected.
         """
