@@ -13,6 +13,8 @@ import FAQ from "./pages/FAQ";
 import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
 import ResetPassword from "./pages/ResetPassword";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
 
 const AppRouter = () => {
   return (
@@ -31,6 +33,10 @@ const AppRouter = () => {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
+
+        {/* Blog routes */}
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
 
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />

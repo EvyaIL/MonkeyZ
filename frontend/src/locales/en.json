@@ -71,5 +71,12 @@
   "enter_username_or_email": "Enter your username or email",
   "password_min_length": "Password must be at least 8 characters.",
   "user_login_success": "User Login Successfully",
-  "google_signin_failed": "Google sign in failed."
+  "google_signin_failed": "Google sign in failed.",
+  "blog": "Blog",
+  "read_more": "Read More",
+  "posted_on": "Posted on",
+  "by": "By",
+  "back_to_blog": "Back to Blog",
+  "categories": "Categories",
+  "all_products_meta_description": "Browse all MonkeyZ products. Find the best digital products and services for your needs."
 }

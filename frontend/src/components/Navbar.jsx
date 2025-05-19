@@ -75,6 +75,12 @@ const Navbar = () => {
           >
             {t("faq")}
           </button>
+          <button
+            className="hover:text-accent transition"
+            onClick={() => navigate("/blog")}
+          >
+            {t("blog")}
+          </button>
         </div>
         <LanguageSwitcher />
 

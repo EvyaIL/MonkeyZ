@@ -71,5 +71,12 @@
   "password_min_length": "הסיסמה חייבת להיות לפחות 8 תווים.",
   "user_login_success": "התחברת בהצלחה",
   "enter_username_or_email": "הזן שם משתמש או אימייל",
-  "google_signin_failed": "התחברות עם גוגל נכשלה."
+  "google_signin_failed": "התחברות עם גוגל נכשלה.",
+  "blog": "בלוג",
+  "read_more": "קרא עוד",
+  "posted_on": "פורסם בתאריך",
+  "by": "מאת",
+  "back_to_blog": "חזרה לבלוג",
+  "categories": "קטגוריות",
+  "all_products_meta_description": "עיין בכל מוצרי MonkeyZ. מצא את המוצרים והשירותים הדיגיטליים הטובים ביותר לצרכים שלך."
 }

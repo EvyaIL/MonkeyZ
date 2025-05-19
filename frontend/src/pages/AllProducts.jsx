@@ -16,6 +16,8 @@ const AllProducts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
 
@@ -27,7 +29,7 @@ const AllProducts = () => {
   useEffect(() => {
     filterProducts();
     // eslint-disable-next-line
-  }, [filterPriceRange, searchQuery, allProducts, lang]);
+  }, [filterPriceRange, searchQuery, allProducts, lang, selectedCategories]);
 
   useEffect(() => {
     document.title = t("all_products");
@@ -55,6 +57,7 @@ const AllProducts = () => {
         },
         image: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80",
         price: 49.99,
+        category: "Utility"
       },
       {
         id: 2,
@@ -65,6 +68,7 @@ const AllProducts = () => {
         },
         image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
         price: 19.99,
+        category: "Cloud"
       },
       {
         id: 3,
@@ -75,6 +79,7 @@ const AllProducts = () => {
         },
         image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
         price: 9.99,
+        category: "VPN"
       },
       {
         id: 4,
@@ -85,6 +90,7 @@ const AllProducts = () => {
         },
         image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
         price: 14.99,
+        category: "Security"
       },
       {
         id: 5,
@@ -95,6 +101,7 @@ const AllProducts = () => {
         },
         image: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80",
         price: 29.99,
+        category: "Office"
       },
       {
         id: 6,
@@ -105,33 +112,43 @@ const AllProducts = () => {
         },
         image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
         price: 7.99,
+        category: "Security"
       },
       {
         id: 7,
-        name: { en: "MonkeyZ Photo Editor", he: "עורך תמונות של MonkeyZ" },
+        name: { en: "Microsoft Office 365", he: "Microsoft Office 365" },
         description: {
-          en: "Edit your photos like a pro with advanced tools and filters.",
-          he: "ערכו את התמונות שלכם כמו מקצוענים עם כלים ופילטרים מתקדמים.",
+          en: "Subscription to Microsoft Office applications.",
+          he: "מנוי ליישומי Microsoft Office.",
         },
-        image: "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?auto=format&fit=crop&w=400&q=80",
-        price: 12.99,
+        image: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?auto=format&fit=crop&w=400&q=80",
+        price: 69.99,
+        category: "Microsoft"
       },
       {
         id: 8,
-        name: { en: "MonkeyZ Music Studio", he: "אולפן מוזיקה של MonkeyZ" },
+        name: { en: "Windows 11 Pro Key", he: "מפתח Windows 11 Pro" },
         description: {
-          en: "Create, mix, and share your music with our powerful studio suite.",
-          he: "צרו, ערכו ושתפו מוזיקה עם חבילת האולפן העוצמתית שלנו.",
+          en: "Genuine license key for Windows 11 Professional.",
+          he: "מפתח רישיון מקורי ל-Windows 11 Professional.",
         },
-        image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-        price: 24.99,
-      },
+        image: "https://images.unsplash.com/photo-1611242320536-f12d3541249b?auto=format&fit=crop&w=400&q=80",
+        price: 129.99,
+        category: "Microsoft"
+      }
     ];
 
-    const productData = data && data.length > 0 ? data : fallbackProducts;
+    const productData = data && data.length > 0 ? data.map(p => ({...p, category: p.category || demoCategories[Math.floor(Math.random() * demoCategories.length)]})) : fallbackProducts;
     const prices = productData.map((item) => item.price);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
+
+    // Extract categories from products (assuming a 'category' field)
+    // For fallback, I'll add some sample categories
+    const uniqueCategories = [...new Set(productData.map(p => p.category).filter(Boolean))];
+    // Add some default/demo categories if none are found or for fallback
+    const demoCategories = ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility'];
+    setCategories(uniqueCategories.length > 0 ? uniqueCategories : demoCategories);
 
     setAllProducts(productData);
     setPriceRange({ min: minPrice, max: maxPrice });
@@ -143,13 +160,26 @@ const AllProducts = () => {
   const filterProducts = () => {
     const filtered = allProducts.filter((product) => {
       const name = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
+      const description = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
+      const categoryMatch = selectedCategories.length === 0 || (product.category && selectedCategories.includes(product.category)) || 
+                            selectedCategories.some(sc => name.toLowerCase().includes(sc.toLowerCase()) || description.toLowerCase().includes(sc.toLowerCase()));
+
       return (
         product.price >= filterPriceRange.min &&
         product.price <= filterPriceRange.max &&
-        name.toLowerCase().includes(searchQuery.toLowerCase())
+        name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        categoryMatch
       );
     });
     setFilteredProducts(filtered);
+  };
+
+  const handleCategoryChange = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category) 
+        : [...prev, category]
+    );
   };
 
   return (
@@ -196,6 +226,23 @@ const AllProducts = () => {
               otherStyle="bg-gray-900 mt-4"
               aria-label={t("search_products")}
             />
+
+            <div className="mt-6">
+              <h3 className="text-accent text-lg font-semibold mb-3">{t("categories")}</h3>
+              <div className="space-y-2">
+                {categories.map((category) => (
+                  <label key={category} className="flex items-center space-x-2 text-white hover:text-accent cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      className="form-checkbox h-5 w-5 bg-gray-700 border-gray-600 rounded text-accent focus:ring-accent transition duration-150 ease-in-out"
+                      checked={selectedCategories.includes(category)}
+                      onChange={() => handleCategoryChange(category)}
+                    />
+                    <span>{category}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </section>
 
           {/* Products */}
