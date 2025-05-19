@@ -5,6 +5,7 @@ from src.models.user.user_exception import CreateError, LoginError, UserExceptio
 from src.singleton.singleton import Singleton
 from src.lib.haseing import Hase
 from src.lib.token_handler import create_access_token
+from typing import Optional # Added Optional for type hinting
 
 class UserCollection(MongoDb, metaclass=Singleton):
     """

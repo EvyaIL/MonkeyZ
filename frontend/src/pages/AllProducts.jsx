@@ -9,10 +9,11 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 
 const AllProducts = () => {
+  // Always use 0-200 for price range and filter
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 200 });
+  const [filterPriceRange, setFilterPriceRange] = useState({ min: 0, max: 200 });
   const [allProducts, setAllProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
-  const [filterPriceRange, setFilterPriceRange] = useState({ min: 0, max: 0 });
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -23,6 +24,8 @@ const AllProducts = () => {
 
   useEffect(() => {
     fetchAllProducts();
+    setPriceRange({ min: 0, max: 200 });
+    setFilterPriceRange({ min: 0, max: 200 });
     // eslint-disable-next-line
   }, []);
 
@@ -206,7 +209,7 @@ const AllProducts = () => {
               className="block text-white text-sm font-medium mb-2"
               htmlFor="price-range"
             >
-              {t("price_range")}: ₪{filterPriceRange.min} - ₪{filterPriceRange.max}
+              {t("price_range")}: {lang === "he" ? `₪${filterPriceRange.max} - ₪${filterPriceRange.min}` : `₪${filterPriceRange.min} - ₪${filterPriceRange.max}`}
             </label>
             {priceRange.max > 0 && (
               <RangeInput
@@ -229,14 +232,16 @@ const AllProducts = () => {
 
             <div className="mt-6">
               <h3 className="text-accent text-lg font-semibold mb-3">{t("categories")}</h3>
-              <div className="space-y-2">
+              <div className="flex flex-wrap gap-3">
                 {categories.map((category) => (
-                  <label key={category} className="flex items-center space-x-2 text-white hover:text-accent cursor-pointer">
+                  <label key={category} className={`flex items-center px-4 py-2 rounded-full border border-gray-600 bg-gray-900 text-white cursor-pointer transition-all duration-150 hover:bg-accent hover:text-white shadow-sm ${selectedCategories.includes(category) ? 'bg-accent text-white border-accent shadow-lg scale-105' : 'opacity-90'}`}
+                    style={{ minWidth: '110px', justifyContent: 'center', fontWeight: 500, fontSize: '1rem', letterSpacing: '0.02em' }}>
                     <input 
                       type="checkbox"
-                      className="form-checkbox h-5 w-5 bg-gray-700 border-gray-600 rounded text-accent focus:ring-accent transition duration-150 ease-in-out"
+                      className="form-checkbox h-5 w-5 accent-accent mr-2"
                       checked={selectedCategories.includes(category)}
                       onChange={() => handleCategoryChange(category)}
+                      style={{ accentColor: '#22c55e' }}
                     />
                     <span>{category}</span>
                   </label>
