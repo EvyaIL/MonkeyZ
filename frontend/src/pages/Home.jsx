@@ -5,6 +5,7 @@ import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
+import { Helmet } from "react-helmet";
 
 const fallbackProducts = [
   {
@@ -141,45 +142,53 @@ const Home = () => {
   };
 
   return (
-    <div className="bg-primary min-h-screen flex flex-col items-center justify-center p-6">
-      <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
-        {t("home")}
-      </h1>
+    <>
+      <Helmet>
+        <title>MonkeyZ - {t("home")}</title>
+        <meta name="description" content={t("home_meta_description") || "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service."} />
+        <meta property="og:title" content="MonkeyZ - {t('home')}" />
+        <meta property="og:description" content={t("home_meta_description") || "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service."} />
+      </Helmet>
+      <div className="bg-primary min-h-screen flex flex-col items-center justify-center p-6">
+        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
+          {t("home")}
+        </h1>
 
-      <section className="w-full max-w-6xl mb-8" aria-label={t("best_sellers")}>
-        {loadingBest ? (
-          <Spinner />
-        ) : errorBest ? (
-          <p className="text-red-500 text-center" role="alert">
-            {errorBest}
-          </p>
-        ) : (
-          <ProductShowcase products={bestSellers} title={t("best_sellers")} />
-        )}
-      </section>
+        <section className="w-full max-w-6xl mb-8" aria-label={t("best_sellers")}>
+          {loadingBest ? (
+            <Spinner />
+          ) : errorBest ? (
+            <p className="text-red-500 text-center" role="alert">
+              {errorBest}
+            </p>
+          ) : (
+            <ProductShowcase products={bestSellers} title={t("best_sellers")} />
+          )}
+        </section>
 
-      <section
-        className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5"
-        aria-label={t("new_products")}
-      >
-        <h2 className="text-center text-accent font-bold text-2xl mb-4">
-          {t("new_products")}
-        </h2>
-        {loadingRecent ? (
-          <Spinner />
-        ) : errorRecent ? (
-          <p className="text-red-500 text-center" role="alert">
-            {errorRecent}
-          </p>
-        ) : (
-          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {recent.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+        <section
+          className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5"
+          aria-label={t("new_products")}
+        >
+          <h2 className="text-center text-accent font-bold text-2xl mb-4">
+            {t("new_products")}
+          </h2>
+          {loadingRecent ? (
+            <Spinner />
+          ) : errorRecent ? (
+            <p className="text-red-500 text-center" role="alert">
+              {errorRecent}
+            </p>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {recent.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </>
   );
 };
 

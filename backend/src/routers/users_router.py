@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from jose import jwt
 from src.lib.email_service import send_password_reset_email # Corrected import
 import os # Added for environment variables
+from src.lib.haseing import Hase
 
 # Load from environment variables with defaults
 SECRET_KEY = os.getenv("RESET_TOKEN_SECRET_KEY", "your-secret-key-please-change") 
@@ -114,6 +115,9 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
     token = create_access_token({"sub": user.username})
     return {"access_token": token, "user": user, "user_created": user_created}
 
+class PasswordResetRequestPayload(BaseModel):
+    email: str
+
 class PasswordResetConfirmPayload(BaseModel):
     token: str
     new_password: str
@@ -163,7 +167,7 @@ async def reset_password(payload: PasswordResetConfirmPayload, user_controller: 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.password = new_password  # Ensure password is hashed in the actual implementation
+    user.password = Hase.bcrypt(new_password)  # Hash the password!
     await user.save()
 
     return {"message": "Password has been reset successfully"}

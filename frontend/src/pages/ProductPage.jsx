@@ -5,6 +5,7 @@ import PrimaryButton from "../components/buttons/PrimaryButton";
 import PrimaryInput from "../components/inputs/PrimaryInput";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
+import { Helmet } from "react-helmet";
 
 const ProductPage = () => {
   const { name } = useParams();
@@ -152,75 +153,83 @@ const ProductPage = () => {
   const displayDesc = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
 
   return (
-    <div className="bg-primary p-9 flex flex-col items-center justify-center min-h-screen">
-      <div className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5">
-        {loading ? (
-          <p className="text-white text-center" aria-live="polite">
-            {lang === "he" ? "טוען מוצר..." : "Loading product..."}
-          </p>
-        ) : errorMsg ? (
-          <p className="text-red-500 text-center" role="alert">
-            {errorMsg}
-          </p>
-        ) : (
-          <>
-            <h2
-              className="text-center text-accent font-bold text-2xl mb-4"
-              tabIndex={0}
-            >
-              {displayName || t("product_name")}
-            </h2>
+    <>
+      <Helmet>
+        <title>{displayName ? `MonkeyZ - ${displayName}` : "MonkeyZ - Product"}</title>
+        <meta name="description" content={displayDesc || "Product details for MonkeyZ."} />
+        <meta property="og:title" content={displayName ? `MonkeyZ - ${displayName}` : "MonkeyZ - Product"} />
+        <meta property="og:description" content={displayDesc || "Product details for MonkeyZ."} />
+      </Helmet>
+      <div className="bg-primary p-9 flex flex-col items-center justify-center min-h-screen">
+        <div className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5">
+          {loading ? (
+            <p className="text-white text-center" aria-live="polite">
+              {lang === "he" ? "טוען מוצר..." : "Loading product..."}
+            </p>
+          ) : errorMsg ? (
+            <p className="text-red-500 text-center" role="alert">
+              {errorMsg}
+            </p>
+          ) : (
+            <>
+              <h2
+                className="text-center text-accent font-bold text-2xl mb-4"
+                tabIndex={0}
+              >
+                {displayName || t("product_name")}
+              </h2>
 
-            <div className="flex flex-col md:flex-row gap-6 items-start p-4">
-              <div className="w-full md:w-1/2 min-h-[250px] rounded-lg border border-gray-600 bg-gray-800 flex items-center justify-center">
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={displayName || t("product_image")}
-                    className="object-cover w-full h-full rounded-lg"
-                  />
-                ) : (
-                  <span className="text-white text-lg">{lang === "he" ? "אין תמונה זמינה" : "No Image Available"}</span>
-                )}
+              <div className="flex flex-col md:flex-row gap-6 items-start p-4">
+                <div className="w-full md:w-1/2 min-h-[250px] rounded-lg border border-gray-600 bg-gray-800 flex items-center justify-center">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={displayName || t("product_image")}
+                      className="object-cover w-full h-full rounded-lg"
+                    />
+                  ) : (
+                    <span className="text-white text-lg">{lang === "he" ? "אין תמונה זמינה" : "No Image Available"}</span>
+                  )}
+                </div>
+
+                <div className="flex-1 text-white">
+                  <h2 className="text-start text-accent font-bold text-xl mb-4">
+                    {displayName}
+                  </h2>
+                  <p className="text-lg leading-relaxed">
+                    {displayDesc || (lang === "he" ? "אין תיאור זמין." : "No description available.")}
+                  </p>
+                  <p className="text-lg font-semibold text-accent mt-4">
+                    ₪{product.price?.toFixed(2)}
+                  </p>
+                </div>
               </div>
 
-              <div className="flex-1 text-white">
-                <h2 className="text-start text-accent font-bold text-xl mb-4">
-                  {displayName}
-                </h2>
-                <p className="text-lg leading-relaxed">
-                  {displayDesc || (lang === "he" ? "אין תיאור זמין." : "No description available.")}
-                </p>
-                <p className="text-lg font-semibold text-accent mt-4">
-                  ₪{product.price?.toFixed(2)}
-                </p>
+              <div className="mt-4 flex justify-end items-center">
+                <PrimaryInput
+                  type="number"
+                  min={1}
+                  value={quantity}
+                  onChange={(e) =>
+                    setQuantity(Math.max(1, parseInt(e.target.value) || 1))
+                  }
+                  otherStyle="w-20 mx-3 bg-gray-900 text-center h-10"
+                  aria-label={lang === "he" ? "כמות" : "Quantity"}
+                />
+
+                <PrimaryButton
+                  title={lang === "he" ? "הוסף לעגלה" : "Add to Cart"}
+                  otherStyle="h-11"
+                  onClick={handleAddToCart}
+                  disabled={!product.id}
+                  aria-label={lang === "he" ? "הוסף לעגלה" : "Add to cart"}
+                />
               </div>
-            </div>
-
-            <div className="mt-4 flex justify-end items-center">
-              <PrimaryInput
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) =>
-                  setQuantity(Math.max(1, parseInt(e.target.value) || 1))
-                }
-                otherStyle="w-20 mx-3 bg-gray-900 text-center h-10"
-                aria-label={lang === "he" ? "כמות" : "Quantity"}
-              />
-
-              <PrimaryButton
-                title={lang === "he" ? "הוסף לעגלה" : "Add to Cart"}
-                otherStyle="h-11"
-                onClick={handleAddToCart}
-                disabled={!product.id}
-                aria-label={lang === "he" ? "הוסף לעגלה" : "Add to cart"}
-              />
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

@@ -6,6 +6,7 @@ import RangeInput from "../components/inputs/RangeInput";
 import PrimaryInput from "../components/inputs/PrimaryInput";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
+import { Helmet } from "react-helmet";
 
 const AllProducts = () => {
   const [allProducts, setAllProducts] = useState([]);
@@ -152,73 +153,81 @@ const AllProducts = () => {
   };
 
   return (
-    <div className="bg-primary min-h-screen flex flex-col items-center p-6">
-      <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
-        {t("all_products")}
-      </h1>
+    <>
+      <Helmet>
+        <title>MonkeyZ - {t("all_products")}</title>
+        <meta name="description" content={t("all_products_meta_description") || "Browse all MonkeyZ products. Find the best digital products and services for your needs."} />
+        <meta property="og:title" content="MonkeyZ - {t('all_products')}" />
+        <meta property="og:description" content={t("all_products_meta_description") || "Browse all MonkeyZ products. Find the best digital products and services for your needs."} />
+      </Helmet>
+      <div className="bg-primary min-h-screen flex flex-col items-center p-6">
+        <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
+          {t("all_products")}
+        </h1>
 
-      <div className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-7xl flex flex-col md:flex-row gap-6">
-        {/* Filters */}
-        <section
-          className="w-full md:w-1/4 bg-gray-800 p-4 rounded-lg"
-          aria-label={t("product_filters")}
-        >
-          <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
-          <label
-            className="block text-white text-sm font-medium mb-2"
-            htmlFor="price-range"
+        <div className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-7xl flex flex-col md:flex-row gap-6">
+          {/* Filters */}
+          <section
+            className="w-full md:w-1/4 bg-gray-800 p-4 rounded-lg"
+            aria-label={t("product_filters")}
           >
-            {t("price_range")}: ₪{filterPriceRange.min} - ₪{filterPriceRange.max}
-          </label>
-          {priceRange.max > 0 && (
-            <RangeInput
-              id="price-range"
-              min={priceRange.min}
-              max={priceRange.max}
-              value={filterPriceRange}
-              onChange={setFilterPriceRange}
+            <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
+            <label
+              className="block text-white text-sm font-medium mb-2"
+              htmlFor="price-range"
+            >
+              {t("price_range")}: ₪{filterPriceRange.min} - ₪{filterPriceRange.max}
+            </label>
+            {priceRange.max > 0 && (
+              <RangeInput
+                id="price-range"
+                min={priceRange.min}
+                max={priceRange.max}
+                value={filterPriceRange}
+                onChange={setFilterPriceRange}
+              />
+            )}
+            <PrimaryInput
+              type="search"
+              title={t("search")}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("search_products_placeholder")}
+              value={searchQuery}
+              otherStyle="bg-gray-900 mt-4"
+              aria-label={t("search_products")}
             />
-          )}
-          <PrimaryInput
-            type="search"
-            title={t("search")}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("search_products_placeholder")}
-            value={searchQuery}
-            otherStyle="bg-gray-900 mt-4"
-            aria-label={t("search_products")}
-          />
-        </section>
+          </section>
 
-        {/* Products */}
-        <section className="w-full" aria-label={t("product_list")}> 
-          <h2 className="text-center text-accent font-bold text-2xl mb-4">
-            {t("new_products")}
-          </h2>
-          {loading ? (
-            <Spinner />
-          ) : errorMsg ? (
-            <p className="text-red-500 text-center" role="alert">
-              {errorMsg}
-            </p>
-          ) : filteredProducts.length === 0 ? (
-            <p className="text-gray-400 text-center" aria-live="polite">
-              {t("no_products_found")}
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  otherStyle="xl:scale-90"
-                />
-              ))}
-            </div>
-          )}
-        </section>
+          {/* Products */}
+          <section className="w-full" aria-label={t("product_list")}> 
+            <h2 className="text-center text-accent font-bold text-2xl mb-4">
+              {t("new_products")}
+            </h2>
+            {loading ? (
+              <Spinner />
+            ) : errorMsg ? (
+              <p className="text-red-500 text-center" role="alert">
+                {errorMsg}
+              </p>
+            ) : filteredProducts.length === 0 ? (
+              <p className="text-gray-400 text-center" aria-live="polite">
+                {t("no_products_found")}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    otherStyle="xl:scale-90"
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

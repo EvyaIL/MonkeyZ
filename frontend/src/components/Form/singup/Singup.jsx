@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { apiService } from "../../../lib/apiService";
 
 const Signup = ({ setIsAuthenticated }) => {
   const [user, setUser] = useState({
@@ -26,19 +27,18 @@ const Signup = ({ setIsAuthenticated }) => {
     setResponse("");
     setLoading(true);
 
-    const apiUrl = `http://${process.env.REACT_APP_BACKENDS_SERVER_HOST}:${process.env.REACT_APP_BACKENDS_SERVER_PORT}/user/create`;
-
     try {
-      const res = await axios.post(apiUrl, user);
+      const { data, error } = await apiService.post("/user", user);
       setLoading(false);
+      if (error) {
+        setError("Error during signup: " + error);
+        return;
+      }
       setResponse("You created a user successfully!");
       setUser({ username: "", email: "", password: "", phone_number: "" });
       // Optionally, setIsAuthenticated(true);
     } catch (error) {
-      setError(
-        "Error during signup: " +
-          (error?.response?.data?.error || error.message),
-      );
+      setError("Error during signup: " + (error?.response?.data?.error || error.message));
       setLoading(false);
     }
   };
@@ -106,7 +106,7 @@ const Signup = ({ setIsAuthenticated }) => {
         </div>
         <div>
           {error && (
-            <h3 className="text-red-700" role="alert">
+            <h3 className="text-red-700" role="alert" aria-live="polite">
               {error}
             </h3>
           )}

@@ -38,7 +38,7 @@ app.include_router(grow_router.router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TEMP: Allow all origins for debugging. Change to production domains before deploying!
+    allow_origins=["http://localhost:3000", "https://monkeyz.co.il"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

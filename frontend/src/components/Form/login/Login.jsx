@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { apiService } from "../../../lib/apiService";
 
 const Login = ({ setIsAuthenticated }) => {
   const [user, setUser] = useState({ username: "", password: "" });
@@ -22,21 +23,21 @@ const Login = ({ setIsAuthenticated }) => {
     formData.append("username", user.username);
     formData.append("password", user.password);
 
-    const apiUrl = `https://${process.env.REACT_APP_BACKENDS_SERVER_HOST}:${process.env.REACT_APP_BACKENDS_SERVER_PORT}/auth/login`;
-
     try {
-      const response = await axios.post(apiUrl, formData);
-      const { access_token, token_expiry } = response.data;
+      const { data, error } = await apiService.post("/user/login", formData, "application/x-www-form-urlencoded");
+      if (error) {
+        setError("Error during login: " + error);
+        setLoading(false);
+        return;
+      }
+      const { access_token, token_expiry } = data;
       const expiryTime = new Date(new Date().getTime() + token_expiry * 1000);
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("token_expiry", expiryTime);
       localStorage.setItem("is_authenticated", true);
       setIsAuthenticated(true);
     } catch (error) {
-      setError(
-        "Error during login: " +
-          (error?.response?.data?.error || error.message),
-      );
+      setError("Error during login: " + (error?.response?.data?.error || error.message));
     }
     setLoading(false);
   };
@@ -75,7 +76,7 @@ const Login = ({ setIsAuthenticated }) => {
           />
         </div>
         {error && (
-          <div>
+          <div aria-live="polite">
             <h3 className="text-red-700" role="alert">
               {error}
             </h3>

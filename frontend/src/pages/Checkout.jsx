@@ -26,8 +26,8 @@ const Checkout = () => {
         amount: parseInt(amount), // in agorot (e.g. 1000 = ₪10)
         email: email,
         currency: "ILS",
-        successUrl: "https://monkeyz.co.il/success",
-        failUrl: "https://monkeyz.co.il/fail",
+        successUrl: process.env.REACT_APP_PAYMENT_SUCCESS_URL || "https://monkeyz.co.il/success",
+        failUrl: process.env.REACT_APP_PAYMENT_FAIL_URL || "https://monkeyz.co.il/fail",
         description: "CDMonkey Payment",
       };
 
