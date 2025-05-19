@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Main Pages -->
+  <url>
+    <loc>https://monkeyz.co.il/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/products</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  
+  <!-- Product Pages -->
+  <url>
+    <loc>https://monkeyz.co.il/product/MonkeyZ%20Pro%20Key</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1519125323398-675f0ddb6308</image:loc>
+      <image:title>MonkeyZ Pro Key</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/product/MonkeyZ%20Cloud%20Storage</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1465101046530-73398c7f28ca</image:loc>
+      <image:title>MonkeyZ Cloud Storage</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/product/MonkeyZ%20VPN</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1506744038136-46273834b3fb</image:loc>
+      <image:title>MonkeyZ VPN</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/product/MonkeyZ%20Antivirus</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1517336714731-489689fd1ca8</image:loc>
+      <image:title>MonkeyZ Antivirus</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/product/MonkeyZ%20Office%20Suite</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1464983953574-0892a716854b</image:loc>
+      <image:title>MonkeyZ Office Suite</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/product/MonkeyZ%20Password%20Manager</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <lastmod>2025-05-19</lastmod>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1515378791036-0648a3ef77b2</image:loc>
+      <image:title>MonkeyZ Password Manager</image:title>
+    </image:image>
+  </url>
+  
+  <!-- Category Pages -->
+  <url>
+    <loc>https://monkeyz.co.il/products?category=Security</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/products?category=Cloud</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/products?category=Office</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+  <url>
+    <loc>https://monkeyz.co.il/products?category=Utility</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <lastmod>2025-05-19</lastmod>
+  </url>
+</urlset>
