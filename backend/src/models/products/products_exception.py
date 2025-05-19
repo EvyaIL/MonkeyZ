@@ -14,9 +14,9 @@ class NotValid(ProductsException):
 
 
 class CreateError(NotValid):
-    def __init__(self ,msg:str, path:str, status_code:int) -> None:
-        path = "[CreateError]:" + path
-        super().__init__(msg, path, status_code)
+    def __init__(self ,msg:str) -> None:
+        path = "[CreateError]:" 
+        super().__init__(msg, path, status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteError(ProductsException):

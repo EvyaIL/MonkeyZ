@@ -5,6 +5,7 @@ from beanie import init_beanie
 class MongoDb:
     """
         A class for interacting with a MongoDB database
+        
     """
 
     def __init__(self) -> None:
@@ -15,22 +16,47 @@ class MongoDb:
 
     async def connection(self) -> None:
         """
-            Establishes a connection to the MongoDB server using the MONGODB_URI environment variable.
+            Establishes a connection to the MongoDB server.
         """
-        mongo_uri = os.getenv("MONGODB_URI")
-        if not mongo_uri:
-            raise ValueError("MONGODB_URI environment variable is not set.")
-        self.client = AsyncIOMotorClient(mongo_uri)
+        mongo_path = os.getenv('MONGO_PATH')
+        self.client = AsyncIOMotorClient(mongo_path)
 
     async def get_client(self) -> AsyncIOMotorClient:
-        """ Returns the MongoDB client. """
-        return self.client
+        """ Returns the MongoDB client.
 
-    async def add_new_collection(self, collection_name: str) -> AsyncIOMotorDatabase:
-        """ Adds a new collection with the given name and returns it. """
+            Returns
+            -------
+                AsyncIOMotorClient
+                    The MongoDB client.
+        """
+        return self.client
+    
+    async def add_new_collection(self,collection_name:str) -> AsyncIOMotorDatabase:
+        """ Adds a new collection with the given name and returns it.
+
+            Parameters
+            ----------
+                collection : str
+                    The name of the database to add.
+
+            Returns
+            -------
+                AsyncIOMotorDatabase
+                    The new collection.
+        """
         db = self.client.get_database(collection_name)
         return db
+    
+    async def initialize_beanie(self,db,model:any) -> None:
+        """ Initializes Beanie ODM with the provided database and document models.
 
-    async def initialize_beanie(self, db, model: any) -> None:
-        """ Initializes Beanie ODM with the provided database and document models. """
-        await init_beanie(database=db, document_models=model)
+            Parameters
+            ----------
+                db : AsyncIOMotorDatabase
+                    The database to initialize Beanie with.
+                model : any
+                    The document models to use with Beanie.
+
+        """
+        await init_beanie(database= db, document_models=model)
+

@@ -46,22 +46,25 @@ async def get_best_sellers(limit:int = 8, products_controller:ProductsController
    return products
 
 
-@product_router.get("", response_model=ProductResponse)
-async def get_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_id(product_id) 
+@product_router.post("/many", response_model=list[ProductResponse])
+async def get_product(products_id:list[PydanticObjectId], products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   products = await products_controller.get_many_products(products_id) 
    return products
 
 @product_router.get("", response_model=ProductResponse)
 async def get_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
    products = await products_controller.product_collection.get_product_by_id(product_id) 
    return products
-
 
 @product_router.get("/{name_product}", response_model=ProductResponse)
 async def get_product(name_product:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
    products = await products_controller.product_collection.get_product_by_name(name_product) 
    return products
 
+@product_router.post("")
+async def create_product(product_request:ProductRequest,products_controller:ProductsController = Depends(get_products_controller_dependency), current_user:User = Depends(get_current_user)):
+   product_id = await products_controller.create_product(product_request,current_user.username)
+   return product_id
 
 @product_router.put("")
 async def edit_product(product_id:PydanticObjectId, product_request:ProductRequest,products_controller:ProductsController = Depends(get_products_controller_dependency), current_user:User = Depends(get_current_user)):

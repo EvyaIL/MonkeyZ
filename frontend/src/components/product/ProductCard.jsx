@@ -1,112 +1,52 @@
 import { useNavigate } from "react-router-dom";
 import PrimaryButton from "../buttons/PrimaryButton";
 import { useGlobalProvider } from "../../context/GlobalProvider";
-import { useTranslation } from "react-i18next";
-import { useState } from "react";
 
 const ProductCard = ({ product, otherStyle }) => {
-  const navigate = useNavigate();
-  const { addItemToCart } = useGlobalProvider();
-  const { t, i18n } = useTranslation();
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const lang = i18n.language || "he";
+    const navigate = useNavigate();
+    const { addItemToCart } = useGlobalProvider();
+    const isOutOfStock = product?.stock < 1; 
 
-  // Support both {en, he} object and plain string
-  const displayName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-  const displayDesc = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
+    return (
+        <div 
+            className={`relative bg-secondary border rounded-lg border-primary shadow-lg shadow-primary p-6 w-64 h-auto flex flex-col items-center transition-all 
+                ${isOutOfStock ? "opacity-50 cursor-not-allowed" : "hover:scale-105 hover:z-10 z-0 cursor-pointer"}  
+                ${otherStyle}`}
+            onClick={() => !isOutOfStock && navigate(`/product/${product?.name}`)}
+        >
+            {isOutOfStock && (
+                <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-lg">
+                    Out of Stock
+                </div>
+            )}
 
-  // Handle adding to cart
-  const handleAddToCart = (e) => {
-    e.stopPropagation();
-    addItemToCart(product.id, 1, product);
-    
-    // Show feedback animation (optional)
-    const button = e.currentTarget;
-    button.classList.add("scale-110");
-    setTimeout(() => {
-      button.classList.remove("scale-110");
-    }, 200);
-  };
+            <h2 className="text-accent font-semibold text-lg mb-3 text-center">{product?.name}</h2>
 
-  // Navigate to product details
-  const goToProductDetails = () => {
-    navigate(`/product/${encodeURIComponent(product.id)}`);
-  };
-
-  return (
-    <div
-      className={`bg-secondary border rounded-lg border-gray-700 shadow-lg p-4 w-full flex flex-col transition-all duration-300 hover:shadow-xl ${otherStyle}`}
-      tabIndex={0}
-      role="region"
-      aria-label={`Product card for ${displayName}`}
-    >
-      {/* Clickable area for navigation */}
-      <div
-        className="w-full cursor-pointer flex flex-col flex-grow"
-        onClick={goToProductDetails}
-        tabIndex={0}
-        role="button"
-        aria-label={`View details for ${displayName}`}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") goToProductDetails();
-        }}
-      >
-        {/* Image container with aspect ratio & loading states */}
-        <div className="w-full aspect-[4/3] relative rounded-md overflow-hidden mb-4 bg-gray-800">
-          {!imageLoaded && !imageError && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-pulse w-8 h-8 rounded-full bg-accent/50"></div>
+            <div className={` flex  items-center justify-center w-full h-44 border border-gray-600 bg-gray-800 text-white rounded-lg  ${!product.image?.data && product.image == "" &&"animate-pulse"}`}>
+                {product.image ? (
+                    <img src={product?.image?.data} alt={product?.image?.filename} className="object-cover w-full h-full rounded-lg" />
+                ) : (
+                    <span className="text-white text-lg ">Image</span>
+                )}
             </div>
-          )}
-          
-          <img
-            src={product.image}
-            alt={displayName}
-            loading="lazy"
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              imageLoaded && !imageError ? "opacity-100" : "opacity-0"
-            }`}
-            onLoad={() => setImageLoaded(true)}
-            onError={(e) => {
-              setImageError(true);
-              e.target.src = "https://via.placeholder.com/300x200?text=MonkeyZ+Product";
-              setImageLoaded(true);
-            }}
-          />
-          
-          {/* Price tag */}
-          <div className="absolute top-2 right-2 bg-accent text-white px-2 py-1 rounded-md font-semibold shadow-md">
-            ₪{product.price.toFixed(2)}
-          </div>
+
+            <p className="mt-3 text-white text-sm text-center leading-relaxed">
+                {product?.description}
+            </p>
+
+            <div className="flex items-center justify-between w-full mt-4">
+                <p className="text-lg font-medium text-white">${product?.price}</p>
+                <PrimaryButton 
+                    title={isOutOfStock ? "Out of Stock" : "Add to Cart"} 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        addItemToCart(product.id, 1, product);
+                    }} 
+                    disabled={isOutOfStock}
+                />
+            </div>
         </div>
-
-        {/* Product info */}
-        <h3 className="font-semibold text-lg text-white">{displayName}</h3>
-        <p className="text-gray-300 text-sm mt-2 line-clamp-3 flex-grow">
-          {displayDesc?.length > 100 ? displayDesc.substring(0, 97) + "..." : displayDesc}
-        </p>
-      </div>
-
-      {/* Action buttons */}
-      <div className="mt-4 w-full flex justify-between gap-2">
-        <button
-          className="flex-1 bg-secondary text-white border border-accent py-2 px-3 rounded-md hover:bg-secondary/80 transition-all duration-200"
-          onClick={goToProductDetails}
-          aria-label={`View details for ${displayName}`}
-        >
-          {t("details")}
-        </button>
-        <button
-          className="flex-1 bg-accent text-white py-2 px-3 rounded-md hover:bg-accent/80 transition-all duration-200"
-          onClick={handleAddToCart}
-          aria-label={`Add ${displayName} to cart`}
-        >
-          {t("add_to_cart")}
-        </button>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default ProductCard;

@@ -72,7 +72,7 @@ class KeysCollection(MongoDb, metaclass=Singleton):
         Key
             The created key.
         """
-        # self.validate_user_role(user)
+        
         key:Key = await self.get_key_by_id(key_id)
         if not key:
             raise UpdateError("key not found")
@@ -102,8 +102,19 @@ class KeysCollection(MongoDb, metaclass=Singleton):
         return key
 
     
-    async def delete_many_keys(keys: list[Key]):
+    async def delete_many_keys(self,keys: list[Key]):
         for key in keys:
             await key.delete()
 
+
+    async def delete_key_by_id(self, key_id:PydanticObjectId):
+        key = await self.get_key_by_id(key_id)
+        if not key:
+            raise UpdateError("key not found")
+        
+        if key.owner:
+            raise UpdateError("cant edit this key")
+        
+        await key.delete()
+       
 

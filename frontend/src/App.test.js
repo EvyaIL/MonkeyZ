@@ -1,9 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import App from "./App";
+import { render, screen } from '@testing-library/react';
+import App from './App';
 
-test("renders main app structure", () => {
+test('renders learn react link', () => {
   render(<App />);
-  // Check for a main element (semantic HTML)
-  const mainElement = screen.getByRole("main");
-  expect(mainElement).toBeInTheDocument();
+  const linkElement = screen.getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
 });

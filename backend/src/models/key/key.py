@@ -16,6 +16,7 @@ class KeyRequest(BaseModel):
 
 class KeyRespond (BaseModel):
     id:PydanticObjectId
+    product: PydanticObjectId
     is_active:bool
     owner:Optional[PydanticObjectId] = None
     key:str

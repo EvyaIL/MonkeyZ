@@ -1,108 +1,149 @@
-import React, { useState } from "react";
-import { createPayment } from "../lib/paymentService";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { useGlobalProvider } from "../context/GlobalProvider";
+import { useNavigate } from "react-router-dom";
 
 const Checkout = () => {
-  const [amount, setAmount] = useState("");
-  const [email, setEmail] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    const navigate = useNavigate();
+    const { token, user, cartItems } = useGlobalProvider();
 
-  const handlePay = async (e) => {
-    e.preventDefault();
-    setErrorMsg("");
+    useEffect(() => {
+        if (!token || !user) navigate("/");
+    }, [token, user, navigate]);
 
-    if (!amount || isNaN(amount) || parseInt(amount) <= 0) {
-      setErrorMsg("Please enter a valid amount in agorot.");
-      return;
-    }
-    if (!email || !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-      setErrorMsg("Please enter a valid email address.");
-      return;
-    }
+    const [form, setForm] = useState({
+        cardNumber: "",
+        expDate: "",
+        cvv: "",
+        currency: "1", // 1 = NIS
+        paymentMethod: "credit", // "credit", "bit", "paybox"
+    });
 
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        amount: parseInt(amount), // in agorot (e.g. 1000 = ₪10)
-        email: email,
-        currency: "ILS",
-        successUrl: process.env.REACT_APP_PAYMENT_SUCCESS_URL || "https://monkeyz.co.il/success",
-        failUrl: process.env.REACT_APP_PAYMENT_FAIL_URL || "https://monkeyz.co.il/fail",
-        description: "CDMonkey Payment",
-      };
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState("");
 
-      const res = await createPayment(payload);
+    const totalAmount = Object.values(cartItems)
+        .reduce((acc, item) => acc + item.price * item.count, 0)
+        .toFixed(2);
 
-      if (res?.url) {
-        window.location.href = res.url;
-      } else {
-        setErrorMsg("No redirect URL returned.");
-      }
-    } catch (err) {
-      setErrorMsg("Payment error. Please try again.");
-    }
-    setIsSubmitting(false);
-  };
+    const handleChange = (e) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+    };
 
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      <form
-        onSubmit={handlePay}
-        className="flex flex-col gap-4 max-w-md mx-auto mt-8 bg-white dark:bg-secondary p-8 rounded-lg shadow-lg border border-base-300 dark:border-gray-700"
-        aria-label="Checkout form"
-      >
-        <h2 className="text-3xl font-bold text-primary dark:text-accent text-center mb-2">
-          Checkout
-        </h2>
-        <p className="text-base-content text-center mb-2">All payments are in <span className="font-bold">NIS (₪)</span>. Enter the amount in <span className="font-bold">agorot</span> (e.g. 1000 = ₪10).</p>
-        {errorMsg && (
-          <div
-            className="text-red-500 text-center"
-            role="alert"
-            aria-live="polite"
-          >
-            {errorMsg}
-          </div>
-        )}
-        <label htmlFor="amount" className="text-base-content dark:text-white font-medium text-left">
-          Amount (in agorot)
-        </label>
-        <input
-          id="amount"
-          type="number"
-          placeholder="Amount in agorot (e.g. 1000 = ₪10)"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
-          className="p-2 border border-base-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-base-content dark:text-white"
-          min={1}
-          required
-          autoFocus
-        />
-        <label htmlFor="email" className="text-base-content dark:text-white font-medium text-left">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="p-2 border border-base-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-base-content dark:text-white"
-          required
-          autoComplete="email"
-          pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
-        />
-        <button
-          type="submit"
-          className="p-2 bg-accent text-white rounded font-semibold hover:bg-accent/80 transition"
-          disabled={isSubmitting}
-          aria-busy={isSubmitting}
-        >
-          {isSubmitting ? "Processing..." : "Pay Now"}
-        </button>
-      </form>
-    </div>
-  );
+    const validateForm = () => {
+        if (form.paymentMethod === "credit") {
+            const cardRegex = /^\d{16}$/;
+            const expRegex = /^(0[1-9]|1[0-2])\d{2}$/; 
+            const cvvRegex = /^\d{3}$/;
+
+            if (!cardRegex.test(form.cardNumber)) return "Invalid card number.";
+            if (!expRegex.test(form.expDate)) return "Invalid expiration date (MMYY).";
+            if (!cvvRegex.test(form.cvv)) return "Invalid CVV.";
+        }
+        return "";
+    };
+
+    const handlePayment = async () => {
+        setLoading(true);
+        setMessage("");
+
+        const validationError = validateForm();
+        if (validationError) {
+            setMessage(validationError);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const { data } = await axios.post("https://your-secure-api.com/api/pay", {
+                ...form,
+            });
+
+            if (data.success) {
+                setMessage("Payment successful!");
+            } else {
+                setMessage("Payment failed. Try again.");
+            }
+        } catch (error) {
+            setMessage("Error processing payment.");
+        }
+
+        setLoading(false);
+    };
+
+    return (
+        <div className="p-6 bg-primary min-h-screen flex items-center justify-center">
+            <div className="bg-secondary p-6 rounded shadow-lg w-full max-w-lg border border-border">
+                <h2 className="text-xl font-bold mb-4 text-border">Checkout</h2>
+
+                <div className="mb-4 p-4 border rounded bg-primary border-border">
+                    <h3 className="font-semibold mb-2 text-border">Items in Cart</h3>
+                    {Object.values(cartItems).map((item) => (
+                        <div key={item.id} className="flex justify-between border-b border-border py-2">
+                            <p className="text-border">{item.name} (x{item.count})</p>
+                            <p className="text-border">${(item.price * item.count).toFixed(2)}</p>
+                        </div>
+                    ))}
+                    <div className="font-bold text-right mt-2 text-border">Total: ${totalAmount}</div>
+                </div>
+
+                <label className="block mb-2 text-border">Payment Method</label>
+                <select
+                    name="paymentMethod"
+                    value={form.paymentMethod}
+                    onChange={handleChange}
+                    className="w-full p-2 mb-3 border rounded border-border bg-primary text-border"
+                >
+                    <option value="credit">Credit Card</option>
+                    <option value="bit">Bit</option>
+                    <option value="paybox">PayBox</option>
+                </select>
+
+                {form.paymentMethod === "credit" && (
+                    <>
+                        <input
+                            type="text"
+                            name="cardNumber"
+                            placeholder="Card Number"
+                            value={form.cardNumber}
+                            onChange={handleChange}
+                            className="w-full p-2 mb-2 border rounded border-border bg-primary text-border"
+                        />
+                        <input
+                            type="text"
+                            name="expDate"
+                            placeholder="MMYY (e.g., 1225)"
+                            value={form.expDate}
+                            onChange={handleChange}
+                            className="w-full p-2 mb-2 border rounded border-border bg-primary text-border"
+                        />
+                        <input
+                            type="text"
+                            name="cvv"
+                            placeholder="CVV"
+                            value={form.cvv}
+                            onChange={handleChange}
+                            className="w-full p-2 mb-2 border rounded border-border bg-primary text-border"
+                        />
+                    </>
+                )}
+
+                <button
+                    onClick={handlePayment}
+                    className="w-full bg-accent text-white p-2 rounded hover:opacity-80 transition"
+                    disabled={loading}
+                >
+                    {loading ? "Processing..." : `Pay $${totalAmount}`}
+                </button>
+
+                {message && (
+                    <p className={`mt-2 text-center ${message.includes("successful") ? "text-success" : "text-danger"}`}>
+                        {message}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
 };
 
 export default Checkout;

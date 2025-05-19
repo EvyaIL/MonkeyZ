@@ -2,8 +2,8 @@ from src.base_exception.base_exception import BaseException
 from fastapi import status
 class TokenException(BaseException):
     def __init__(self ,msg:str, status_code:int) -> None:
-        self.msg = "[TokenException]:" + msg
-        super().__init__(msg=msg, status_code= status_code)
+        path = "[TokenException]:"
+        super().__init__(msg=msg, path=path,status_code= status_code)
 
 
 

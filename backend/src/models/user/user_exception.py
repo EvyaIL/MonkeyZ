@@ -6,21 +6,25 @@ class UserException(BaseException):
         path = "[UserException]:" + path
         super().__init__(msg, path, status_code)
 
-class NotVaild(UserException):
+class NotValid(UserException):
     def __init__(self ,msg:str, path:str,status_code:int) -> None:
-        path = "[NotVaild]:" + path
+        path = "[NotValid]:" + path
         super().__init__(msg,path, status_code)
 
 
-class CreateError(NotVaild):
+class CreateError(NotValid):
     def __init__(self ,msg:str) -> None:
         path = "[CreateError]:" 
         super().__init__(msg, path, status.HTTP_400_BAD_REQUEST)
 
-
-class LoginError(NotVaild):
+class EditError(NotValid):
     def __init__(self ,msg:str) -> None:
-        path = "[LogginErorr]:" 
+        path = "[EditError]:" 
+        super().__init__(msg, path, status.HTTP_400_BAD_REQUEST)
+
+class LoginError(NotValid):
+    def __init__(self ,msg:str) -> None:
+        path = "[LoginError]:" 
         super().__init__(msg, path, status.HTTP_404_NOT_FOUND)
 
 

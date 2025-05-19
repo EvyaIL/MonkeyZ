@@ -1,7 +1,6 @@
 {
-  "short_name": "MonkeyZ",
-  "name": "MonkeyZ - Premium Products & Services",
-  "description": "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service.",
+  "short_name": "React App",
+  "name": "Create React App Sample",
   "icons": [
     {
       "src": "favicon.ico",
@@ -19,11 +18,8 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
-  "theme_color": "#222831",
-  "background_color": "#ffffff",
-  "orientation": "portrait-primary",
-  "scope": "/",
-  "lang": "en"
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
 }

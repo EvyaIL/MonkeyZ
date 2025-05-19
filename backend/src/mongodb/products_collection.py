@@ -34,7 +34,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             Returns:
                 list[Product]: A list of all best sellers products in the database.
         """
-        return await Product.find_many(Product.best_seller == True).to_list()
+        return await Product.find_many(Product.best_seller == True and Product.active == True).to_list()
 
     async def get_recent_products(self, limit: int) -> list[Product]:
         """
@@ -46,7 +46,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             list[Product]: A list of recently created products.
         """
-        return await Product.find().sort(-Product.created_at).limit(limit).to_list()
+        return await Product.find(Product.active == True).sort(-Product.created_at).limit(limit).to_list()
 
 
     async def create_product(self, product_request: ProductRequest) -> Product:
@@ -62,9 +62,6 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Raises:
             CreateErorr: If the product name is already in use.
         """
-        if await self.get_product_by_name(product_request.name):
-            raise CreateError("This name is already in use")
-
         product = self.update_or_create_product(product_request, {})
         await product.save()
         return product
@@ -84,10 +81,6 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             CreateErorr: If the new product name is already in use.
         """
         current_product = await self.get_product_by_id(product_id)
-        product_by_name = await self.get_product_by_name(product_request.name)
-
-        if product_by_name and product_by_name.name == current_product.name:
-            raise CreateError("This name is already in use")
 
         product = self.update_or_create_product(product_request, current_product.keys)
         product.id = current_product.id
@@ -108,6 +101,25 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         """
         current_product = await self.get_product_by_id(product_id)
         current_product.keys[key_id] = key_id
+        current_product.stock += 1
+        await current_product.save()
+        return current_product
+    
+    
+    async def remove_key_from_product(self, product_id: PydanticObjectId, key_id: PydanticObjectId) -> Product:
+        """
+        Adds a key to a product.
+
+        Args:
+            product_id (PydanticObjectId): The ID of the product.
+            key_id (PydanticObjectId): The ID of the key to add.
+
+        Returns:
+            Product: The updated product with the new key.
+        """
+        current_product = await self.get_product_by_id(product_id)
+        del current_product.keys[key_id]
+        current_product.stock -= 1
         await current_product.save()
         return current_product
 
@@ -122,9 +134,9 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             Product: The created or updated product instance.
         """
-        return Product(**product_request, keys=keys)
+        return Product(**product_request.model_dump(), keys=keys, stock=0)
 
-    async def get_product_by_name(self, name: str) -> Product:
+    async def get_product_by_name(self, name: str, to_raise:bool = True) -> Product:
         """
         Retrieves a product by its name.
 
@@ -135,11 +147,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             Product: The product with the given name, or None if not found.
         """
         product = await Product.find_one(Product.name == name)
-        if not product: 
+        if not product and to_raise: 
             raise  NotFound(f"not found product with the name: {name}")
         return product
 
-    async def get_product_by_id(self, product_id: PydanticObjectId) -> Product:
+    async def get_product_by_id(self, product_id: PydanticObjectId, to_raise:bool = True) -> Product:
         """
         Retrieves a product by its ID.
 
@@ -149,7 +161,10 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             Product: The product with the given ID, or None if not found.
         """
-        return await Product.find_one(Product.id == product_id)
+        product = await Product.get(product_id)
+        if not product and to_raise: 
+            raise  NotFound(f"not found product with the id: {product_id}")
+        return product
 
     async def delete_product(self, product_id: PydanticObjectId):
         """

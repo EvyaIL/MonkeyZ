@@ -1,4 +1,5 @@
 from beanie import PydanticObjectId
+from src.models.products.products import Product
 from src.models.user.user_exception import LoginError
 
 from src.models.key.key import Key, KeyRequest
@@ -52,7 +53,7 @@ class KeyController(ControllerInterface):
         await self.product_collection.add_key_to_product(key_request.product, key.id)
         return str(key.id)
 
-    async def update_key(self,key_id:PydanticObjectId, key_request:KeyRequest,username:str) -> str:
+    async def edit_key(self,key_id:PydanticObjectId, key_request:KeyRequest,username:str) -> str:
         """ update a key.
 
             Args:
@@ -65,7 +66,26 @@ class KeyController(ControllerInterface):
         """
         await self.user_collection.validate_user_role(username)
         key = await self.keys_collection.update_key(key_id,key_request)
+        
         return str(key.id)
+    
+    async def delete_key(self, key_id:PydanticObjectId, product_id:PydanticObjectId, username:str) -> str:
+        """Deletes a key and updates the product's stock status.
+
+        Args:
+            key_id (PydanticObjectId): The ID of the key to be deleted.
+            product_id (PydanticObjectId): The ID of the associated product.
+            username (str): The username of the requester.
+
+        Returns:
+            str: The ID of the deleted key.
+        """
+        await self.user_collection.validate_user_role(username)
+        key:Key = await self.keys_collection.delete_key_by_id(key_id)
+        await self.product_collection.remove_key_from_product(product_id, key.id)
+
+        return str(key.id)
+    
     
     
     async def get_keys_by_product(self, product_id: PydanticObjectId, start_index: int, max_keys: int, username: str) -> list[Key]:
@@ -86,7 +106,10 @@ class KeyController(ControllerInterface):
         """
         await self.user_collection.validate_user_role(username)
         product = await self.product_collection.get_product_by_id(product_id)
-        keys_ids = product.keys.keys()[start_index: start_index + max_keys]
+        keys_ids = list(product.keys.keys())
+        if max_keys != -1:
+            keys_ids = list(product.keys.keys())[start_index: start_index + max_keys]
+            
         keys = await self.get_keys(keys_ids)
 
         return keys

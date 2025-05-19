@@ -1,7 +1,7 @@
 from beanie import PydanticObjectId
 from pydantic import BaseModel
 
-from src.models.key.key import Key
+from src.models.key.key import Key, KeyRespond
 from src.models.user.user import Role
 
 from typing import Optional
@@ -17,7 +17,7 @@ class SelfResponse(BaseModel):
     role:Role
     email:str
     phone_number:int
-    keys:Optional[dict[PydanticObjectId,Key]] = None 
+    keys:Optional[dict[PydanticObjectId,KeyRespond]] = None 
     
     
     

@@ -1,3 +1,4 @@
+from src.models.key.key import Key, KeyRespond
 from src.models.token.token import LoginResponse
 from src.lib.token_handler import create_access_token
 from src.models.user.user_response import SelfResponse
@@ -61,6 +62,7 @@ class UserController(ControllerInterface):
         response = SelfResponse(**user.model_dump(exclude={"keys"}), keys={})
         if user.keys != None:
             for key_id in user.keys.keys():
-                response[key_id] = await self.keys_collection.get_key_by_id(key_id)
+                key:Key = await self.keys_collection.get_key_by_id(key_id)
+                response.keys[key_id] = KeyRespond(** key.model_dump())
         
         return response
