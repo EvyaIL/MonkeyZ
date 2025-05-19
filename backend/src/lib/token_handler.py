@@ -12,7 +12,10 @@ load_dotenv()
 
 SECRET_KEY = str(os.getenv('SECRET_KEY'))
 ALGORITHM = str(os.getenv('ALGORITHM')) 
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES'))
+try:
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '30'))
+except (TypeError, ValueError):
+    ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def create_access_token(data:dict) -> str:
     to_encode = data.copy()

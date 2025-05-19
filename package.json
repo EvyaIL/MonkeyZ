@@ -1,0 +1,7 @@
+{
+  "name": "monkeyz-root",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ]
+}
