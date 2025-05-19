@@ -35,14 +35,14 @@ def is_valid_mongodb_uri(uri: str) -> bool:
 class MongoDb:
     """
         A class for interacting with a MongoDB database
-    """
-
-    def __init__(self) -> None:
+    """    def __init__(self) -> None:
         """
             Initializes the MongoDb class with no client initially connected.
         """
         self.client = None
-        self.is_connected = False    async def connection(self) -> None:
+        self.is_connected = False
+        
+    async def connection(self) -> None:
         """
             Establishes a connection to the MongoDB server using the MONGODB_URI environment variable.
             Raises ValueError if the connection fails.
