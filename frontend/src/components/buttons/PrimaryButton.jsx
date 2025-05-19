@@ -8,7 +8,7 @@ const PrimaryButton = ({
   return (
     <button
       type="button"
-      className={`bg-accent px-4 py-2 rounded-lg text-primary font-semibold hover:bg-border hover:scale-110 transition-all shadow-md ${otherStyle}`}
+      className={`bg-primary px-4 py-2 rounded-lg text-white font-semibold hover:bg-accent hover:text-accent-content hover:scale-110 transition-all shadow-md ${otherStyle}`}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel || title}

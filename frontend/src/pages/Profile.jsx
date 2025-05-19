@@ -25,20 +25,22 @@ const Profile = () => {
   }
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-[60vh] text-center mt-16">
-      <section className="bg-secondary p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-3xl font-bold text-accent mb-4" tabIndex={0} aria-label="Profile Page">
-          👤 My Account
-        </h1>
-        <div className="text-white text-left mb-6">
-          <div className="mb-2"><span className="font-semibold text-accent">Username:</span> {user.username}</div>
-          <div className="mb-2"><span className="font-semibold text-accent">Email:</span> {user.email}</div>
-          {user.phone_number && (
-            <div className="mb-2"><span className="font-semibold text-accent">Phone:</span> {user.phone_number}</div>
-          )}
-        </div>
-        <PrimaryButton title="Logout" onClick={logout} otherStyle="w-full" />
-      </section>
+    <main className="flex flex-col items-center justify-center min-h-screen text-center py-10">
+      <div className="p-6">
+        <section className="bg-white dark:bg-secondary p-8 rounded-lg shadow-lg w-full max-w-md">
+          <h1 className="text-3xl font-bold text-accent mb-4" tabIndex={0} aria-label="Profile Page">
+            👤 My Account
+          </h1>
+          <div className="text-base-content dark:text-white text-left mb-6">
+            <div className="mb-2"><span className="font-semibold text-accent">Username:</span> {user.username}</div>
+            <div className="mb-2"><span className="font-semibold text-accent">Email:</span> {user.email}</div>
+            {user.phone_number && (
+              <div className="mb-2"><span className="font-semibold text-accent">Phone:</span> {user.phone_number}</div>
+            )}
+          </div>
+          <PrimaryButton title="Logout" onClick={logout} otherStyle="w-full" />
+        </section>
+      </div>
     </main>
   );
 };

@@ -1,11 +1,27 @@
 # robots.txt for https://monkeyz.co.il/
 # Learn more: https://www.robotstxt.org/robotstxt.html
+# Last updated: 2025-05-19
 
 User-agent: *
-Disallow:
-
 # Allow crawling of all content
 Allow: /
 
-# Sitemap location (update if your sitemap URL changes)
+# Prevent crawling of private or duplicate pages
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /checkout
+Disallow: /profile
+Disallow: /reset-password
+Disallow: /success
+Disallow: /fail
+
+# Sitemap location
 Sitemap: https://monkeyz.co.il/sitemap.xml
+
+# Crawl delay for specific bots (optional)
+User-agent: AdsBot-Google
+Crawl-delay: 1
+
+# Allow product-specific crawlers
+User-agent: Googlebot-Image
+Allow: /product/

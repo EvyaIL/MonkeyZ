@@ -24,16 +24,15 @@ const FAQ = () => {
         <meta name="description" content={t("faq_meta_description") || "Frequently asked questions about MonkeyZ products and services."} />
         <meta property="og:title" content="MonkeyZ - {t('faq')}" />
         <meta property="og:description" content={t("faq_meta_description") || "Frequently asked questions about MonkeyZ products and services."} />
-      </Helmet>
-      <div className="bg-primary min-h-screen flex flex-col items-center p-6">
+      </Helmet>      <div className="min-h-screen flex flex-col items-center justify-center p-6">
         <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
           {t("faq")}
         </h1>
-        <div className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-3xl">
+        <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-3xl">
           {faqs.map((faq, idx) => (
             <div key={idx} className="mb-6">
               <h2 className="text-lg font-semibold text-accent mb-2">{faq.question}</h2>
-              <p className="text-white text-base">{faq.answer}</p>
+              <p className="text-base-content dark:text-white text-base">{faq.answer}</p>
             </div>
           ))}
         </div>

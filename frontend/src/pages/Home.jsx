@@ -144,21 +144,23 @@ const Home = () => {
   return (
     <>
       <Helmet>
-        <title>MonkeyZ - {t("home")}</title>
+        <title>{`MonkeyZ - ${t("home")}`}</title>
         <meta name="description" content={t("home_meta_description") || "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service."} />
-        <meta property="og:title" content="MonkeyZ - {t('home')}" />
+        <meta property="og:title" content={`MonkeyZ - ${t("home")}`} />
         <meta property="og:description" content={t("home_meta_description") || "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service."} />
       </Helmet>
-      <div className="bg-primary min-h-screen flex flex-col items-center justify-center p-6">
-        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <h1 className="text-primary dark:text-accent font-bold text-3xl mb-8" tabIndex={0}>
           {t("home")}
         </h1>
 
-        <section className="w-full max-w-6xl mb-8" aria-label={t("best_sellers")}>
+        <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
           {loadingBest ? (
-            <Spinner />
+            <div className="flex justify-center py-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <Spinner />
+            </div>
           ) : errorBest ? (
-            <p className="text-red-500 text-center" role="alert">
+            <p className="text-error text-center bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700" role="alert">
               {errorBest}
             </p>
           ) : (
@@ -169,16 +171,16 @@ const Home = () => {
         </section>
 
         <section
-          className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5"
+          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5"
           aria-label={t("new_products")}
         >
-          <h2 className="text-center text-accent font-bold text-2xl mb-4">
+          <h2 className="text-center text-primary font-bold text-2xl mb-4">
             {t("new_products")}
           </h2>
           {loadingRecent ? (
             <Spinner />
           ) : errorRecent ? (
-            <p className="text-red-500 text-center" role="alert">
+            <p className="text-error text-center" role="alert">
               {errorRecent}
             </p>
           ) : (

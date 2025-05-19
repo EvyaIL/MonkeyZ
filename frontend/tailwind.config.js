@@ -1,23 +1,26 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // Use 'content' instead of deprecated 'purge'
   content: [
     './src/**/*.{js,jsx,ts,tsx}',
     './public/index.html'
   ],
-  // Enable dark mode with class strategy
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        primary: '#222831', // This will be overridden by daisyUI themes but can be a fallback
-        secondary: '#393E46',
-        accent: '#A27B5C',
-        border: '#EEEEEE',
-        danger: '#DC2626',
-        success: '#16A34A',
-      },
-      fontFamily: {
+        primary: '#222831',       // Dark blue/black
+        secondary: '#393E46',     // Dark grey
+        accent: '#A27B5C',        // Brown/gold accent
+        'accent-dark': '#886548',  // Darker variant of accent
+        'accent-light': '#BF9776', // Lighter variant of accent
+        'base-100': '#ffffff',    // Main background (white)
+        'base-200': '#f8f9fa',    // Secondary background (light grey)
+        'base-300': '#e9ecef',    // Border color (lighter grey)
+        'base-content': '#212529', // Main text color
+        error: '#DC2626',         // Error red
+        success: '#16A34A',       // Success green
+        info: '#12c2e9',
+        warning: '#ffd803',
+      },      fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['Fira Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
@@ -35,56 +38,84 @@ module.exports = {
         '90': '90',
         '100': '100',
       },
+      keyframes: {
+        'slide-in': {
+          '0%': {
+            transform: 'translateX(100%)',
+            opacity: '0'
+          },
+          '100%': {
+            transform: 'translateX(0)',
+            opacity: '1'
+          }
+        },
+        'slide-out': {
+          '0%': {
+            transform: 'translateX(0)',
+            opacity: '1'
+          },
+          '100%': {
+            transform: 'translateX(100%)',
+            opacity: '0'
+          }
+        },
+        'fade-in': {
+          '0%': {
+            opacity: '0'
+          },
+          '100%': {
+            opacity: '1'
+          }
+        },
+        'fade-out': {
+          '0%': {
+            opacity: '1'
+          },
+          '100%': {
+            opacity: '0'
+          }
+        },
+        'pulse-light': {
+          '0%, 100%': {
+            opacity: '1'
+          },
+          '50%': {
+            opacity: '0.7'
+          }
+        },
+        'bounce-light': {
+          '0%, 100%': {
+            transform: 'translateY(0)'
+          },
+          '50%': {
+            transform: 'translateY(-5px)'
+          }
+        }
+      },
+      animation: {
+        'slide-in': 'slide-in 0.3s ease-out',
+        'slide-out': 'slide-out 0.3s ease-in',
+        'fade-in': 'fade-in 0.3s ease-out',
+        'fade-out': 'fade-out 0.3s ease-in',
+        'pulse-light': 'pulse-light 2s infinite',
+        'bounce-light': 'bounce-light 2s infinite'      },      
+      backgroundImage: {
+        'gradient-accent': 'linear-gradient(90deg, var(--color-accent-dark) 0%, var(--color-accent) 100%)',
+      },
     },
   },
   variants: {
-    extend: {},
+    extend: {
+      opacity: ['disabled'],
+      cursor: ['disabled'],
+      backgroundColor: ['disabled', 'active', 'hover'],
+      textColor: ['disabled', 'active', 'hover'],
+      borderColor: ['disabled', 'active', 'hover', 'focus'],
+    },
   },
   plugins: [
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
     require('@tailwindcss/aspect-ratio'),
-    require('daisyui'),
   ],
-  // daisyUI config (optional - good for specifying themes)
-  daisyui: {
-    themes: [
-      "light", 
-      "dark", 
-      "cupcake", 
-      "bumblebee", 
-      "emerald", 
-      "corporate", 
-      "synthwave", 
-      "retro", 
-      "cyberpunk", 
-      "valentine", 
-      "halloween", 
-      "garden", 
-      "forest", 
-      "aqua", 
-      "lofi", 
-      "pastel", 
-      "fantasy", 
-      "wireframe", 
-      "black", 
-      "luxury", 
-      "dracula", 
-      "cmyk", 
-      "autumn", 
-      "business", 
-      "acid", 
-      "lemonade", 
-      "night", 
-      "coffee", 
-      "winter"
-    ], // You can specify which themes you want to include
-    darkTheme: "dark", // name of one of the included themes for dark mode
-    base: true, // applies background color and foreground color for root element by default
-    styled: true, // include daisyUI colors and design decisions for all components
-    utils: true, // adds responsive and modifier utility classes
-    rtl: true, // Changed to true for RTL support
-    prefix: "", // prefix for daisyUI classnames (components, modifiers and responsive class names. Not colors)
-    logs: true, // Shows info about daisyUI version and used config in the console when building your CSS
-  },
 };

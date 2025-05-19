@@ -42,12 +42,12 @@ const Contact = () => {
         <meta property="og:title" content={`MonkeyZ - ${t('contact')}`} />
         <meta property="og:description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, or feedback."} />
       </Helmet>
-      <main className="py-12 md:py-20 bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+      <main className="py-12 md:py-20 flex items-center justify-center">
         <div className="container mx-auto px-4">
-          <section className="bg-white dark:bg-gray-800 p-8 md:p-12 rounded-xl shadow-2xl w-full max-w-2xl mx-auto">
+          <section className="bg-white dark:bg-secondary p-8 md:p-12 rounded-lg shadow-lg w-full max-w-2xl mx-auto border border-base-300 dark:border-gray-700">
             <div className="text-center mb-10">
               <h1 className="text-4xl md:text-5xl font-bold text-primary dark:text-accent mb-3">
-                {t("contact_us_title") || t("contact")}
+                {t("contact")}
               </h1>
               <p className="text-lg text-gray-600 dark:text-gray-300">
                 {t("contact_subtitle") || "We'd love to hear from you! Fill out the form below to get in touch."}
@@ -76,7 +76,7 @@ const Contact = () => {
               </div>
             )}
             <div className="mt-8 text-center text-gray-600 dark:text-gray-400 text-sm">
-              {t("or_email_us_at") || t("or_email") || "Or email us directly at "}
+              {t("or_email_us_directly") || "Or email us directly at "}
               <a href="mailto:support@monkeyz.co.il" className="text-accent hover:text-accent-dark dark:hover:text-accent-light underline font-medium transition">
                 support@monkeyz.co.il
               </a>

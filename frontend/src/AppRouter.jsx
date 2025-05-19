@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 // import { useTranslation } from "react-i18next"; // Not used directly here
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
@@ -16,10 +16,12 @@ import Contact from "./pages/Contact";
 import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 const AppRouter = () => {
   return (
-    <Router>
+    <>
       {/* Navbar is rendered here, Footer is likely in App.jsx or similar parent component */}
       <Navbar />
       <Routes>
@@ -39,6 +41,10 @@ const AppRouter = () => {
         {/* Blog routes */}
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
+
+        {/* Legal routes */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
 
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />
@@ -71,7 +77,7 @@ const AppRouter = () => {
         <Route path="*" element={<NotFound />} />
       </Routes>
       {/* Footer is typically rendered in App.jsx or a main layout component after the Routes */}
-    </Router>
+    </>
   );
 };
 

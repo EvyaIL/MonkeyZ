@@ -121,9 +121,9 @@ const SignIn = () => {
   };
 
   return (
-    <div className="flex justify-center items-start min-h-screen bg-primary p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <form
-        className="p-6 md:p-14 bg-secondary rounded-lg shadow-lg space-y-7 w-full max-w-md"
+        className="p-6 md:p-10 bg-white dark:bg-secondary rounded-lg shadow-lg space-y-6 w-full max-w-md"
         onSubmit={onClickSignIn}
         aria-label="Sign in form"
       >

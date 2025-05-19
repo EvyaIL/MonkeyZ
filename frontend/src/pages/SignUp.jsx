@@ -128,9 +128,9 @@ const SignUp = () => {
   };
 
   return (
-    <div className="flex justify-center items-start min-h-screen bg-primary p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <form
-        className="p-6 bg-secondary rounded-lg shadow-lg space-y-5 mt-5 w-full sm:w-[80%] md:w-[60%] lg:w-[40%] h-auto"
+        className="p-6 bg-white dark:bg-secondary rounded-lg shadow-lg space-y-5 mt-5 w-full sm:w-[80%] md:w-[60%] lg:w-[40%] h-auto"
         onSubmit={otpSent ? onVerifyOtp : onSubmitSignUp}
         aria-label="Sign up form"
       >

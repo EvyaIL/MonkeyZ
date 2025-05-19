@@ -4,11 +4,16 @@ const PointButton = ({
   style = {},
   current = false,
   slideNumber, // New prop for slide number
-  productName // New prop for product name, for ARIA label
+  productName, // New prop for product name, for ARIA label
+  ariaLabel // Allow explicit aria-label to be passed
 }) => {
-  const ariaLabel = current
+  // Generate default aria-label if none provided
+  const defaultAriaLabel = current
     ? `Current slide: ${productName || ''}`.trim()
     : `Go to slide ${slideNumber}${productName ? `: ${productName}` : ''}`.trim();
+
+  // Use passed ariaLabel or fallback to generated one
+  const finalAriaLabel = ariaLabel || defaultAriaLabel;
 
   return (
     <button
@@ -21,7 +26,7 @@ const PointButton = ({
           : "bg-white opacity-50 hover:opacity-100 text-gray-700"
       }`}
       aria-current={current ? "true" : undefined}
-      aria-label={ariaLabel}
+      aria-label={finalAriaLabel}
     >
       {slideNumber}
     </button>
