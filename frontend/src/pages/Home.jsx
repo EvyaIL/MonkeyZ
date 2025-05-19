@@ -28,6 +28,7 @@ const Home = () => {
     const getRecent = async () => {
         const params = {"limit":8}
 
+<<<<<<< Updated upstream
         const { data, error } = await apiService.get("/product/recent",params);
 
         if (error) {
@@ -37,6 +38,70 @@ const Home = () => {
         
         setRecent(data)
         setRecent(await getImages(data))
+=======
+  const getBestSellers = async () => {
+    setLoadingBest(true);
+    setErrorBest("");
+    try {
+      const { data, error } = await apiService.get("/product/best-sellers");
+      if (error || !data || !Array.isArray(data) || data.length === 0) {
+        // If API fails or returns empty data, use fallback products
+        setErrorBest(error ? t("failed_to_load_best_sellers") : "");
+        setBestSellers(fallbackProducts.slice(0, 4)); // Use first 4 fallback products for best sellers
+      } else {
+        // Filter out any invalid products
+        const validProducts = data.filter(product => 
+          product && 
+          product.id && 
+          product.name && 
+          product.price !== undefined
+        );
+        
+        // Ensure we have enough products by merging with fallback if needed
+        if (validProducts.length < 4) {
+          const additionalProducts = fallbackProducts
+            .filter(p => !validProducts.some(vp => vp.id === p.id))
+            .slice(0, 4 - validProducts.length);
+          setBestSellers([...validProducts, ...additionalProducts]);
+        } else {
+          setBestSellers(validProducts);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching best sellers:", err);
+      setErrorBest(t("failed_to_load_best_sellers"));
+      setBestSellers(fallbackProducts.slice(0, 4));
+    } finally {
+      setLoadingBest(false);
+    }
+  };
+
+  const getRecent = async () => {
+    setLoadingRecent(true);
+    setErrorRecent("");
+    try {
+      const params = { limit: 8 };
+      const { data, error } = await apiService.get("/product/recent", params);
+      if (error) {
+        setErrorRecent(t("failed_to_load_recent_products") || "Failed to load recent products.");
+        setRecent(fallbackProducts);
+      } else {
+        // Filter out invalid products
+        const validData = Array.isArray(data) 
+          ? data.filter(product => product && product.id && product.name && product.price !== undefined)
+          : [];
+          
+        setRecent(mergeUniqueProducts(validData, fallbackProducts));
+      }
+    } catch (err) {
+      console.error("Error fetching recent products:", err);
+      setErrorRecent(t("failed_to_load_recent_products") || "Failed to load recent products.");
+      setRecent(fallbackProducts);
+    } finally {
+      setLoadingRecent(false);
+    }
+  };
+>>>>>>> Stashed changes
 
     };
 

@@ -35,10 +35,20 @@ const GlobalProvider = ({ children }) => {
         setUser(user);
     }
 
+<<<<<<< Updated upstream
     const CheckToken = async (token) => {
         if (token) {
             apiService.setToken(token);
             const { data, error } = await apiService.get("/user/me");
+=======
+  const logout = async () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+    clearCart(); // Clear cart items on logout
+    showSuccess("Successfully logged out");
+  };
+>>>>>>> Stashed changes
 
             if (!error) {
                 setUserAndToken(data)

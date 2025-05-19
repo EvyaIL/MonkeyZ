@@ -11,6 +11,7 @@ import ManagerDashboard from "./pages/dashboard/ManagerDashboard";
 import ProductsDashboard from "./pages/dashboard/ProductsDashboard";
 import ProductForm from "./pages/dashboard/ProductForm";
 import Checkout from "./pages/Checkout";
+<<<<<<< Updated upstream
 
 const AppRouter = () => {
     return (
@@ -24,6 +25,41 @@ const AppRouter = () => {
                 <Route path="/products" element={<AllProducts />} />
                 <Route path="/product/:name" element={<ProductPage />} />
                 <Route path="/checkout" element={<Checkout />} />
+=======
+import FAQ from "./pages/FAQ";
+import AboutUs from "./pages/AboutUs";
+import Contact from "./pages/Contact";
+import ResetPassword from "./pages/ResetPassword";
+import ForgotPassword from "./pages/ForgotPassword";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import AdminPanel from "./pages/AdminPanel";
+
+const AppRouter = () => {
+  return (
+    <>
+      {/* Navbar is rendered here, Footer is likely in App.jsx or similar parent component */}
+      <Navbar />
+      <Routes>
+        {/* Main pages */}
+        <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/account" element={<Profile />} />
+        <Route path="/sign-up" element={<SignUp />} />
+        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/products" element={<AllProducts />} />
+        <Route path="/product/:name" element={<ProductPage />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<Contact />} />
+        
+        {/* Admin Panel */}
+        <Route path="/admin" element={<AdminPanel />} />
+>>>>>>> Stashed changes
 
 
                 <Route path="/dashboard" element={<ManagerDashboard />} />

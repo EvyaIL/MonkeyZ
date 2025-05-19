@@ -1,7 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
+import { sendAutoReply } from "../lib/autoReply";
 
 // 1. הכנס כאן את המפתחות שלך מ-EmailJS (https://www.emailjs.com/):
 //    SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY
@@ -14,24 +15,58 @@ const Contact = () => {
   const formRef = useRef();
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [autoReplyStatus, setAutoReplyStatus] = useState(null);
+  const [formData, setFormData] = useState({
+    from_name: '',
+    reply_to: '',
+    message: ''
+  });
 
-  const sendEmail = (e) => {
+  // Handle form input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Send email and auto-reply
+  const sendEmail = async (e) => {
     e.preventDefault();
     setStatus("");
     setLoading(true);
-    emailjs
-      .sendForm(SERVICE_ID, TEMPLATE_ID, formRef.current, PUBLIC_KEY)
-      .then(
-        (result) => {
-          setStatus(t("success"));
-          setLoading(false);
-          formRef.current.reset();
-        },
-        (error) => {
-          setStatus(t("fail"));
-          setLoading(false);
-        }
-      );
+    
+    try {
+      // Send the main contact form email
+      await emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, formRef.current, PUBLIC_KEY);
+      
+      // Send auto-reply email
+      try {
+        await sendAutoReply({
+          to_name: formData.from_name,
+          to_email: formData.reply_to,
+          subject: t("auto_reply_subject") || "Thank you for contacting MonkeyZ"
+        });
+        setStatus(t("message_sent") + ' ' + t("auto_reply_sent"));
+      } catch (err) {
+        console.error("Error sending auto-reply:", err);
+        setStatus(t("success"));
+      }
+      
+      // Reset form
+      formRef.current.reset();
+      setFormData({
+        from_name: '',
+        reply_to: '',
+        message: ''
+      });
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      setStatus(t("fail"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
