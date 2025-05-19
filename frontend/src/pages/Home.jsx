@@ -162,7 +162,9 @@ const Home = () => {
               {errorBest}
             </p>
           ) : (
-            <ProductShowcase products={bestSellers} title={t("best_sellers")} />
+            <>
+              <ProductShowcase products={bestSellers} title={t("best_sellers")} />
+            </>
           )}
         </section>
 

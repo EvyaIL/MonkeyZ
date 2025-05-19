@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 
 const AllProducts = () => {
-  // Always use 0-200 for price range and filter
+  // States for price range, ensuring they start at 0-200
   const [priceRange, setPriceRange] = useState({ min: 0, max: 200 });
   const [filterPriceRange, setFilterPriceRange] = useState({ min: 0, max: 200 });
   const [allProducts, setAllProducts] = useState([]);
@@ -23,9 +23,10 @@ const AllProducts = () => {
   const lang = i18n.language || "he";
 
   useEffect(() => {
-    fetchAllProducts();
+    // Set initial price range to 0-200 and fetch products
     setPriceRange({ min: 0, max: 200 });
     setFilterPriceRange({ min: 0, max: 200 });
+    fetchAllProducts();
     // eslint-disable-next-line
   }, []);
 
@@ -142,20 +143,13 @@ const AllProducts = () => {
     ];
 
     const productData = data && data.length > 0 ? data.map(p => ({...p, category: p.category || demoCategories[Math.floor(Math.random() * demoCategories.length)]})) : fallbackProducts;
-    const prices = productData.map((item) => item.price);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-
-    // Extract categories from products (assuming a 'category' field)
-    // For fallback, I'll add some sample categories
+    
     const uniqueCategories = [...new Set(productData.map(p => p.category).filter(Boolean))];
-    // Add some default/demo categories if none are found or for fallback
     const demoCategories = ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility'];
     setCategories(uniqueCategories.length > 0 ? uniqueCategories : demoCategories);
 
     setAllProducts(productData);
-    setPriceRange({ min: minPrice, max: maxPrice });
-    setFilterPriceRange({ min: minPrice, max: maxPrice });
+    // Ensure filterPriceRange remains 0-200, not set by product prices
     setFilteredProducts(productData);
     setLoading(false);
   };
@@ -231,19 +225,22 @@ const AllProducts = () => {
             />
 
             <div className="mt-6">
-              <h3 className="text-accent text-lg font-semibold mb-3">{t("categories")}</h3>
+              <h3 className="text-accent text-lg font-semibold mb-4">{t("categories")}</h3>
               <div className="flex flex-wrap gap-3">
                 {categories.map((category) => (
-                  <label key={category} className={`flex items-center px-4 py-2 rounded-full border border-gray-600 bg-gray-900 text-white cursor-pointer transition-all duration-150 hover:bg-accent hover:text-white shadow-sm ${selectedCategories.includes(category) ? 'bg-accent text-white border-accent shadow-lg scale-105' : 'opacity-90'}`}
-                    style={{ minWidth: '110px', justifyContent: 'center', fontWeight: 500, fontSize: '1rem', letterSpacing: '0.02em' }}>
+                  <label 
+                    key={category} 
+                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-700 border-gray-600 text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-700/50'}`}
+                    style={{ minWidth: '100px' }} // Ensure a minimum width for better tap targets
+                  >
                     <input 
                       type="checkbox"
-                      className="form-checkbox h-5 w-5 accent-accent mr-2"
+                      className="sr-only" // Hide the default checkbox, style the label instead
                       checked={selectedCategories.includes(category)}
                       onChange={() => handleCategoryChange(category)}
-                      style={{ accentColor: '#22c55e' }}
+                      aria-labelledby={`category-label-${category}`}
                     />
-                    <span>{category}</span>
+                    <span id={`category-label-${category}`} className="font-medium text-sm select-none">{category}</span>
                   </label>
                 ))}
               </div>

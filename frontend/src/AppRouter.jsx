@@ -1,9 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+// import { useTranslation } from "react-i18next"; // Not used directly here
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Navbar from "./components/Navbar";
+// Footer is likely handled in App.jsx or a higher-level component
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
 import AllProducts from "./pages/AllProducts";
@@ -19,6 +20,7 @@ import BlogPostPage from "./pages/BlogPostPage";
 const AppRouter = () => {
   return (
     <Router>
+      {/* Navbar is rendered here, Footer is likely in App.jsx or similar parent component */}
       <Navbar />
       <Routes>
         {/* Main pages */}
@@ -44,7 +46,7 @@ const AppRouter = () => {
           path="/success"
           element={
             <div
-              className="p-4 text-green-600 text-center text-xl"
+              className="p-4 text-green-600 dark:text-green-400 text-center text-xl flex items-center justify-center h-full"
               aria-live="polite"
               role="status"
             >
@@ -56,7 +58,7 @@ const AppRouter = () => {
           path="/fail"
           element={
             <div
-              className="p-4 text-red-600 text-center text-xl"
+              className="p-4 text-red-600 dark:text-red-400 text-center text-xl flex items-center justify-center h-full"
               aria-live="polite"
               role="status"
             >
@@ -68,6 +70,7 @@ const AppRouter = () => {
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {/* Footer is typically rendered in App.jsx or a main layout component after the Routes */}
     </Router>
   );
 };

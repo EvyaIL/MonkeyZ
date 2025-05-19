@@ -5,6 +5,7 @@ import SecondaryButton from "./buttons/SecondaryButton";
 import { useEffect, useRef } from "react";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useTranslation } from "react-i18next";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 const Navbar = () => {
   const {
@@ -49,7 +50,6 @@ const Navbar = () => {
         >
           MonkeyZ
         </div>
-
         <div className="flex gap-6 text-lg items-center">
           <button
             className="hover:text-accent transition"
@@ -83,7 +83,7 @@ const Navbar = () => {
           </button>
         </div>
         <LanguageSwitcher />
-
+        <ThemeSwitcher />
         <div className="flex items-center gap-4 select-none">
           {user ? (
             <div
@@ -110,7 +110,6 @@ const Navbar = () => {
               />
             </div>
           )}
-
           <button
             className="relative bg-gray-800 px-3 py-2 rounded-lg text-white flex items-center"
             onClick={() => setOpenCart(true)}
@@ -118,7 +117,7 @@ const Navbar = () => {
           >
             🛒
             {Object.keys(cartItems).length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-danger text-xs px-2 py-1 rounded-full text-white">
+              <span className="absolute -top-2 -right-2 bg-danger text-xs rounded-full px-2 py-0.5">
                 {Object.keys(cartItems).length}
               </span>
             )}

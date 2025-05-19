@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react"; // Added useState, useEffect
 import Slider, { Range } from "rc-slider";
 import "rc-slider/assets/index.css";
 import { useTranslation } from "react-i18next";
@@ -10,23 +10,61 @@ const RangeInput = ({ value, onChange }) => {
   const sliderMin = 0;
   const sliderMax = 200;
 
+  // Local state for input values to allow intermediate typing
+  const [minInputValue, setMinInputValue] = useState(String(value.min));
+  const [maxInputValue, setMaxInputValue] = useState(String(value.max));
+
+  // Sync local input states if prop value changes (e.g., from slider drag)
+  useEffect(() => {
+    setMinInputValue(String(value.min));
+    setMaxInputValue(String(value.max));
+  }, [value.min, value.max]);
+
   const handleChange = (vals) => {
     onChange({ min: vals[0], max: vals[1] });
   };
 
-  // Improved input logic: allow any valid number, but only update if valid
-  const handleInput = (side, e) => {
+  const handleMinInput = (e) => {
     const val = e.target.value;
-    // Only allow numbers, no leading zeros, and max 3 digits
-    if (!/^\d{0,3}$/.test(val)) return;
-    let v = parseInt(val, 10);
-    if (isNaN(v)) v = side === "min" ? sliderMin : sliderMax;
-    if (side === "min") {
-      if (v < sliderMin || v >= value.max) return;
-      onChange({ min: v, max: value.max });
+    if (/^\d{0,3}$/.test(val)) { // Allow up to 3 digits, numeric only
+      setMinInputValue(val);
+    }
+  };
+
+  const handleMaxInput = (e) => {
+    const val = e.target.value;
+    if (/^\d{0,3}$/.test(val)) { // Allow up to 3 digits, numeric only
+      setMaxInputValue(val);
+    }
+  };
+
+  const handleMinBlur = () => {
+    let parsedMin = parseInt(minInputValue, 10);
+    if (minInputValue === '' || isNaN(parsedMin)) {
+      parsedMin = sliderMin;
+    }
+    parsedMin = Math.max(sliderMin, Math.min(sliderMax, parsedMin)); // Clamp to overall range
+
+    if (parsedMin >= value.max) {
+      // If new min is invalid (>= current max), adjust it to be less than max
+      onChange({ min: Math.max(sliderMin, value.max - 1), max: value.max });
     } else {
-      if (v > sliderMax || v <= value.min) return;
-      onChange({ min: value.min, max: v });
+      onChange({ min: parsedMin, max: value.max });
+    }
+  };
+
+  const handleMaxBlur = () => {
+    let parsedMax = parseInt(maxInputValue, 10);
+    if (maxInputValue === '' || isNaN(parsedMax)) {
+      parsedMax = sliderMax;
+    }
+    parsedMax = Math.max(sliderMin, Math.min(sliderMax, parsedMax)); // Clamp to overall range
+
+    if (parsedMax <= value.min) {
+      // If new max is invalid (<= current min), adjust it to be greater than min
+      onChange({ min: value.min, max: Math.min(sliderMax, value.min + 1) });
+    } else {
+      onChange({ min: value.min, max: parsedMax });
     }
   };
 
@@ -53,21 +91,23 @@ const RangeInput = ({ value, onChange }) => {
             <input
               type="number"
               className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
-              value={value.min}
-              min={sliderMin}
-              max={value.max - 1}
+              value={minInputValue}
+              min={sliderMin} 
+              max={sliderMax} // Allow typing up to sliderMax initially
               step={1}
-              onInput={e => handleInput("min", e)}
+              onInput={handleMinInput}
+              onBlur={handleMinBlur}
             />
             <span className="text-white mx-2">-</span>
             <input
               type="number"
               className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
-              value={value.max}
-              min={value.min + 1}
+              value={maxInputValue}
+              min={sliderMin} // Allow typing from sliderMin initially
               max={sliderMax}
               step={1}
-              onInput={e => handleInput("max", e)}
+              onInput={handleMaxInput}
+              onBlur={handleMaxBlur}
             />
           </>
         ) : (
@@ -75,21 +115,23 @@ const RangeInput = ({ value, onChange }) => {
             <input
               type="number"
               className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
-              value={value.min}
+              value={minInputValue}
               min={sliderMin}
-              max={value.max - 1}
+              max={sliderMax} // Allow typing up to sliderMax initially
               step={1}
-              onInput={e => handleInput("min", e)}
+              onInput={handleMinInput}
+              onBlur={handleMinBlur}
             />
             <span className="text-white mx-2">-</span>
             <input
               type="number"
               className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
-              value={value.max}
-              min={value.min + 1}
+              value={maxInputValue}
+              min={sliderMin} // Allow typing from sliderMin initially
               max={sliderMax}
               step={1}
-              onInput={e => handleInput("max", e)}
+              onInput={handleMaxInput}
+              onBlur={handleMaxBlur}
             />
           </>
         )}
