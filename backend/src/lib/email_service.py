@@ -1,4 +1,5 @@
 import requests
+import logging
 
 def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     """
@@ -32,7 +33,10 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
         "template_params": template_params,
     }
 
+    logging.info(f"[EMAILJS] Sending password reset email to {to_email} with link: {reset_link} using template: {EMAILJS_TEMPLATE_ID}")
+    logging.info(f"[EMAILJS] Payload: {payload}")
     response = requests.post(EMAILJS_API_URL, json=payload)
+    logging.info(f"[EMAILJS] Response: {response.status_code} {response.text}")
     print("EmailJS response:", response.status_code, response.text)  # Debug line
     if response.status_code != 200:
         print(f"Error sending password reset email: {response.status_code} - {response.text}")
@@ -76,7 +80,10 @@ def send_otp_email(to_email: str, otp: str) -> bool:
         "template_params": template_params
     }
 
+    logging.info(f"[EMAILJS] Sending OTP email to {to_email} with otp: {otp} using template: {EMAILJS_TEMPLATE_ID}")
+    logging.info(f"[EMAILJS] Payload: {payload}")
     response = requests.post(EMAILJS_API_URL, json=payload)
+    logging.info(f"[EMAILJS] Response: {response.status_code} {response.text}")
     print("EmailJS response:", response.status_code, response.text)  # Debug line
     if response.status_code != 200:
         print(f"Error sending OTP email: {response.status_code} - {response.text}")
