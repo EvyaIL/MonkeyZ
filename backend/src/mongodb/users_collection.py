@@ -61,7 +61,8 @@ class UserCollection(MongoDb, metaclass=Singleton):
                 CreateUserException
                     If the username is already in use.
         """
-        await self.validate_user_exiest(body.username, body.email ,body.phone_number)
+        # Modified to not validate phone_number if it's None
+        await self.validate_user_exist(body.username, body.email, body.phone_number)
         hashed_password = Hase.bcrypt(body.password)
         user = User(username=body.username, password=hashed_password , role=Role.default,email=body.email,phone_number=body.phone_number)
         await user.save()
@@ -142,34 +143,48 @@ class UserCollection(MongoDb, metaclass=Singleton):
         user = await User.find_one(User.phone_number == phone_number)
         return user
     
-    async def validate_user_exiest(self, username:str, email:str, phone_number:int) -> None:
+    async def validate_user_exist(self, username:str, email:str, phone_number:Optional[int]) -> None:
         """
-        Validates the role of the user.
+        Validates if the user already exists by username, email, or phone number (if provided).
 
         Parameters
         ----------
-        user : User
-            The user to validate.
+        username : str
+            The username to validate.
+        email : str
+            The email to validate.
+        phone_number : Optional[int]
+            The phone number to validate (if provided).
 
         Raises
         ------
-        ProductCreateNotValidException
-            If the user does not have permission to edit keys.
+        CreateError
+            If the username, email, or phone number is already in use or phone number is invalid.
         """
         user = await self.get_user_by_username(username)
         if user:
-            raise CreateError("This username alrady use")
+            raise CreateError("This username already use")
         
         user = await self.get_user_by_email(email)
         if user:
-            raise CreateError("This email alrady use")
+            raise CreateError("This email already use")
 
-        try : 
-            user = await self.get_user_by_phone_number(int(phone_number))
-            if user:
-                raise CreateError("This phone number alrady use")
-        except:
-            raise CreateError("This phone number is not valid")
+        if phone_number is not None: # Only validate phone_number if it is provided
+            try: 
+                # Ensure phone_number is treated as int if it comes as a string from some contexts
+                pn_int = int(phone_number) 
+                user = await self.get_user_by_phone_number(pn_int)
+                if user:
+                    raise CreateError("This phone number already use")
+            except ValueError: # Catches if phone_number cannot be converted to int
+                raise CreateError("This phone number is not a valid integer")
+            except Exception as e: # Catch other potential errors during validation
+                # It might be better to log this error and raise a generic CreateError
+                # or a more specific one if identifiable.
+                # For now, re-raising a generic CreateError to avoid leaking details.
+                # Consider logging `e` for debugging purposes.
+                # logging.error(f"Error validating phone number: {e}")
+                raise CreateError("Error validating phone number")
 
     async def validate_user_role(self, username: str) -> None:
         """

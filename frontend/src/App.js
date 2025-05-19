@@ -4,7 +4,7 @@ import GlobalProvider from "./context/GlobalProvider";
 import Footer from "./components/Footer";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
-const GOOGLE_CLIENT_ID = "946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const App = () => {
   // Force RTL and Hebrew for the whole app
@@ -12,6 +12,17 @@ const App = () => {
     document.documentElement.lang = "he";
     document.documentElement.dir = "rtl";
   }, []);
+
+  if (!GOOGLE_CLIENT_ID) {
+    console.error("Google Client ID is not defined. Please check your .env file.");
+    // Optionally, render an error message or a fallback UI
+    return (
+      <div style={{ textAlign: 'center', marginTop: '50px', color: 'red' }}>
+        <h1>Configuration Error</h1>
+        <p>Google Client ID is missing. The application cannot start.</p>
+      </div>
+    );
+  }
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>

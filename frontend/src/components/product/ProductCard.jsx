@@ -51,7 +51,7 @@ const ProductCard = ({ product, otherStyle }) => {
       </div>
       {/* Add to cart button is outside the clickable area */}
       <div className="flex items-center justify-between w-full mt-4">
-        <p className="text-lg font-medium text-white">${product?.price}</p>
+        <p className="text-lg font-medium text-white">₪{product?.price}</p>
         <PrimaryButton
           title={lang === "he" ? "הוסף לעגלה" : "Add to cart"}
           ariaLabel={`${lang === "he" ? "הוסף" : "Add"} ${displayName} ${lang === "he" ? "לעגלה" : "to cart"}`}

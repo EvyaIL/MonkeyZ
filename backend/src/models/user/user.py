@@ -14,14 +14,14 @@ class User(Document):
     role:Role
     password:str
     email:Indexed(str, unique=True) # type: ignore 
-    phone_number: Optional[int] = None # Removed Indexed(int, unique=True)
+    phone_number: Optional[int] = None # Ensure it is Optional and not indexed for uniqueness if None
     keys:Optional[dict[PydanticObjectId,PydanticObjectId] ] =None
 
 class UserRequest(BaseModel):
     username: str
     password:str
     email:str
-    phone_number: Optional[int] = None # Changed to Optional
+    phone_number: Optional[int] = None # Ensure it is Optional
 
 
 

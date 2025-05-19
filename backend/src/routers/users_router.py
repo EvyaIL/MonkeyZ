@@ -93,21 +93,29 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
     user_created = False
     if not user:
         # Create new user with Google info
-        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number=None) # Changed 0 to None
+        # Ensure phone_number is explicitly set to None if not provided by Google
+        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number=None)
         user = await user_controller.user_collection.create_user(user_req)
         user_created = True
         logging.info(f"[Google OAuth] Created new user: {email}")
     else:
-        # If user exists but has missing phone_number or password, fill them
+        # If user exists, ensure their phone_number is not a blocker for Google login.
+        # We can decide to either always set it to None, or only if it's currently problematic.
+        # For maximum ease of login via Google, we'll ensure it's None if not already set.
         update_needed = False
-        # Check if phone_number attribute exists and is None or an empty string if it were a string
-        # For an optional int, we just check if it's None or if the attribute is missing
-        if getattr(user, 'phone_number', None) is None: # Ensure it's truly None, not 0
-            user.phone_number = None # Set to None
-            update_needed = True
+        if not hasattr(user, 'phone_number') or getattr(user, 'phone_number', None) is None:
+            # If phone_number is not present or is None, ensure it's explicitly None.
+            # This handles cases where the field might be missing or explicitly null.
+            if getattr(user, 'phone_number', 'not_set') is not None: # Avoids unnecessary update if already None
+                user.phone_number = None
+                update_needed = True
+        
+        # Ensure password is set for existing users if they originally signed up via other means
+        # and are now using Google to log in.
         if not getattr(user, 'password', None) or user.password == "":
-            user.password = "google-oauth"
+            user.password = "google-oauth" # Or some other placeholder
             update_needed = True
+            
         if update_needed:
             await user.save()
         logging.info(f"[Google OAuth] Existing user logged in: {email}")
