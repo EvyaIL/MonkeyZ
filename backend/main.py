@@ -16,6 +16,16 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 load_dotenv()
 
+# Get allowed origins from environment
+# Default to local + production URLs if not specified
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://monkeyz.co.il",
+    "https://monkeyz-frontend.ondigitalocean.app"
+]
+# Parse comma-separated list from env var if exists
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS)).split(",")
+
 app = FastAPI(
     title="MonkeyZ API",
     description="API backend for MonkeyZ - Premium products and services.",
@@ -38,7 +48,7 @@ app.include_router(grow_router.router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://monkeyz.co.il"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

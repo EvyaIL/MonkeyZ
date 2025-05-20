@@ -1,6 +1,7 @@
 import emailjs from '@emailjs/browser';
 
-emailjs.init('OZANGbTigZyYpNfAT'); // Use the correct public key
+// Initialize with the public key from environment variable
+emailjs.init(process.env.REACT_APP_EMAILJS_PUBLIC_KEY || 'OZANGbTigZyYpNfAT');
 
 export function sendOtpEmail({ to_email, otp, lang = 'en' }) {
   // Always generate a passcode if not provided
@@ -8,10 +9,15 @@ export function sendOtpEmail({ to_email, otp, lang = 'en' }) {
   const now = new Date();
   const expire = new Date(now.getTime() + 15 * 60000); // 15 minutes from now
   const time = expire.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Get config from environment variables
+  const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
+  const templateId = process.env.REACT_APP_EMAILJS_OTP_TEMPLATE;
+  
   // Debug: log what is being sent
   console.log('[EmailJS OTP] Sending:', {
-    service: 'service_xheer8t',
-    template: 'template_fi5fm2c',
+    service: serviceId,
+    template: templateId,
     to_email,
     passcode,
     time,
@@ -20,8 +26,8 @@ export function sendOtpEmail({ to_email, otp, lang = 'en' }) {
     lang,
   });
   return emailjs.send(
-    'service_xheer8t',
-    'template_fi5fm2c',
+    serviceId,
+    templateId,
     {
       to_email,
       passcode,
@@ -43,9 +49,12 @@ export function sendOtpEmail({ to_email, otp, lang = 'en' }) {
 }
 
 export function sendWelcomeEmail({ to_email, username, lang = 'en' }) {
+  const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
+  const templateId = process.env.REACT_APP_EMAILJS_WELCOME_TEMP;
+  
   return emailjs.send(
-    'service_xheer8t',
-    'template_iwzazla',
+    serviceId,
+    templateId,
     {
       to_email,
       username,
@@ -56,9 +65,12 @@ export function sendWelcomeEmail({ to_email, username, lang = 'en' }) {
 }
 
 export function sendPasswordResetEmail({ to_email, reset_link, lang = 'en' }) {
+  const serviceId = process.env.REACT_APP_EMAILJS_SERVICE_ID;
+  const templateId = process.env.REACT_APP_EMAILJS_RESET_TEMPLATE;
+  
   return emailjs.send(
-    'service_xheer8t',
-    'template_fi5fm2c',
+    serviceId,
+    templateId,
     {
       to_email,
       reset_link,

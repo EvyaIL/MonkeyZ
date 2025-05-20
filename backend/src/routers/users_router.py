@@ -12,7 +12,7 @@ import requests
 import logging
 from datetime import datetime, timedelta
 from jose import jwt
-from src.lib.email_service import send_password_reset_email # Corrected import
+from src.lib.email_service import send_password_reset_email, send_otp_email, send_welcome_email # Import all email functions
 import os # Added for environment variables
 from src.lib.haseing import Hase
 
@@ -54,6 +54,12 @@ async def login(body:OAuth2PasswordRequestForm = Depends(), user_controller:User
 @users_router.post("")
 async def create_user(body:UserRequest,user_controller:UserController = Depends(get_user_controller_dependency)):
    user:User = await user_controller.user_collection.create_user(body) 
+   # Send welcome email
+   try:
+       send_welcome_email(to_email=body.email, username=body.username)
+   except Exception as e:
+       logging.error(f"Failed to send welcome email: {e}")
+       # Continue even if email sending fails
    return str(user.id)
 
 @users_router.get("/all", response_model=list[UserResponse])
@@ -98,6 +104,13 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
         user = await user_controller.user_collection.create_user(user_req)
         user_created = True
         logging.info(f"[Google OAuth] Created new user: {email}")
+        
+        # Send welcome email for new Google users
+        try:
+            send_welcome_email(to_email=email, username=name)
+        except Exception as e:
+            logging.error(f"Failed to send welcome email to Google user: {e}")
+            # Continue even if email sending fails
     else:
         # If user exists, ensure their phone_number is not a blocker for Google login.
         # We can decide to either always set it to None, or only if it's currently problematic.

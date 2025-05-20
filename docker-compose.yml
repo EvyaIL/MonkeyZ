@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - MONGODB_URI=mongodb://mongo:27017/monkeyz
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - SECRET_KEY=local_development_secret_key
+      - EMAILJS_SERVICE_ID=${EMAILJS_SERVICE_ID}
+      - EMAILJS_USER_ID=${EMAILJS_USER_ID}
+      - EMAILJS_TEMPLATE_ID_PASSWORD_RESET=${EMAILJS_TEMPLATE_ID_PASSWORD_RESET}
+      - EMAILJS_TEMPLATE_ID_OTP=${EMAILJS_TEMPLATE_ID_OTP}
+      - EMAILJS_TEMPLATE_ID_WELCOME=${EMAILJS_TEMPLATE_ID_WELCOME}
+      - EMAILJS_TEMPLATE_ID_WELCOME=${EMAILJS_TEMPLATE_ID_WELCOME}
+    depends_on:
+      - mongo
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_PATH_BACKEND=http://localhost:8000
+      - REACT_APP_EMAILJS_PUBLIC_KEY=${REACT_APP_EMAILJS_PUBLIC_KEY}
+      - REACT_APP_EMAILJS_SERVICE_ID=${REACT_APP_EMAILJS_SERVICE_ID}
+      - REACT_APP_EMAILJS_RESET_TEMPLATE=${REACT_APP_EMAILJS_RESET_TEMPLATE}
+      - REACT_APP_EMAILJS_OTP_TEMPLATE=${REACT_APP_EMAILJS_OTP_TEMPLATE}
+      - REACT_APP_EMAILJS_WELCOME_TEMP=${REACT_APP_EMAILJS_WELCOME_TEMP}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  mongo:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

@@ -30,8 +30,19 @@ class MongoDb:
             raise ValueError("MONGODB_URI has an invalid format. Please check your connection string.")
         
         try:
-            logging.info(f"Connecting to MongoDB at: {mongo_uri}")
-            self.client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=15000, connectTimeoutMS=30000, socketTimeoutMS=45000)
+            logging.info(f"Connecting to MongoDB at: {mongo_uri[:30]}...") # Log only part of the URI for security
+            
+            # DigitalOcean MongoDB connection options - needed for proper replicaset handling
+            connection_options = {
+                "serverSelectionTimeoutMS": 15000, 
+                "connectTimeoutMS": 30000, 
+                "socketTimeoutMS": 45000,
+                "retryWrites": True,
+                "retryReads": True,
+                "tlsAllowInvalidCertificates": False  # Set to True only if using self-signed certs
+            }
+            
+            self.client = AsyncIOMotorClient(mongo_uri, **connection_options)
             await self.client.admin.command('ping')
             logging.info("Successfully connected to MongoDB")
             self.is_connected = True
@@ -54,5 +65,26 @@ class MongoDb:
         await init_beanie(database=db, document_models=model)
 
 def is_valid_mongodb_uri(uri: str) -> bool:
-    """Basic check for MongoDB URI format."""
-    return uri.startswith("mongodb://") or uri.startswith("mongodb+srv://")
+    """
+    Validates if a string is a properly formatted MongoDB URI.
+    
+    Args:
+        uri (str): The MongoDB URI to validate
+        
+    Returns:
+        bool: True if the URI is valid, False otherwise
+    """
+    # Basic format check for MongoDB URI
+    if not isinstance(uri, str):
+        return False
+    
+    # Check for mongodb:// or mongodb+srv:// protocol
+    if not (uri.startswith("mongodb://") or uri.startswith("mongodb+srv://")):
+        return False
+    
+    # For comprehensive validation, we could add more checks like:
+    # - Properly formatted host:port
+    # - Valid query parameters
+    # - etc.
+    
+    return True

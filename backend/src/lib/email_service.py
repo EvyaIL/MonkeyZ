@@ -9,11 +9,17 @@ EMAILJS_API_URL = "https://api.emailjs.com/api/v1.0/email/send"
 # Load credentials from environment variables
 EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID")
 EMAILJS_USER_ID = os.getenv("EMAILJS_USER_ID")
-# It's good practice to also have a fallback or raise an error if critical env vars are missing
-if not EMAILJS_SERVICE_ID or not EMAILJS_USER_ID:
-    logging.error("[EMAILJS] Service ID or User ID is missing from environment variables.")
-    # Depending on desired behavior, you might raise an exception here
-    # raise ValueError("EmailJS credentials are not set in environment variables")
+
+# Check for missing environment variables
+missing_vars = []
+if not EMAILJS_SERVICE_ID:
+    missing_vars.append("EMAILJS_SERVICE_ID")
+if not EMAILJS_USER_ID:
+    missing_vars.append("EMAILJS_USER_ID")
+
+if missing_vars:
+    logging.error(f"[EMAILJS] Missing environment variables: {', '.join(missing_vars)}")
+    # We don't raise an exception here to allow the app to start, but emails won't work
 
 def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     """
@@ -110,4 +116,48 @@ def send_otp_email(to_email: str, otp: str) -> bool:
     except requests.exceptions.RequestException as e:
         logging.error(f"[EMAILJS] Request failed during OTP send: {e}")
         print(f"Error sending OTP email (request failed): {e}")
+        return False
+
+def send_welcome_email(to_email: str, username: str) -> bool:
+    """
+    Sends a welcome email using EmailJS.
+
+    Args:
+        to_email (str): Recipient's email address.
+        username (str): The username to be included in the email.
+
+    Returns:
+        bool: True if the email was sent successfully, False otherwise.
+    """
+    EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID_WELCOME")
+    if not EMAILJS_TEMPLATE_ID:
+        logging.error("[EMAILJS] Welcome Template ID is missing from environment variables.")
+        return False
+    if not EMAILJS_SERVICE_ID or not EMAILJS_USER_ID:
+        logging.error("[EMAILJS] Service ID or User ID is missing. Cannot send welcome email.")
+        return False
+
+    template_params = {
+        "to_email": to_email, 
+        "username": username,
+        "email": to_email,
+        "company_name": "MonkeyZ"
+    }
+    
+    payload = {
+        "service_id": EMAILJS_SERVICE_ID,
+        "template_id": EMAILJS_TEMPLATE_ID,
+        "user_id": EMAILJS_USER_ID,
+        "template_params": template_params
+    }
+
+    logging.info(f"[EMAILJS] Sending welcome email to {to_email} with username: {username} using template: {EMAILJS_TEMPLATE_ID}")
+    try:
+        response = requests.post(EMAILJS_API_URL, json=payload)
+        logging.info(f"[EMAILJS] Response: {response.status_code} {response.text}")
+        if response.status_code != 200:
+            logging.error(f"Error sending welcome email: {response.status_code} - {response.text}")
+        return response.status_code == 200
+    except requests.exceptions.RequestException as e:
+        logging.error(f"[EMAILJS] Request failed during welcome email send: {e}")
         return False
