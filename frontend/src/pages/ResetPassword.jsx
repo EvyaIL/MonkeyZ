@@ -7,8 +7,9 @@ import { Helmet } from 'react-helmet';
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const token = searchParams.get('token');
+    const isRTL = i18n.language === 'he';
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -120,7 +121,7 @@ const ResetPassword = () => {
                             </button>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-6" dir={isRTL ? "rtl" : "ltr"}>
                             <div className="space-y-2">
                                 <label htmlFor="password" className="block text-sm font-medium">
                                     {t('resetPassword.newPassword', 'New Password')}

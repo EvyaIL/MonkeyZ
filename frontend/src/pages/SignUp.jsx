@@ -135,7 +135,7 @@ const SignUp = () => {
         aria-label="Sign up form"
       >
         <h2 className="text-center text-accent text-2xl font-bold">
-          Create An Account
+          {t("create_account", "Create An Account")}
         </h2>
         <p
           className={`text-center font-bold transition-all ${message.message ? "scale-100" : "scale-0"} w-full h-5`}
@@ -148,9 +148,9 @@ const SignUp = () => {
 
         <div className="space-y-5 w-full">
           <PrimaryInput
-            title="Username"
+            title={t("username", "Username")}
             value={form.username}
-            placeholder="Enter your username"
+            placeholder={t("enter_your_username", "Enter your username")}
             onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, "") })}
             autoComplete="username"
             required
@@ -159,9 +159,9 @@ const SignUp = () => {
           />
           <PrimaryInput
             type="password"
-            title="Password"
+            title={t("password", "Password")}
             value={form.password}
-            placeholder="Enter your password"
+            placeholder={t("enter_your_password", "Enter your password")}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             autoComplete="new-password"
             required
@@ -169,18 +169,18 @@ const SignUp = () => {
           />
           <PrimaryInput
             type="email"
-            title="Email"
+            title={t("email", "Email")}
             value={form.email}
-            placeholder="Enter your email"
+            placeholder={t("enter_your_email", "Enter your email")}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             autoComplete="email"
             required
           />
           <PrimaryInput
-            title="Phone Number"
+            title={t("phone_number", "Phone Number")}
             type="tel"
             value={form.phone_number}
-            placeholder="05XXXXXXXX or +972XXXXXXXXX"
+            placeholder={t("enter_your_phone", "05XXXXXXXX or +972XXXXXXXXX")}
             onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
             autoComplete="tel"
             required
@@ -192,9 +192,9 @@ const SignUp = () => {
         {otpSent && (
           <div className="space-y-2">
             <PrimaryInput
-              title="Enter OTP"
+              title={t("enter_otp", "Enter OTP")}
               value={enteredOtp}
-              placeholder="Enter the OTP sent to your email"
+              placeholder={t("enter_the_otp", "Enter the OTP sent to your email")}
               onChange={(e) => setEnteredOtp(e.target.value)}
               required
             />

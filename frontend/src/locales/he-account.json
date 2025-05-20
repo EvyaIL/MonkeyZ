@@ -1,0 +1,19 @@
+{
+  "create_account": "יצירת חשבון",
+  "enter_your_username": "הזן את שם המשתמש שלך",
+  "enter_your_email": "הזן את האימייל שלך",
+  "phone_number": "מספר טלפון",
+  "enter_your_phone": "הזן את מספר הטלפון שלך",
+  "enter_otp": "הזן קוד אימות",
+  "enter_the_otp": "הזן את קוד האימות שנשלח לאימייל שלך",
+  "otp_sent": "קוד אימות נשלח לאימייל שלך",
+  "failed_to_send_otp": "שליחת קוד האימות נכשלה",
+  
+  "my_account": "החשבון שלי",
+  "account_required": "נדרש חשבון",
+  "must_be_signed_in": "עליך להתחבר כדי לצפות בפרופיל שלך",
+  "loading_profile": "טוען את הפרופיל שלך...",
+  "username_label": "שם משתמש:",
+  "email_label": "אימייל:",
+  "phone_label": "טלפון:"
+}

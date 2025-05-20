@@ -10,9 +10,11 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 
 const SignIn = () => {
+  // State initialization
   const navigate = useNavigate();
   const { setUserAndToken, token } = useGlobalProvider();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRTL = i18n.language === 'he';
   const [form, setForm] = useState({ usernameOrEmail: "", password: "" });
   const [isSubmit, setIsSubmit] = useState(false);
   const [message, setMessage] = useState({ message: "", color: "" });
@@ -34,6 +36,9 @@ const SignIn = () => {
     
     // Determine if input is email or username
     const isEmail = form.usernameOrEmail.includes("@") && validateEmail(form.usernameOrEmail);
+    
+    // Log the input type for debugging
+    console.log("Login attempt with:", isEmail ? "Email" : "Username", form.usernameOrEmail);
     
     // Validate input
     if (!form.usernameOrEmail) {
@@ -65,7 +70,7 @@ const SignIn = () => {
     }
 
     const formData = new URLSearchParams();
-    // Send as username (backend expects 'username' field)
+    // Send as username (backend expects 'username' field even for email logins)
     formData.append("username", form.usernameOrEmail);
     formData.append("password", form.password);
 
@@ -77,6 +82,7 @@ const SignIn = () => {
     setIsSubmit(false);
 
     if (error) {
+      console.error("Login error:", error);
       setMessage({ message: error, color: "#DC2626" });
       return;
     }
@@ -150,12 +156,14 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      {/* Using onSubmit handler enables the Enter key to submit the form */}
       <form
         className="p-6 md:p-10 bg-white dark:bg-secondary rounded-lg shadow-lg space-y-6 w-full max-w-md"
         onSubmit={onClickSignIn}
+        dir={isRTL ? "rtl" : "ltr"}
         aria-label="Sign in form"
       >
-        <h2 className="text-center text-accent text-2xl font-bold">Login</h2>
+        <h2 className="text-center text-accent text-2xl font-bold">{t("sign_in", "Login")}</h2>
         <p
           className={`text-center font-bold transition-all w-full h-5 ${message.message ? "scale-100" : "scale-0"}`}
           style={{ color: message.color }}
@@ -166,9 +174,9 @@ const SignIn = () => {
         </p>
 
         <PrimaryInput
-          title="Username or Email"
+          title={t("username_or_email", "Username or Email")}
           value={form.usernameOrEmail}
-          placeholder="Enter your username or email"
+          placeholder={t("enter_username_or_email", "Enter your username or email")}
           onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
           autoComplete="username"
           required
@@ -177,16 +185,16 @@ const SignIn = () => {
         />
         <PrimaryInput
           type="password"
-          title="Password"
+          title={t("password", "Password")}
           value={form.password}
-          placeholder="Enter your password"
+          placeholder={t("enter_your_password", "Enter your password")}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
           autoComplete="current-password"
           required
           minLength={8}
         />
         <PrimaryButton
-          title={isSubmit ? "Signing in..." : "Sign in"}
+          title={isSubmit ? t("signing_in", "Signing in...") : t("sign_in", "Sign in")}
           onClick={onClickSignIn}
           otherStyle="w-full"
           disabled={isSubmit}
@@ -203,40 +211,44 @@ const SignIn = () => {
           />
         </div>
         <SecondaryButton
-          title="Forgot password?"
+          title={t("forgot_password", "Forgot password?")}
           onClick={() => setShowReset((v) => !v)}
           otherStyle="w-full"
         />
         {showReset && (
-          <div className="p-4 mt-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3">
+          <div className="p-4 mt-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3" dir={isRTL ? "rtl" : "ltr"}>
             <h3 className="text-lg font-medium text-center mb-3">{t("reset_password", "Reset Password")}</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
               {t("reset_password_instructions", "Enter your email address below and we'll send you a link to reset your password.")}
             </p>
-            <PrimaryInput
-              title={t("email", "Email")}
-              value={resetEmail}
-              placeholder={t("enter_email_for_reset", "Enter your email address")}
-              onChange={(e) => setResetEmail(e.target.value)}
-              autoComplete="email"
-              required
-              type="email"
-            />
-            <PrimaryButton
-              title={isSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
-              onClick={onPasswordReset}
-              otherStyle="w-full"
-              disabled={isSubmit}
-            />
-            {resetMsg && (
-              <p className={`text-center p-2 rounded ${resetMsg.includes("sent") ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300"}`}>
-                {resetMsg}
-              </p>
-            )}
+            <form onSubmit={onPasswordReset}>
+              <PrimaryInput
+                title={t("email", "Email")}
+                value={resetEmail}
+                placeholder={t("enter_email_for_reset", "Enter your email address")}
+                onChange={(e) => setResetEmail(e.target.value)}
+                autoComplete="email"
+                required
+                type="email"
+              />
+              <div className="mt-3">
+                <PrimaryButton
+                  title={isSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
+                  type="submit"
+                  otherStyle="w-full"
+                  disabled={isSubmit}
+                />
+              </div>
+              {resetMsg && (
+                <p className={`text-center p-2 mt-2 rounded ${resetMsg.includes("sent") ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300"}`}>
+                  {resetMsg}
+                </p>
+              )}
+            </form>
           </div>
         )}
         <SecondaryButton
-          title="Don't have an account? Sign Up"
+          title={t("dont_have_account", "Don't have an account? Sign Up")}
           onClick={() => navigate("/sign-up")}
           otherStyle="w-full"
         />

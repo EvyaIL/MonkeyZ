@@ -18,7 +18,8 @@ const fallbackProducts = [
     price: 49.99,
     discountPercentage: 10,
     isNew: false,
-    inStock: true
+    inStock: true,
+    best_seller: true
   },
   {
     id: 2,
@@ -44,7 +45,8 @@ const fallbackProducts = [
     price: 9.99,
     discountPercentage: 15,
     isNew: false,
-    inStock: true
+    inStock: true,
+    best_seller: true
   },
   {
     id: 4,
@@ -83,7 +85,8 @@ const fallbackProducts = [
     price: 7.99,
     discountPercentage: 0,
     isNew: true,
-    inStock: true
+    inStock: true,
+    best_seller: true
   },
   {
     id: 7,
@@ -144,11 +147,15 @@ const Home = () => {
     if (error || !data || !Array.isArray(data) || data.length === 0) {
       console.log("Using fallback products for best sellers");
       setErrorBest(error ? t("failed_to_load_best_sellers") : "");
-      setBestSellers(fallbackProducts.slice(0, 5)); // Limit to first 5 fallback products
+      // Filter fallback products to only include those marked as best_seller
+      const bestSellerFallbacks = fallbackProducts.filter(p => p.best_seller === true);
+      setBestSellers(bestSellerFallbacks.length > 0 ? bestSellerFallbacks : fallbackProducts.slice(0, 5));
     } else {
-      // If we have fewer than 3 products from API, enhance with fallback products
+      // If we have fewer than 3 products from API, enhance with fallback best seller products
       if (data.length < 3) {
-        const enhancedProducts = mergeUniqueProducts(data, fallbackProducts);
+        // Filter fallback products to only include those marked as best_seller
+        const bestSellerFallbacks = fallbackProducts.filter(p => p.best_seller === true);
+        const enhancedProducts = mergeUniqueProducts(data, bestSellerFallbacks);
         setBestSellers(enhancedProducts.slice(0, 5)); // Limit to 5 products
       } else {
         setBestSellers(data);
