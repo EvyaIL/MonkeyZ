@@ -2,6 +2,7 @@
   "name": "front",
   "version": "0.1.0",
   "private": true,
+  "main": "src/index.js",
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "@react-oauth/google": "^0.12.2",
@@ -39,7 +40,7 @@
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,md}\""
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=18.0.0 <21.0.0"
   },
   "eslintConfig": {
     "extends": [

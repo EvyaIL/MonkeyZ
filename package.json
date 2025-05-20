@@ -2,7 +2,8 @@
   "name": "monkeyz-root",
   "private": true,
   "workspaces": [
-    "frontend"
+    "frontend",
+    "backend"
   ],
   "dependencies": {
     "rc-slider": "^9.7.5"
