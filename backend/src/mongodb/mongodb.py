@@ -52,3 +52,7 @@ class MongoDb:
     async def initialize_beanie(self, db, model: any) -> None:
         """ Initializes Beanie ODM with the provided database and document models. """
         await init_beanie(database=db, document_models=model)
+
+def is_valid_mongodb_uri(uri: str) -> bool:
+    """Basic check for MongoDB URI format."""
+    return uri.startswith("mongodb://") or uri.startswith("mongodb+srv://")
