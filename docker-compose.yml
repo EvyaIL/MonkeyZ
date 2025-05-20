@@ -6,7 +6,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"    environment:
+      - "8000:8000"
+    environment:
       - HOST=0.0.0.0
       - PORT=8000
       - MONGODB_URI=mongodb://mongo:27017/monkeyz
@@ -24,13 +25,12 @@ services:
     volumes:
       - ./backend:/app
     restart: unless-stopped
-
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
       - REACT_APP_PATH_BACKEND=http://localhost:8000
       - REACT_APP_EMAILJS_PUBLIC_KEY=${REACT_APP_EMAILJS_PUBLIC_KEY}

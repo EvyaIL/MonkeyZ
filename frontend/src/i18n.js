@@ -3,12 +3,16 @@ import { initReactI18next } from 'react-i18next';
 
 import he from './locales/he.json';
 import en from './locales/en.json';
+import heAccount from './locales/he-account.json';
+
+// Merge Hebrew translations with account translations
+const mergedHe = { ...he, ...heAccount };
 
 i18n
   .use(initReactI18next)
   .init({
     resources: {
-      he: { translation: he },
+      he: { translation: mergedHe },
       en: { translation: en },
     },
     lng: 'he', // Default language is Hebrew

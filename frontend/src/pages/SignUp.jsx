@@ -11,7 +11,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 
 const SignUp = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     username: "",
@@ -132,6 +132,7 @@ const SignUp = () => {
       <form
         className="p-6 bg-white dark:bg-secondary rounded-lg shadow-lg space-y-5 mt-5 w-full sm:w-[80%] md:w-[60%] lg:w-[40%] h-auto"
         onSubmit={otpSent ? onVerifyOtp : onSubmitSignUp}
+        dir={i18n.language === 'he' ? "rtl" : "ltr"}
         aria-label="Sign up form"
       >
         <h2 className="text-center text-accent text-2xl font-bold">
@@ -180,7 +181,7 @@ const SignUp = () => {
             title={t("phone_number", "Phone Number")}
             type="tel"
             value={form.phone_number}
-            placeholder={t("enter_your_phone", "05XXXXXXXX or +972XXXXXXXXX")}
+            placeholder="05XXXXXXXX"
             onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
             autoComplete="tel"
             required
