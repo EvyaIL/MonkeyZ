@@ -37,7 +37,7 @@ const AboutUs = () => {
           </div>
           <div className="mb-4">
             <h2 className="text-accent text-xl font-semibold mb-2">{t("why_choose_us")}</h2>
-            <ul className="text-base-content dark:text-gray-300 list-disc list-inside text-left mx-auto max-w-lg">
+            <ul className="text-base-content dark:text-gray-300 list-disc rtl:list-inside ltr:list-inside rtl:text-right ltr:text-left mx-auto max-w-lg">
               <li>{t("about_why1")}</li>
               <li>{t("about_why2")}</li>
               <li>{t("about_why3")}</li>

@@ -12,7 +12,7 @@ const BlogPostPreview = ({ post }) => {
   const postSummary = summary[currentLanguage] || summary.en;
 
   return (
-    <div className="bg-secondary shadow-lg rounded-lg overflow-hidden transform transition-all hover:scale-105 duration-300">
+    <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg overflow-hidden transform transition-all hover:scale-105 duration-300 border border-gray-200 dark:border-gray-700">
       {image && (
         <Link to={`/blog/${slug}`}>
           {/* Use postTitle for alt text */}
@@ -26,11 +26,11 @@ const BlogPostPreview = ({ post }) => {
             {postTitle}
           </Link>
         </h2>
-        <p className="text-sm text-gray-400 mb-1">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
           {t('posted_on')} {new Date(date).toLocaleDateString()} {t('by')} {author}
         </p>
         {/* Use postSummary here */}
-        <p className="text-text-secondary mb-4">{postSummary}</p>
+        <p className="text-gray-700 dark:text-gray-300 mb-4">{postSummary}</p>
         <Link
           to={`/blog/${slug}`}
           className="inline-block bg-accent text-white font-semibold py-2 px-4 rounded hover:bg-accent-dark transition-colors duration-300"

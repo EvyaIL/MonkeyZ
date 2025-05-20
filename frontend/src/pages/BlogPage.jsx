@@ -25,7 +25,7 @@ const BlogPage = () => {
           content={t('blog_meta_description') || (lang === 'he' ? 'קראו את הפוסטים האחרונים בבלוג של MonkeyZ.' : 'Read the latest posts from the MonkeyZ blog.')}/>
         {/* Add other OG tags like image if you have a generic blog image */}
       </Helmet>
-      <div className="bg-primary min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <header className="mb-12 text-center">
             <h1 className="text-5xl font-extrabold text-accent tracking-tight">

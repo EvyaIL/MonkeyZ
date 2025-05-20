@@ -21,26 +21,26 @@ const BlogPostPage = () => {
   const postContent = post.content[currentLanguage] || post.content.en;
 
   return (
-    <div className="container mx-auto px-4 py-8 bg-primary text-border">
+    <div className="container mx-auto px-4 py-8">
       <Helmet>
         {/* Use postTitle here */}
         <title>{postTitle} - {t('blog')} - MonkeyZ</title>
         {/* Use postSummary or postTitle for description */}
         <meta name="description" content={postSummary || postTitle} />
       </Helmet>
-      <article className="max-w-3xl mx-auto bg-secondary shadow-xl rounded-lg p-6 md:p-10">
+      <article className="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 md:p-10 border border-gray-200 dark:border-gray-700">
         {post.image && (
           // Use postTitle for alt text
           <img src={post.image} alt={postTitle} className="w-full h-auto max-h-96 object-cover rounded-md mb-8" />
         )}
         {/* Use postTitle here */}
-        <h1 className="text-4xl md:text-5xl font-bold text-primary mb-4">{postTitle}</h1>
-        <p className="text-md text-gray-400 mb-6">
+        <h1 className="text-4xl md:text-5xl font-bold text-primary dark:text-white mb-4">{postTitle}</h1>
+        <p className="text-md text-gray-500 dark:text-gray-400 mb-6">
           {t('posted_on')} {new Date(post.date).toLocaleDateString()} {t('by')} <span className="font-semibold text-accent">{post.author}</span>
         </p>
         <div
           // Ensure text within prose is visible on dark background
-          className="prose prose-lg lg:prose-xl max-w-none text-gray-300 prose-headings:text-accent prose-a:text-accent hover:prose-a:text-accent-dark prose-strong:text-white prose-p:text-gray-300 prose-li:text-gray-300 prose-ul:text-gray-300 prose-ol:text-gray-300"
+          className="prose prose-lg lg:prose-xl max-w-none dark:prose-invert prose-headings:text-accent prose-a:text-accent hover:prose-a:text-accent-dark"
           dangerouslySetInnerHTML={{ __html: postContent }}
         />
         <div className="mt-10 pt-6 border-t border-border">

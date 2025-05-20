@@ -3,11 +3,9 @@ import emailjs from "@emailjs/browser";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 
-// 1. הכנס כאן את המפתחות שלך מ-EmailJS (https://www.emailjs.com/):
-//    SERVICE_ID, TEMPLATE_ID, PUBLIC_KEY
-const SERVICE_ID = "service_xheer8t"; // Service ID שלך
-const TEMPLATE_ID = "template_vmjo60f"; // Template ID שלך
-const PUBLIC_KEY = "OZANGbTigZyYpNfAT"; // זהו ה-Public Key שלך מ-EmailJS
+const SERVICE_ID = "service_xheer8t"; 
+const TEMPLATE_ID = "template_vmjo60f"; 
+const PUBLIC_KEY = "OZANGbTigZyYpNfAT"; 
 
 const Contact = () => {
   const { t } = useTranslation();
@@ -55,16 +53,16 @@ const Contact = () => {
             </div>
             <form ref={formRef} onSubmit={sendEmail} className="space-y-6" aria-label="Contact form">
               <div>
-                <label htmlFor="from_name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{t("username")}</label>
-                <input id="from_name" name="from_name" type="text" placeholder={t("username_placeholder") || t("username")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition" required />
+                <label htmlFor="from_name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 rtl:text-right">{t("username")}</label>
+                <input id="from_name" name="from_name" type="text" placeholder={t("username_placeholder") || t("username")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition rtl:text-right" required />
               </div>
               <div>
-                <label htmlFor="reply_to" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{t("email")}</label>
-                <input id="reply_to" name="reply_to" type="email" placeholder={t("email_placeholder") || t("email")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition" required />
+                <label htmlFor="reply_to" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 rtl:text-right">{t("email")}</label>
+                <input id="reply_to" name="reply_to" type="email" placeholder={t("email_placeholder") || t("email")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition rtl:text-right" required />
               </div>
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">{t("message")}</label>
-                <textarea id="message" name="message" placeholder={t("message_placeholder") || t("message")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition" rows={6} required />
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 rtl:text-right">{t("message")}</label>
+                <textarea id="message" name="message" placeholder={t("message_placeholder") || t("message")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition rtl:text-right" rows={6} required />
               </div>
               <button type="submit" className="w-full bg-accent text-white font-semibold py-3 px-6 rounded-lg hover:bg-accent-dark focus:outline-none focus:ring-4 focus:ring-accent focus:ring-opacity-50 transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed" disabled={loading}>
                 {loading ? `${t("sending")}...` : t("send_message") || t("send")}
@@ -75,9 +73,9 @@ const Contact = () => {
                 {status}
               </div>
             )}
-            <div className="mt-8 text-center text-gray-600 dark:text-gray-400 text-sm">
-              {t("or_email_us_directly") || "Or email us directly at "}
-              <a href="mailto:support@monkeyz.co.il" className="text-accent hover:text-accent-dark dark:hover:text-accent-light underline font-medium transition">
+            <div className="mt-8 text-center text-gray-600 dark:text-gray-400 text-sm rtl:text-right ltr:text-center">
+              <span>{t("or_email_us_directly") || "Or email us directly at "}</span>
+              <a href="mailto:support@monkeyz.co.il" className="text-accent hover:text-accent-dark dark:hover:text-accent-light underline font-medium transition inline-block rtl:mr-1">
                 support@monkeyz.co.il
               </a>
             </div>

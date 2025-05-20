@@ -189,6 +189,17 @@ const AllProducts = () => {
     setSortOrder("featured");
   };
 
+  // Get translated sort options based on current language
+  const getSortOptions = () => {
+    return [
+      { value: "featured", label: t("sort_featured", "Featured") },
+      { value: "price-asc", label: t("sort_price_low_to_high", "Price: Low to High") },
+      { value: "price-desc", label: t("sort_price_high_to_low", "Price: High to Low") },
+      { value: "name-asc", label: t("sort_name_a_to_z", "Name: A to Z") },
+      { value: "name-desc", label: t("sort_name_z_to_a", "Name: Z to A") },
+    ];
+  };
+
   const getDemoCategories = () => ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
 
   const getFallbackProducts = () => [
@@ -302,14 +313,6 @@ const AllProducts = () => {
       price: 19.99,
       category: "Support"
     }
-  ];
-
-  const getSortOptions = () => [
-    { value: 'featured', label: t('sort_featured', 'Featured') },
-    { value: 'price-asc', label: t('sort_price_low', 'Price: Low to High') },
-    { value: 'price-desc', label: t('sort_price_high', 'Price: High to Low') },
-    { value: 'name-asc', label: t('sort_name_asc', 'Name: A-Z') },
-    { value: 'name-desc', label: t('sort_name_desc', 'Name: Z-A') }
   ];
 
   return (
