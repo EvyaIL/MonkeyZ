@@ -23,16 +23,10 @@ class UserController(ControllerInterface):
 
     async def initialize(self):
         """Initializes database connections and collections."""
-        try:
-            await self.user_collection.connection()
-            await self.user_collection.initialize()
-            await self.keys_collection.connection()
-            await self.keys_collection.initialize()
-            return True
-        except Exception as e:
-            import logging
-            logging.error(f"Failed to initialize collections: {str(e)}")
-            return False
+        await self.keys_collection.connection()
+        await self.keys_collection.initialize()
+        await self.user_collection.connection()
+        await self.user_collection.initialize()
 
     async def get_user_by_token(self, username: str) -> SelfResponse:
         """
@@ -61,6 +55,8 @@ class UserController(ControllerInterface):
         response = await self.get_user_response(user)
         response = LoginResponse(access_token=access_token, user=response,token_type="Bearer")
         return response
+
+
     async def get_user_response(self, user: User) -> SelfResponse:
         response = SelfResponse(**user.model_dump(exclude={"keys"}), keys={})
         if user.keys != None:
@@ -68,14 +64,3 @@ class UserController(ControllerInterface):
                 response[key_id] = await self.keys_collection.get_key_by_id(key_id)
         
         return response
-        
-    async def disconnect(self):
-        """Closes the database connections."""
-        try:
-            if hasattr(self.user_collection, 'client') and self.user_collection.client:
-                self.user_collection.client.close()
-            if hasattr(self.keys_collection, 'client') and self.keys_collection.client:
-                self.keys_collection.client.close()
-        except Exception as e:
-            import logging
-            logging.error(f"Error disconnecting from MongoDB: {str(e)}")

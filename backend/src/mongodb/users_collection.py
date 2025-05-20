@@ -6,7 +6,6 @@ from src.singleton.singleton import Singleton
 from src.lib.haseing import Hase
 from src.lib.token_handler import create_access_token
 from typing import Optional # Added Optional for type hinting
-import logging
 
 class UserCollection(MongoDb, metaclass=Singleton):
     """
@@ -88,30 +87,14 @@ class UserCollection(MongoDb, metaclass=Singleton):
                 LogginUserException
                     If the username does not exist or the password is incorrect.
         """
-        # Ensure we're connected to the database
-        if not hasattr(self, 'client') or self.client is None:
-            try:
-                await self.connection()
-            except Exception as e:
-                logging.error(f"Failed to connect to MongoDB during login: {str(e)}")
-                raise LoginError(f"Unable to connect to the database. Please try again later.")
+        user = await self.get_user_by_username(body.username)
+        if not user:
+            raise LoginError("Username does not exist.")
         
-        try:
-            user = await self.get_user_by_username(body.username)
-            if not user:
-                raise LoginError("Username does not exist.")
-            
-            if not Hase.verify(body.password, user.password):
-                raise LoginError("Password is incorrect.")
-            
-            return user
-        except Exception as e:
-            if "Failed to connect to MongoDB" in str(e) or "ServerSelectionTimeoutError" in str(e.__class__.__name__):
-                logging.error(f"Database connection error during login: {str(e)}")
-                raise LoginError("No response from the server. Please check your database connection.")
-            else:
-                # Re-raise other exceptions
-                raise
+        if not Hase.verify(body.password, user.password):
+            raise LoginError("Password is incorrect.")
+        
+        return  user
 
     async def get_user_by_username(self, username: str) -> User:
         """ Retrieves a user by their username.

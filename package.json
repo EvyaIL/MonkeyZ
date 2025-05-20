@@ -1,0 +1,10 @@
+{
+  "name": "monkeyz-root",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "dependencies": {
+    "rc-slider": "^9.7.2"
+  }
+}

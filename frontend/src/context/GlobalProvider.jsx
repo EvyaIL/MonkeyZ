@@ -41,8 +41,6 @@ const GlobalProvider = ({ children }) => {
     localStorage.removeItem("token");
     setToken(null);
     setUser(null);
-    clearCart(); // Clear cart items on logout
-    showSuccess("Successfully logged out");
   };
 
   const setUserAndToken = (data) => {

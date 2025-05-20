@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { validateEmail, validatePassword } from "../lib/authUtils";
 import { GoogleLogin } from '@react-oauth/google';
-import { checkServerConnection, checkDatabaseConnection } from "../lib/connectionUtils";
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -19,52 +18,17 @@ const SignIn = () => {
   const [resetEmail, setResetEmail] = useState("");
   const [resetMsg, setResetMsg] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState({
-    checking: false,
-    serverConnected: true,
-    dbConnected: true,
-    message: ""
-  });
 
   useEffect(() => {
     if (token) navigate("/");
     // eslint-disable-next-line
   }, [token, navigate]);
 
-  // Check connection to server and database
-  const checkConnections = async () => {
-    setConnectionStatus(prev => ({ ...prev, checking: true }));
-    
-    // Check server connection first
-    const serverStatus = await checkServerConnection();
-    if (!serverStatus.isConnected) {
-      setConnectionStatus({
-        checking: false,
-        serverConnected: false,
-        dbConnected: false,
-        message: serverStatus.message
-      });
-      return false;
-    }
-    
-    // Then check database connection
-    const dbStatus = await checkDatabaseConnection();
-    setConnectionStatus({
-      checking: false,
-      serverConnected: true,
-      dbConnected: dbStatus.isConnected,
-      message: dbStatus.isConnected ? "" : dbStatus.message
-    });
-    
-    return serverStatus.isConnected && dbStatus.isConnected;
-  };
-
   const onClickSignIn = async (e) => {
     e?.preventDefault();
     if (isSubmit) return;
     setIsSubmit(true);
     setMessage({ message: "", color: "" });
-    
     // Accept either email or username
     const isEmail = form.username.includes("@") && validateEmail(form.username);
     if (!isEmail && form.username.length < 3) {
@@ -78,44 +42,26 @@ const SignIn = () => {
       return;
     }
 
-    // Check connections before attempting login
-    try {
-      const connectionsOk = await checkConnections();
-      if (!connectionsOk) {
-        setMessage({ message: "Connection issues detected. Please try again later.", color: "#DC2626" });
-        setIsSubmit(false);
-        return;
-      }
-      
-      const formData = new URLSearchParams();
-      // Send as username (can be username or email), backend expects 'username'
-      formData.append("username", form.username);
-      formData.append("password", form.password);
+    const formData = new URLSearchParams();
+    // Send as username (can be username or email), backend expects 'username'
+    formData.append("username", form.username);
+    formData.append("password", form.password);
 
-      const { data, error } = await apiService.post(
-        "/user/login",
-        formData,
-        "application/x-www-form-urlencoded",
-      );
-      setIsSubmit(false);
+    const { data, error } = await apiService.post(
+      "/user/login",
+      formData,
+      "application/x-www-form-urlencoded",
+    );
+    setIsSubmit(false);
 
-      if (error) {
-        if (error.includes("No response from the server")) {
-          // Double check connections if we get a server error
-          await checkConnections();
-        }
-        setMessage({ message: error, color: "#DC2626" });
-        return;
-      }
-
-      setMessage({ message: "User Login Successfully", color: "#16A34A" });
-      setUserAndToken(data);
-      setForm({ username: "", password: "" });
-    } catch (err) {
-      console.error("Login error:", err);
-      setMessage({ message: "Login failed. Please try again.", color: "#DC2626" });
-      setIsSubmit(false);
+    if (error) {
+      setMessage({ message: error, color: "#DC2626" });
+      return;
     }
+
+    setMessage({ message: "User Login Successfully", color: "#16A34A" });
+    setUserAndToken(data);
+    setForm({ username: "", password: "" });
   };
 
   // Google sign in handler

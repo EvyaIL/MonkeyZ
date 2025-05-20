@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import SecondaryButton from "../buttons/SecondaryButton";
 import PrimaryButton from "../buttons/PrimaryButton";
 import PointButton from "../buttons/PointButton";
@@ -25,22 +25,8 @@ const ProductShowcase = ({ products, title }) => {
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
   const [isMobileView, setIsMobileView] = useState(false);
-  const [imagesWithError, setImagesWithError] = useState(new Set());
   const timeoutRef = useRef(null);
   const showcaseRef = useRef(null);
-
-  // Default fallback image if product image fails to load
-  const defaultImage = "https://placehold.co/400x300/e2e8f0/475569?text=MonkeyZ+Product";
-  
-  // Handle image loading error
-  const handleImageError = useCallback((productId) => {
-    if (validProducts && validProducts.length > 0) {
-      // Instead of trying to update state directly, just log the error
-      // and use a local state to track image failures within this component
-      setImagesWithError(prev => new Set([...prev, productId]));
-      console.log(`Image failed to load for product ${productId}, using fallback`);
-    }
-  }, [validProducts]);
 
   // Reset timeout when component unmounts or when we change slides
   const resetTimeout = () => {
@@ -248,22 +234,15 @@ const ProductShowcase = ({ products, title }) => {
                   aria-hidden={!isActive}
                 >
                   <div className="w-full md:w-1/2 h-[140px] md:h-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
-                    {imageUrl && !imagesWithError.has(productId) ? (
+                    {imageUrl ? (
                       <img
                         src={imageUrl}
                         alt={nameToDisplay}
                         className="object-contain w-full h-full"
                         loading="lazy"
-                        onError={() => handleImageError(productId)}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <img
-                          src={defaultImage}
-                          alt={`${nameToDisplay} ${t("fallback_image", "placeholder")}`}
-                          className="object-contain w-full h-full opacity-80"
-                        />
-                      </div>
+                      <span className="text-gray-500 dark:text-white text-lg">{t("no_image_available", "No image available")}</span>
                     )}
                   </div>
 

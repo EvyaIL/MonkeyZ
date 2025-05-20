@@ -4,7 +4,6 @@ import uvicorn
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
-import logging
 
 from src.routers.users_router import users_router
 from src.routers.products_router import product_router
@@ -48,37 +47,6 @@ app.add_middleware(
 @app.get("/health", tags=["default"])
 def health_check():
     return {"status": "ok"}
-    
-@app.get("/health/db", tags=["default"])
-async def db_health_check():
-    """Check the health of the MongoDB connection."""
-    import os
-    from motor.motor_asyncio import AsyncIOMotorClient
-    
-    mongo_uri = os.getenv("MONGODB_URI")
-    if not mongo_uri:
-        return {"status": "error", "message": "MONGODB_URI environment variable is not set."}
-    
-    try:
-        # Try to connect with a short timeout
-        client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        # Ping to verify connection
-        await client.admin.command('ping')
-        
-        # Get server info to verify connection details
-        server_info = await client.admin.command('serverStatus')
-        
-        details = {
-            "version": server_info.get("version", "Unknown"),
-            "uptime": server_info.get("uptime", 0),
-            "connections": server_info.get("connections", {}).get("current", 0)
-        }
-        
-        # Close the connection
-        client.close()
-        return {"status": "ok", "database": "connected", "details": details}
-    except Exception as e:
-        return {"status": "error", "database": "disconnected", "message": str(e)}
 
 app.include_router(users_router)
 app.include_router(product_router)
@@ -128,15 +96,9 @@ async def sitemap_xml():
 async def startup_event():
     global mongo_client, contact_collection
     mongo = MongoDb()
-    try:
-        await mongo.connection()
-        mongo_client = await mongo.get_client()
-        contact_collection = ContactCollection(mongo_client)
-        logging.info("Application started successfully with database connection")
-    except Exception as e:
-        logging.error(f"Failed to initialize database connection during startup: {str(e)}")
-        # We don't want to crash the app on startup, but we'll log the error
-        # The error will be handled when specific endpoints are called
+    await mongo.connection()
+    mongo_client = await mongo.get_client()
+    contact_collection = ContactCollection(mongo_client)
 
 @app.post("/contact", response_model=ContactResponse)
 async def handle_contact_form(contact_form: ContactForm):

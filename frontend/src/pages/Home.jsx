@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-// import PrimaryButton from "../components/buttons/PrimaryButton"; // Unused
+import PrimaryButton from "../components/buttons/PrimaryButton";
 import ProductCard from "../components/product/ProductCard";
 import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
@@ -97,7 +97,7 @@ const Home = () => {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [errorBest, setErrorBest] = useState("");
   const [errorRecent, setErrorRecent] = useState("");
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     getBestSellers();
@@ -117,60 +117,28 @@ const Home = () => {
   const getBestSellers = async () => {
     setLoadingBest(true);
     setErrorBest("");
-    try {
-      const { data, error } = await apiService.get("/product/best-sellers");
-      let validProducts = [];
-      if (!error && Array.isArray(data) && data.length > 0) {
-        // Filter out invalid products
-        validProducts = data.filter(product =>
-          product && product.id && product.name && product.price !== undefined
-        );
-      }
-      // Always ensure at least 4 products, merge with fallback if needed
-      if (validProducts.length < 4) {
-        const additionalProducts = fallbackProducts
-          .filter(p => !validProducts.some(vp => vp.id === p.id))
-          .slice(0, 4 - validProducts.length);
-        setBestSellers([...validProducts, ...additionalProducts]);
-        if (error || validProducts.length === 0) {
-          setErrorBest(t("failed_to_load_best_sellers") || "Failed to load best sellers.");
-        }
-      } else {
-        setBestSellers(validProducts);
-      }
-    } catch (err) {
-      console.error("Error fetching best sellers:", err);
-      setErrorBest(t("failed_to_load_best_sellers") || "Failed to load best sellers.");
-      setBestSellers(fallbackProducts.slice(0, 4));
-    } finally {
-      setLoadingBest(false);
+    const { data, error } = await apiService.get("/product/best-sellers");
+    if (error || !data || !Array.isArray(data) || data.length === 0) {
+      setErrorBest(error ? t("failed_to_load_best_sellers") : "");
+      setBestSellers(fallbackProducts);
+    } else {
+      setBestSellers(data);
     }
+    setLoadingBest(false);
   };
 
   const getRecent = async () => {
     setLoadingRecent(true);
     setErrorRecent("");
-    try {
-      const params = { limit: 8 };
-      const { data, error } = await apiService.get("/product/recent", params);
-      if (error) {
-        setErrorRecent(t("failed_to_load_recent_products") || "Failed to load recent products.");
-        setRecent(fallbackProducts);
-      } else {
-        // Filter out invalid products
-        const validData = Array.isArray(data) 
-          ? data.filter(product => product && product.id && product.name && product.price !== undefined)
-          : [];
-          
-        setRecent(mergeUniqueProducts(validData, fallbackProducts));
-      }
-    } catch (err) {
-      console.error("Error fetching recent products:", err);
-      setErrorRecent(t("failed_to_load_recent_products") || "Failed to load recent products.");
+    const params = { limit: 8 };
+    const { data, error } = await apiService.get("/product/recent", params);
+    if (error) {
+      setErrorRecent("Failed to load recent products.");
       setRecent(fallbackProducts);
-    } finally {
-      setLoadingRecent(false);
+    } else {
+      setRecent(mergeUniqueProducts(data || [], fallbackProducts));
     }
+    setLoadingRecent(false);
   };
 
   return (

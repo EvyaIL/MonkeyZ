@@ -2,7 +2,7 @@ import contextlib
 from fastapi import APIRouter, Depends, HTTPException, Request
 from src.models.token.token import LoginResponse, Token, TokenData
 from src.deps.deps import UserCollection,KeysCollection , get_user_controller_dependency, UserController
-from src.models.user.user import UserRequest, User, Role
+from src.models.user.user import UserRequest, User
 from src.models.user.user_response import UserResponse,SelfResponse
 from src.lib.token_handler import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
@@ -15,7 +15,6 @@ from jose import jwt
 from src.lib.email_service import send_password_reset_email # Corrected import
 import os # Added for environment variables
 from src.lib.haseing import Hase
-from typing import Optional
 
 # Load from environment variables with defaults
 SECRET_KEY = os.getenv("RESET_TOKEN_SECRET_KEY", "your-secret-key-please-change") 
@@ -40,51 +39,22 @@ async def lifespan(router: APIRouter):
    Args:
       router (APIRouter): The FastAPI router to which the lifespan manager is attached.
    """
-   import logging
    user_controller:UserController = get_user_controller_dependency()
-   try:
-      success = await user_controller.initialize()
-      if not success:
-         logging.error("Failed to initialize user controller")
-   except Exception as e:
-      logging.error(f"Error during initialization: {str(e)}")
-   
+   await user_controller.initialize()
    yield
-   
-   try:
-      await user_controller.disconnect()
-   except Exception as e:
-      logging.error(f"Error during disconnection: {str(e)}")
+   await user_controller.disconnect()
 
 users_router = APIRouter(prefix=f"/user",tags=["users"], lifespan = lifespan)
 
 @users_router.post("/login", response_model=LoginResponse)
 async def login(body:OAuth2PasswordRequestForm = Depends(), user_controller:UserController = Depends(get_user_controller_dependency)):
-   try:
-      login_response:LoginResponse = await user_controller.login(body)
-      return login_response
-   except Exception as e:
-      import logging
-      logging.error(f"Login failed: {str(e)}")
-      # Raise with a user-friendly message but include technical details if in debug mode
-      raise HTTPException(
-         status_code=401,
-         detail=f"Login failed. Please check your credentials and try again."
-      )
+   login_response:LoginResponse = await user_controller.login(body) 
+   return login_response
 
 @users_router.post("")
 async def create_user(body:UserRequest,user_controller:UserController = Depends(get_user_controller_dependency)):
-   try:
-      user:User = await user_controller.user_collection.create_user(body)
-      return str(user.id)
-   except Exception as e:
-      import logging
-      logging.error(f"User creation failed: {str(e)}")
-      # Provide a more helpful error message
-      raise HTTPException(
-         status_code=400,
-         detail=f"Failed to create user: {str(e)}"
-      )
+   user:User = await user_controller.user_collection.create_user(body) 
+   return str(user.id)
 
 @users_router.get("/all", response_model=list[UserResponse])
 async def get_all_users(user_controller:UserController = Depends(get_user_controller_dependency)):
@@ -209,51 +179,3 @@ async def reset_password(payload: PasswordResetConfirmPayload, user_controller: 
     await user.save()
 
     return {"message": "Password has been reset successfully"}
-
-class AdminCreationRequest(BaseModel):
-    username: str
-    password: str
-    email: str
-    admin_secret: str
-    phone_number: Optional[int] = None
-
-@users_router.post("/create-admin")
-async def create_admin_account(body: AdminCreationRequest, user_controller: UserController = Depends(get_user_controller_dependency)):
-    """
-    Create an admin account with manager role.
-    This endpoint is protected by an admin_secret to prevent unauthorized admin creation.
-    """
-    # Check the admin secret against environment variable or hardcoded value (only for initial setup)
-    ADMIN_SECRET = os.getenv("ADMIN_SECRET", "change-this-in-production")
-    
-    if body.admin_secret != ADMIN_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid admin secret")
-    
-    # Check if user already exists
-    try:
-        # Create a regular user request minus the admin_secret
-        user_req = UserRequest(
-            username=body.username,
-            password=body.password,
-            email=body.email,
-            phone_number=body.phone_number
-        )
-        
-        # Validate if user exists manually since we need to handle creating with manager role
-        await user_controller.user_collection.validate_user_exist(body.username, body.email, body.phone_number)
-        
-        # Create the user with manager role
-        hashed_password = Hase.bcrypt(body.password)
-        user = User(
-            username=body.username, 
-            password=hashed_password, 
-            role=Role.manager,
-            email=body.email,
-            phone_number=body.phone_number
-        )
-        await user.save()
-        
-        return {"message": "Admin account created successfully", "user_id": str(user.id)}
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
