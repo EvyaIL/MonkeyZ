@@ -1,16 +1,9 @@
 # Environment variables
 .env
-backend/.env
-frontend/.env
-**/.env
 .env.local
 .env.development
 .env.test
 .env.production
-
-# Dependency directories
-node_modules/
-venv/
 
 # Python
 __pycache__/
@@ -32,6 +25,12 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+pytest_cache/
+
+# Virtual Environment
+venv/
+env/
+ENV/
 
 # IDE specific files
 .vscode/
