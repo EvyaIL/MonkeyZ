@@ -79,7 +79,7 @@ const ProductPage = () => {
     setErrorMsg("");
     // Try API first
     try {
-      const { data, error } = await apiService.get(`/product/${name}`);
+      const { data } = await apiService.get(`/product/${name}`);
       if (data) {
         setProduct(data);
         // Fetch related products after we have the main product

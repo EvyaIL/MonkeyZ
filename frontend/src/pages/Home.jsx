@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import PrimaryButton from "../components/buttons/PrimaryButton";
 import ProductCard from "../components/product/ProductCard";
 import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
@@ -97,7 +96,7 @@ const Home = () => {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [errorBest, setErrorBest] = useState("");
   const [errorRecent, setErrorRecent] = useState("");
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     getBestSellers();

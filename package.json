@@ -5,6 +5,6 @@
     "frontend"
   ],
   "dependencies": {
-    "rc-slider": "^9.7.2"
+    "rc-slider": "^9.7.5"
   }
 }

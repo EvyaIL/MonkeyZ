@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { validatePhone, validateEmail, validatePassword } from "../lib/authUtils";
 import { sendOtpEmail, sendWelcomeEmail } from "../lib/emailService";
-import { GoogleLogin, googleLogout } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 
 const SignUp = () => {
@@ -79,7 +79,7 @@ const SignUp = () => {
     }
     setOtpError("");
     setIsSubmit(true);
-    const { data, error } = await apiService.post("/user", form);
+    const { error } = await apiService.post("/user", form);
     setIsSubmit(false);
     if (error) {
       setMessage({ message: error, color: "#DC2626" });
@@ -151,7 +151,7 @@ const SignUp = () => {
             title="Username"
             value={form.username}
             placeholder="Enter your username"
-            onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_\-]/g, "") })}
+            onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, "") })}
             autoComplete="username"
             required
             minLength={3}

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react"; // Added useState, useEffect
-import Slider, { Range } from "rc-slider";
+import React, { useState, useEffect } from "react";
+import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
 import { useTranslation } from "react-i18next";
+const Range = Slider.Range;
 
 const RangeInput = ({ value, onChange }) => {
   const { i18n } = useTranslation();

@@ -37,7 +37,7 @@ const ResetPassword = () => {
 
         setLoading(true);
         try {
-            const response = await apiService.post('/user/password-reset/confirm', { token, new_password: password });
+            await apiService.post('/user/password-reset/confirm', { token, new_password: password });
             setMessage(t('resetPassword.passwordResetSuccess'));
             setTimeout(() => {
                 navigate('/signin'); // Redirect to sign-in page
