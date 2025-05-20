@@ -1,0 +1,33 @@
+name: monkeyz
+services:
+- name: frontend
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: your-github-username/MonkeyZ  # Update with your actual repo
+  source_dir: frontend
+  dockerfile_path: Dockerfile
+  http_port: 8080  # This is important for the health check
+  routes:
+  - path: /
+  health_check:
+    http_path: /
+    port: 8080  # Must match EXPOSE in Dockerfile and serve command
+    initial_delay_seconds: 20  # Give more time for build
+    period_seconds: 5
+- name: backend
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: your-github-username/MonkeyZ  # Update with your actual repo
+  source_dir: backend
+  dockerfile_path: Dockerfile
+  routes:
+  - path: /api
+  env:
+  - key: ALLOWED_ORIGINS
+    value: ${APP_URL},https://monkeyz.co.il
+
+databases:
+- name: mongodb
+  engine: mongodb
