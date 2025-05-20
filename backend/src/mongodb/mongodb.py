@@ -39,8 +39,30 @@ class MongoDb:
                 "socketTimeoutMS": 45000,
                 "retryWrites": True,
                 "retryReads": True,
-                "tlsAllowInvalidCertificates": False  # Set to True only if using self-signed certs
+                "tlsAllowInvalidCertificates": False,  # Set to True only if using self-signed certs
+                "directConnection": False  # Important for replica sets
             }
+            
+            # Check if replicaSet parameter is in URI, add it if missing (DigitalOcean requires this)
+            if ("replicaSet=" not in mongo_uri) and ("mongodb+srv://" in mongo_uri):
+                hostname = mongo_uri.split('@')[1].split('/')[0]
+                
+                # Handle public vs private DigitalOcean MongoDB URIs
+                if "private-mongodb" in hostname:
+                    # For private VPC URIs
+                    cluster_id = hostname.split('-')[2] if len(hostname.split('-')) > 2 else "rs0"
+                    replica_set = f"rs-{cluster_id}"
+                else:
+                    # For public URIs, the replica set name is usually the first part of the hostname
+                    cluster_id = hostname.split('-')[0] if '-' in hostname else "mongodb"
+                    replica_set = cluster_id
+                
+                # If there's a query string, append to it
+                if "?" in mongo_uri:
+                    mongo_uri = mongo_uri.replace("?", f"?replicaSet={replica_set}&")
+                else:
+                    mongo_uri = f"{mongo_uri}?replicaSet={replica_set}"
+                logging.info(f"Added replicaSet parameter: replicaSet={replica_set}")
             
             self.client = AsyncIOMotorClient(mongo_uri, **connection_options)
             await self.client.admin.command('ping')

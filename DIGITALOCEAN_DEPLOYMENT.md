@@ -93,9 +93,27 @@ REACT_APP_GROW_API_KEY=your_grow_api_key
 ## MongoDB Configuration
 
 1. In the DigitalOcean dashboard, create a new MongoDB database cluster.
-2. Make sure to enable VPC/private networking if your backend and database are in the same region.
+2. Choose the appropriate connection method:
+   
+   - **Public Network Connection (Recommended for beginners):**
+     - More straightforward to set up
+     - Works from anywhere without additional configuration
+     - Connection string format:
+       ```
+       mongodb+srv://doadmin:password@mongodb1-xxxx.mongo.ondigitalocean.com/admin?tls=true&authSource=admin&replicaSet=mongodb1
+       ```
+
+   - **VPC/Private Network Connection (More secure):**
+     - Requires backend and database to be in the same region
+     - More secure as database is not exposed to the public internet
+     - Connection string format:
+       ```
+       mongodb+srv://doadmin:password@private-mongodb1-xxxx.mongo.ondigitalocean.com/admin?tls=true&authSource=admin&replicaSet=rs-xxxx
+       ```
+
 3. Use the "doadmin" user for connection (or create a dedicated user with appropriate permissions).
-4. Get the connection string from the DigitalOcean MongoDB dashboard and update the backend environment variables.
+4. Get the connection string from the DigitalOcean MongoDB dashboard.
+5. **IMPORTANT**: Make sure your MongoDB URI includes the `replicaSet` parameter. If the parameter is missing from the connection string provided by DigitalOcean, our code will attempt to add it automatically, but it's better to specify it directly:
 
 ## Setting Up Domain Names
 
