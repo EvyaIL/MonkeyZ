@@ -7,11 +7,13 @@ import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { validateEmail, validatePassword } from "../lib/authUtils";
 import { GoogleLogin } from '@react-oauth/google';
+import { useTranslation } from "react-i18next";
 
 const SignIn = () => {
   const navigate = useNavigate();
   const { setUserAndToken, token } = useGlobalProvider();
-  const [form, setForm] = useState({ username: "", password: "" });
+  const { t } = useTranslation();
+  const [form, setForm] = useState({ usernameOrEmail: "", password: "" });
   const [isSubmit, setIsSubmit] = useState(false);
   const [message, setMessage] = useState({ message: "", color: "" });
   const [showReset, setShowReset] = useState(false);
@@ -29,22 +31,42 @@ const SignIn = () => {
     if (isSubmit) return;
     setIsSubmit(true);
     setMessage({ message: "", color: "" });
-    // Accept either email or username
-    const isEmail = form.username.includes("@") && validateEmail(form.username);
-    if (!isEmail && form.username.length < 3) {
-      setMessage({ message: "Invalid username or email.", color: "#DC2626" });
+    
+    // Determine if input is email or username
+    const isEmail = form.usernameOrEmail.includes("@") && validateEmail(form.usernameOrEmail);
+    
+    // Validate input
+    if (!form.usernameOrEmail) {
+      setMessage({ message: t("signin_error_empty_field", "Email or username is required"), color: "#DC2626" });
       setIsSubmit(false);
       return;
     }
+    
+    // Username validation (if not an email)
+    if (!isEmail) {
+      if (form.usernameOrEmail.length < 3) {
+        setMessage({ message: t("signin_error_invalid_username", "Username must be at least 3 characters"), color: "#DC2626" });
+        setIsSubmit(false);
+        return;
+      }
+      
+      // Check if username contains invalid characters
+      if (!/^[a-zA-Z0-9_.-]+$/.test(form.usernameOrEmail)) {
+        setMessage({ message: t("signin_error_invalid_username_chars", "Username can only contain letters, numbers, and _ . -"), color: "#DC2626" });
+        setIsSubmit(false);
+        return;
+      }
+    }
+    
     if (!validatePassword(form.password)) {
-      setMessage({ message: "Password must be at least 8 characters.", color: "#DC2626" });
+      setMessage({ message: t("signin_error_password", "Password must be at least 8 characters"), color: "#DC2626" });
       setIsSubmit(false);
       return;
     }
 
     const formData = new URLSearchParams();
-    // Send as username (can be username or email), backend expects 'username'
-    formData.append("username", form.username);
+    // Send as username (backend expects 'username' field)
+    formData.append("username", form.usernameOrEmail);
     formData.append("password", form.password);
 
     const { data, error } = await apiService.post(
@@ -61,7 +83,7 @@ const SignIn = () => {
 
     setMessage({ message: "User Login Successfully", color: "#16A34A" });
     setUserAndToken(data);
-    setForm({ username: "", password: "" });
+    setForm({ usernameOrEmail: "", password: "" });
   };
 
   // Google sign in handler
@@ -97,24 +119,30 @@ const SignIn = () => {
     e?.preventDefault();
     setResetMsg("");
     if (!validateEmail(resetEmail)) {
-      setResetMsg("Invalid email address.");
+      setResetMsg(t("invalid_email", "Invalid email address"));
       return;
     }
     setIsSubmit(true); // Indicate loading/submission state
     try {
       // Call the backend endpoint to request a password reset
       const { data, error } = await apiService.post(
-        `/user/password-reset/request`, // Remove email from query params
-        { email: resetEmail } // Send email in the request body
+        `/user/password-reset/request`,
+        { email: resetEmail }
       );
 
       if (error) {
-        setResetMsg(error || "Failed to send reset email.");
+        setResetMsg(error || t("reset_email_failed", "Failed to send reset email"));
       } else {
-        setResetMsg(data?.message || "Password reset link sent. Please check your email.");
+        setResetMsg(data?.message || t("reset_email_sent", "Password reset link sent. Please check your email"));
+        // Clear email input after successful request
+        setResetEmail("");
+        // Auto-hide the reset form after a few seconds
+        setTimeout(() => {
+          setShowReset(false);
+        }, 5000);
       }
     } catch (err) {
-      setResetMsg("An unexpected error occurred. Failed to send reset email.");
+      setResetMsg(t("unexpected_error", "An unexpected error occurred. Failed to send reset email"));
     } finally {
       setIsSubmit(false); // Reset loading/submission state
     }
@@ -138,14 +166,14 @@ const SignIn = () => {
         </p>
 
         <PrimaryInput
-          title="Username"
-          value={form.username}
+          title="Username or Email"
+          value={form.usernameOrEmail}
           placeholder="Enter your username or email"
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
+          onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
           autoComplete="username"
           required
           minLength={3}
-          maxLength={32}
+          maxLength={50}
         />
         <PrimaryInput
           type="password"
@@ -180,20 +208,31 @@ const SignIn = () => {
           otherStyle="w-full"
         />
         {showReset && (
-          <div className="space-y-2 mt-4">
+          <div className="p-4 mt-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3">
+            <h3 className="text-lg font-medium text-center mb-3">{t("reset_password", "Reset Password")}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+              {t("reset_password_instructions", "Enter your email address below and we'll send you a link to reset your password.")}
+            </p>
             <PrimaryInput
-              title="Email"
+              title={t("email", "Email")}
               value={resetEmail}
-              placeholder="Enter your email for reset"
+              placeholder={t("enter_email_for_reset", "Enter your email address")}
               onChange={(e) => setResetEmail(e.target.value)}
               autoComplete="email"
               required
+              type="email"
             />
             <PrimaryButton
-              title="Send Reset Email"
+              title={isSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
               onClick={onPasswordReset}
+              otherStyle="w-full"
+              disabled={isSubmit}
             />
-            {resetMsg && <p className="text-center text-accent">{resetMsg}</p>}
+            {resetMsg && (
+              <p className={`text-center p-2 rounded ${resetMsg.includes("sent") ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300"}`}>
+                {resetMsg}
+              </p>
+            )}
           </div>
         )}
         <SecondaryButton

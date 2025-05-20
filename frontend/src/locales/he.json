@@ -172,5 +172,15 @@
   "added_to_cart_suffix": "התווסף לעגלה",
   "copyright_prefix": "כל הזכויות שמורות",
   "contact_subtitle": "נשמח לשמוע ממך! מלא את הטופס למטה כדי ליצור קשר.",
-  "or_email_us_directly": "או שלח לנו מייל ישירות ל-"
+  "or_email_us_directly": "או שלח לנו מייל ישירות ל-",
+  "blog_title": "בלוג",
+  "blog_header": "הבלוג שלנו",
+  "blog_subheader": "חדשות, עדכונים ומחשבות מצוות MonkeyZ.",
+  "blog_meta_description": "קראו את הפוסטים האחרונים בבלוג של MonkeyZ.",
+  "blog_no_posts": "אין פוסטים להצגה כרגע. חזרו בקרוב!",
+  "username_placeholder": "הכנס את שמך",
+  "email_placeholder": "הכנס את האימייל שלך",
+  "message_placeholder": "מה תרצה לשאול או לספר לנו?",
+  "send_message": "שלח הודעה",
+  "sending": "שולח"
 }

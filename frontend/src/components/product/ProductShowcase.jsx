@@ -178,7 +178,13 @@ const ProductShowcase = ({ products, title }) => {
         <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
           {title}
         </h2>
-        <p className="py-8">{t("no_products_to_display", "No products to display.")}</p>
+        <div className="py-8 flex flex-col items-center">
+          <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+          </svg>
+          <p className="text-lg">{t("no_products_to_display", "No products to display.")}</p>
+          <p className="text-sm text-gray-500 mt-2">{t("check_back_later", "Please check back later for our featured products.")}</p>
+        </div>
       </div>
     );
   }
@@ -240,9 +246,18 @@ const ProductShowcase = ({ products, title }) => {
                         alt={nameToDisplay}
                         className="object-contain w-full h-full p-2"
                         loading="lazy"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://via.placeholder.com/300x200?text=MonkeyZ";
+                        }}
                       />
                     ) : (
-                      <span className="text-gray-500 dark:text-white text-lg">{t("no_image_available", "No image available")}</span>
+                      <div className="flex flex-col items-center justify-center p-4 text-center">
+                        <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span className="text-gray-500 dark:text-white text-sm">{t("no_image_available", "No image available")}</span>
+                      </div>
                     )}
                   </div>
 
@@ -253,13 +268,30 @@ const ProductShowcase = ({ products, title }) => {
                     <p className="break-words text-sm md:text-base leading-relaxed line-clamp-3 md:line-clamp-4">
                       {descToDisplay}
                     </p>
-                    <p className="text-lg font-semibold text-accent mt-2 md:mt-3">
-                      ₪{priceToDisplay}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <p className="text-lg font-semibold text-accent">
+                        ₪{priceToDisplay}
+                      </p>
+                      {p.discountPercentage > 0 && (
+                        <span className="px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-xs font-semibold rounded">
+                          {p.discountPercentage}% {t("off", "OFF")}
+                        </span>
+                      )}
+                      {p.inStock === false && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 text-xs font-semibold rounded">
+                          {t("out_of_stock", "Out of Stock")}
+                        </span>
+                      )}
+                      {p.isNew && (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-semibold rounded">
+                          {t("new", "NEW")}
+                        </span>
+                      )}
+                    </div>
                     
                     {/* Show Add to Cart button on mobile view */}
                     {isMobileView && (
-                      <div className="mt-2">
+                      <div className="mt-3">
                         <PrimaryButton
                           title={t("add_to_cart")}
                           ariaLabel={`${t("add")} ${nameToDisplay} ${t("to_cart")}`}
@@ -267,7 +299,7 @@ const ProductShowcase = ({ products, title }) => {
                             e.stopPropagation();
                             handleAddToCart(p);
                           }}
-                          disabled={!p.id}
+                          disabled={!p.id || p.inStock === false}
                           otherStyle="text-sm py-1.5 px-3"
                         />
                       </div>
@@ -312,17 +344,23 @@ const ProductShowcase = ({ products, title }) => {
               const cp = currentProductForButton;
               const currentProductName = typeof cp.name === "object" ? (cp.name[lang] || cp.name.en) : cp.name;
               const nameForButton = currentProductName || "";
+              const isOutOfStock = cp.inStock === false;
               return (
                   <PrimaryButton
-                    title={lang === "he" ? "הוסף לעגלה" : t("add_to_cart")}
-                    ariaLabel={`${lang === "he" ? "הוסף" : t("add") } ${nameForButton} ${lang === "he" ? "לעגלה" : t("to_cart")}`}
+                    title={isOutOfStock 
+                      ? lang === "he" ? "אזל מהמלאי" : t("out_of_stock") 
+                      : lang === "he" ? "הוסף לעגלה" : t("add_to_cart")}
+                    ariaLabel={isOutOfStock
+                      ? lang === "he" ? "אזל מהמלאי" : t("out_of_stock")
+                      : `${lang === "he" ? "הוסף" : t("add") } ${nameForButton} ${lang === "he" ? "לעגלה" : t("to_cart")}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (cp.id) {
+                      if (cp.id && !isOutOfStock) {
                          handleAddToCart(cp);
                       }
                     }}
-                    disabled={!cp.id}
+                    disabled={!cp.id || isOutOfStock}
+                    otherStyle={isOutOfStock ? "bg-gray-400 hover:bg-gray-400" : ""}
                   />
               );
           })()}

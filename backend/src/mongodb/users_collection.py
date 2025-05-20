@@ -85,16 +85,22 @@ class UserCollection(MongoDb, metaclass=Singleton):
             Raises
             ------
                 LogginUserException
-                    If the username does not exist or the password is incorrect.
+                    If the username/email does not exist or the password is incorrect.
         """
-        user = await self.get_user_by_username(body.username)
-        if not user:
-            raise LoginError("Username does not exist.")
+        # Check if the input is an email
+        if '@' in body.username:
+            user = await self.get_user_by_email(body.username)
+            if not user:
+                raise LoginError("Email does not exist.")
+        else:
+            user = await self.get_user_by_username(body.username)
+            if not user:
+                raise LoginError("Username does not exist.")
         
         if not Hase.verify(body.password, user.password):
             raise LoginError("Password is incorrect.")
         
-        return  user
+        return user
 
     async def get_user_by_username(self, username: str) -> User:
         """ Retrieves a user by their username.

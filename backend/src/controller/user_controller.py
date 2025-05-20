@@ -51,7 +51,7 @@ class UserController(ControllerInterface):
     
     async def login(self, body: UserRequest) -> LoginResponse:
         user:User = await self.user_collection.login(body)
-        access_token = create_access_token(data={"sub":body.username})
+        access_token = create_access_token(data={"sub":user.username})
         response = await self.get_user_response(user)
         response = LoginResponse(access_token=access_token, user=response,token_type="Bearer")
         return response

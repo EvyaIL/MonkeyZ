@@ -16,6 +16,9 @@ const fallbackProducts = [
     },
     image: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80",
     price: 49.99,
+    discountPercentage: 10,
+    isNew: false,
+    inStock: true
   },
   {
     id: 2,
@@ -26,6 +29,9 @@ const fallbackProducts = [
     },
     image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
     price: 19.99,
+    discountPercentage: 0,
+    isNew: true,
+    inStock: true
   },
   {
     id: 3,
@@ -36,6 +42,9 @@ const fallbackProducts = [
     },
     image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
     price: 9.99,
+    discountPercentage: 15,
+    isNew: false,
+    inStock: true
   },
   {
     id: 4,
@@ -46,6 +55,9 @@ const fallbackProducts = [
     },
     image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
     price: 14.99,
+    discountPercentage: 0,
+    isNew: false,
+    inStock: true
   },
   {
     id: 5,
@@ -56,6 +68,9 @@ const fallbackProducts = [
     },
     image: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80",
     price: 29.99,
+    discountPercentage: 0,
+    isNew: false,
+    inStock: false
   },
   {
     id: 6,
@@ -118,10 +133,17 @@ const Home = () => {
     setErrorBest("");
     const { data, error } = await apiService.get("/product/best-sellers");
     if (error || !data || !Array.isArray(data) || data.length === 0) {
+      console.log("Using fallback products for best sellers");
       setErrorBest(error ? t("failed_to_load_best_sellers") : "");
-      setBestSellers(fallbackProducts);
+      setBestSellers(fallbackProducts.slice(0, 5)); // Limit to first 5 fallback products
     } else {
-      setBestSellers(data);
+      // If we have fewer than 3 products from API, enhance with fallback products
+      if (data.length < 3) {
+        const enhancedProducts = mergeUniqueProducts(data, fallbackProducts);
+        setBestSellers(enhancedProducts.slice(0, 5)); // Limit to 5 products
+      } else {
+        setBestSellers(data);
+      }
     }
     setLoadingBest(false);
   };
