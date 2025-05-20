@@ -20,10 +20,10 @@ const PointButton = ({
       type="button"
       onClick={onClick}
       style={style}
-      className={`w-6 h-6 rounded-full transition-all duration-300 flex items-center justify-center text-xs font-medium ${otherStyle} ${
+      className={`w-7 h-7 rounded-full transition-all duration-300 flex items-center justify-center text-xs font-medium shadow-sm ${otherStyle} ${
         current
-          ? "bg-accent scale-110 text-white"
-          : "bg-white opacity-50 hover:opacity-100 text-gray-700"
+          ? "bg-accent scale-110 text-white border border-white"
+          : "bg-white border border-gray-200 dark:border-gray-600 hover:border-accent dark:hover:border-accent hover:opacity-100 text-gray-700 dark:text-white dark:bg-gray-700 hover:text-accent"
       }`}
       aria-current={current ? "true" : undefined}
       aria-label={finalAriaLabel}

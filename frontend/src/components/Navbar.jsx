@@ -128,28 +128,32 @@ const Navbar = () => {
 
             {/* Auth / User Menu */}
             {user ? (
-              <div className="relative group">
+              <div className="relative">
                 <button 
-                  className="gap-2 cursor-pointer rounded-full border-2 border-gray-300 dark:border-gray-700 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center"
+                  className="gap-2 cursor-pointer rounded-full border-2 border-accent/30 dark:border-accent/50 p-2 hover:bg-accent/10 dark:hover:bg-accent/20 transition-all duration-200 flex items-center"
                   aria-label="User menu"
                   aria-expanded="false"
+                  onClick={() => document.getElementById('user-dropdown').classList.toggle('hidden')}
                 >
                   <span className="font-medium text-primary dark:text-accent text-sm truncate max-w-24 md:max-w-none">
                     {`${t("welcome_prefix", "Welcome")}${user.username ? `, ${user.username}` : ""}!`}
                   </span>
                 </button>
 
-                {/* User Dropdown Menu */}
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 hidden group-hover:block">
+                {/* User Dropdown Menu - Using click toggle instead of hover */}
+                <div 
+                  id="user-dropdown"
+                  className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 hidden z-50 transform origin-top-right transition-all duration-150 ease-in-out"
+                >
                   <Link 
                     to="/account" 
-                    className="block px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                    className="block px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md"
                   >
                     {t("profile")}
                   </Link>
                   <button 
                     onClick={logout} 
-                    className="block w-full text-left px-4 py-2 text-white hover:bg-accent/20 rounded-md"
+                    className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md"
                   >
                     {t("logout")}
                   </button>
@@ -170,7 +174,7 @@ const Navbar = () => {
 
             {/* Cart Button */}
             <button
-              className="relative bg-gray-800 p-2 rounded-lg text-white flex items-center"
+              className="relative bg-accent hover:bg-accent-dark transition-colors duration-200 p-2 rounded-lg text-white flex items-center shadow-sm"
               onClick={() => setOpenCart(true)}
               aria-label={t("cart")}
               title={t("cart")}
@@ -188,7 +192,7 @@ const Navbar = () => {
 
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden p-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent"
+              className="md:hidden p-2 rounded-md hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors duration-200"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}

@@ -160,8 +160,8 @@ const ProductShowcase = ({ products, title }) => {
   // Loading state
   if (!isLoaded) {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
-        <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
+        <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
           {title}
         </h2>
         <div className="flex justify-center items-center h-[200px]">
@@ -174,8 +174,8 @@ const ProductShowcase = ({ products, title }) => {
   // No products state
   if (validProducts.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
-        <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
+        <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
           {title}
         </h2>
         <p className="py-8">{t("no_products_to_display", "No products to display.")}</p>
@@ -185,7 +185,7 @@ const ProductShowcase = ({ products, title }) => {
 
   return (
     <div 
-      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl overflow-hidden"
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-4 md:p-6 w-full max-w-6xl overflow-hidden"
       ref={showcaseRef}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -194,13 +194,13 @@ const ProductShowcase = ({ products, title }) => {
       role="region"
       aria-label={title}
     >
-      <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-4">
+      <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
         {title}
       </h2>
       <>
         {/* Product Carousel */}
         <div 
-          className="relative overflow-hidden h-[280px] md:h-[300px] mb-4"
+          className="relative overflow-hidden h-[280px] md:h-[300px] mb-6"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -226,19 +226,19 @@ const ProductShowcase = ({ products, title }) => {
               return (
                 <div
                   key={productId || `product-slide-${index}`}
-                  className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                  className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/20 rounded-lg transition-colors`}
                   onClick={() => productId && navigate(`/product/${encodeURIComponent(productId)}`)}
                   tabIndex={isActive ? 0 : -1} // Only allow focus on current slide
                   role="group"
                   aria-label={`${t("showcase_for", "Showcase for")} ${nameToDisplay}`}
                   aria-hidden={!isActive}
                 >
-                  <div className="w-full md:w-1/2 h-[140px] md:h-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                  <div className="w-full md:w-1/2 h-[140px] md:h-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shadow-sm transition-transform hover:scale-[1.02] duration-200">
                     {imageUrl ? (
                       <img
                         src={imageUrl}
                         alt={nameToDisplay}
-                        className="object-contain w-full h-full"
+                        className="object-contain w-full h-full p-2"
                         loading="lazy"
                       />
                     ) : (
@@ -284,7 +284,7 @@ const ProductShowcase = ({ products, title }) => {
               e.stopPropagation();
               prevProduct();
             }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-gray-900/70 hover:bg-gray-800 text-white rounded-full p-2 hidden md:block"
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("previous_product")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -296,7 +296,7 @@ const ProductShowcase = ({ products, title }) => {
               e.stopPropagation();
               nextProduct();
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-900/70 hover:bg-gray-800 text-white rounded-full p-2 hidden md:block"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("next_product")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -329,17 +329,17 @@ const ProductShowcase = ({ products, title }) => {
         </div>
 
         {/* Pagination dots */}
-        <div className={`flex justify-center items-center mt-4 ${lang === "he" ? "flex-row-reverse" : ""} space-x-3`}>
+        <div className={`flex justify-center items-center mt-6 ${lang === "he" ? "flex-row-reverse" : ""} space-x-3`}>
           {/* Previous button (visible on mobile) */}
           <SecondaryButton
             title="‹"
             onClick={prevProduct}
             ariaLabel={lang === "he" ? "מוצר קודם" : t("previous_product")}
-            otherStyle="px-3 py-1 text-lg md:hidden"
+            otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
           />
           
           {/* Dots */}
-          <div className={`flex items-center ${lang === "he" ? "flex-row-reverse" : ""} p-1 gap-x-2`}>
+          <div className={`flex items-center ${lang === "he" ? "flex-row-reverse" : ""} p-1 gap-x-3`}>
             {validProducts.map((product, index) => { 
               const p_dot = product;
               const isCurrent = index === currentIndex;
@@ -374,7 +374,7 @@ const ProductShowcase = ({ products, title }) => {
             title="›"
             onClick={nextProduct}
             ariaLabel={lang === "he" ? "מוצר הבא" : t("next_product")}
-            otherStyle="px-3 py-1 text-lg md:hidden"
+            otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
           />
         </div>
       </>
