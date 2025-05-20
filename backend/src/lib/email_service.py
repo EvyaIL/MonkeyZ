@@ -3,161 +3,164 @@ import logging
 import os
 from dotenv import load_dotenv
 
-load_dotenv() # Load environment variables from .env file
+load_dotenv()  # Load environment variables from .env file
 
 EMAILJS_API_URL = "https://api.emailjs.com/api/v1.0/email/send"
-# Load credentials from environment variables
+
+# Load EmailJS configuration from environment variables
 EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID")
 EMAILJS_USER_ID = os.getenv("EMAILJS_USER_ID")
+EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY")
 
-# Check for missing environment variables
-missing_vars = []
-if not EMAILJS_SERVICE_ID:
-    missing_vars.append("EMAILJS_SERVICE_ID")
-if not EMAILJS_USER_ID:
-    missing_vars.append("EMAILJS_USER_ID")
+# Template IDs
+TEMPLATE_IDS = {
+    "auto_reply": os.getenv("EMAILJS_TEMPLATE_ID_AUTO_REPLY"),
+    "contact_us": os.getenv("EMAILJS_TEMPLATE_ID_CONTACT_US"),
+    "otp": os.getenv("EMAILJS_TEMPLATE_ID_OTP"),
+    "password_reset": os.getenv("EMAILJS_TEMPLATE_ID_PASSWORD_RESET"),
+    "welcome": os.getenv("EMAILJS_TEMPLATE_ID_WELCOME")
+}
 
-if missing_vars:
-    logging.error(f"[EMAILJS] Missing environment variables: {', '.join(missing_vars)}")
-    # We don't raise an exception here to allow the app to start, but emails won't work
+def validate_emailjs_config() -> bool:
+    """Validate all required EmailJS configuration is present."""
+    missing_vars = []
+    if not EMAILJS_SERVICE_ID:
+        missing_vars.append("EMAILJS_SERVICE_ID")
+    if not EMAILJS_USER_ID:
+        missing_vars.append("EMAILJS_USER_ID")
+    if not EMAILJS_PRIVATE_KEY:
+        missing_vars.append("EMAILJS_PRIVATE_KEY")
+    
+    # Check template IDs
+    for name, template_id in TEMPLATE_IDS.items():
+        if not template_id:
+            missing_vars.append(f"EMAILJS_TEMPLATE_ID_{name.upper()}")
+
+    if missing_vars:
+        logging.error(f"[EMAILJS] Missing environment variables: {', '.join(missing_vars)}")
+        return False
+    return True
+
+# Validate config on module load
+is_emailjs_configured = validate_emailjs_config()
+
+def _send_email(template_type: str, template_params: dict) -> bool:
+    """
+    Internal function to send an email using EmailJS.
+
+    Args:
+        template_type (str): Type of template to use (e.g., 'password_reset', 'welcome')
+        template_params (dict): Parameters to pass to the template
+
+    Returns:
+        bool: True if the email was sent successfully, False otherwise.
+    """
+    if not is_emailjs_configured:
+        logging.error("[EMAILJS] Configuration is incomplete. Cannot send email.")
+        return False
+
+    template_id = TEMPLATE_IDS.get(template_type)
+    if not template_id:
+        logging.error(f"[EMAILJS] Template ID for {template_type} not found")
+        return False
+
+    # Add common template parameters
+    template_params["company_name"] = "MonkeyZ"
+
+    payload = {
+        "service_id": EMAILJS_SERVICE_ID,
+        "template_id": template_id,
+        "user_id": EMAILJS_USER_ID,
+        "accessToken": EMAILJS_PRIVATE_KEY,
+        "template_params": template_params
+    }
+
+    try:
+        response = requests.post(EMAILJS_API_URL, json=payload)
+        logging.info(f"[EMAILJS] {template_type} email response: {response.status_code}")
+        
+        if response.status_code != 200:
+            logging.error(f"[EMAILJS] Error sending {template_type} email: {response.status_code} - {response.text}")
+            return False
+            
+        logging.info(f"[EMAILJS] Successfully sent {template_type} email")
+        return True
+    except requests.exceptions.RequestException as e:
+        logging.error(f"[EMAILJS] Request failed for {template_type} email: {e}")
+        return False
 
 def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     """
-    Sends a password reset email using EmailJS.
-
+    Send a password reset email.
+    
     Args:
-        to_email (str): Recipient's email address.
-        reset_link (str): Reset link to be included in the email.
-
-    Returns:
-        bool: True if the email was sent successfully, False otherwise.
+        to_email (str): Recipient's email address
+        reset_link (str): Password reset link
     """
-    EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID_PASSWORD_RESET")
-    if not EMAILJS_TEMPLATE_ID:
-        logging.error("[EMAILJS] Password Reset Template ID is missing from environment variables.")
-        return False
-    if not EMAILJS_SERVICE_ID or not EMAILJS_USER_ID: # Check again in case they were not set at module load
-        logging.error("[EMAILJS] Service ID or User ID is missing. Cannot send email.")
-        return False
-        
-    # Parameters to pass to your EmailJS template
-    # These keys MUST match the placeholders in your EmailJS template (e.g., {{link}}, {{email}}, {{company_name}})
     template_params = {
-        "to_email": to_email,  # Standard EmailJS param, often used for the 'To' field
-        "email": to_email,     # For the {{email}} placeholder in your template content
-        "link": reset_link,    # For the {{link}} placeholder
-        "company_name": "MonkeyZ" # For the [Company Name] placeholder
+        "to_email": to_email,
+        "email": to_email,
+        "link": reset_link
     }
-
-    payload = {
-        "service_id": EMAILJS_SERVICE_ID,
-        "template_id": EMAILJS_TEMPLATE_ID,
-        "user_id": EMAILJS_USER_ID, # This is typically the Public Key
-        # "accessToken": os.getenv("EMAILJS_PRIVATE_KEY"), # Uncomment if using Access Token
-        "template_params": template_params,
-    }
-
-    logging.info(f"[EMAILJS] Sending password reset email to {to_email} with link: {reset_link} using template: {EMAILJS_TEMPLATE_ID}")
-    logging.info(f"[EMAILJS] Payload: {payload}")
-    try:
-        response = requests.post(EMAILJS_API_URL, json=payload)
-        logging.info(f"[EMAILJS] Response: {response.status_code} {response.text}")
-        print("EmailJS response:", response.status_code, response.text)  # Debug line
-        if response.status_code != 200:
-            print(f"Error sending password reset email: {response.status_code} - {response.text}")
-        return response.status_code == 200
-    except requests.exceptions.RequestException as e:
-        logging.error(f"[EMAILJS] Request failed: {e}")
-        print(f"Error sending password reset email (request failed): {e}")
-        return False
+    return _send_email("password_reset", template_params)
 
 def send_otp_email(to_email: str, otp: str) -> bool:
     """
-    Sends an OTP email using EmailJS.
-
-    Args:
-        to_email (str): Recipient's email address.
-        otp (str): One Time Password to be included in the email.
-
-    Returns:
-        bool: True if the email was sent successfully, False otherwise.
-    """
-    EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID_OTP")
-    if not EMAILJS_TEMPLATE_ID:
-        logging.error("[EMAILJS] OTP Template ID is missing from environment variables.")
-        return False
-    if not EMAILJS_SERVICE_ID or not EMAILJS_USER_ID: # Check again
-        logging.error("[EMAILJS] Service ID or User ID is missing. Cannot send OTP email.")
-        return False
-
-    template_params = {
-        "to_email": to_email, 
-        "otp": otp,          
-        "company_name": "MonkeyZ"
-    }
+    Send a one-time password email.
     
-    payload = {
-        "service_id": EMAILJS_SERVICE_ID,
-        "template_id": EMAILJS_TEMPLATE_ID,
-        "user_id": EMAILJS_USER_ID, # Public Key
-        # "accessToken": os.getenv("EMAILJS_PRIVATE_KEY"), # Uncomment if using Access Token
-        "template_params": template_params
+    Args:
+        to_email (str): Recipient's email address
+        otp (str): One-time password
+    """
+    template_params = {
+        "to_email": to_email,
+        "otp": otp
     }
-
-    logging.info(f"[EMAILJS] Sending OTP email to {to_email} with otp: {otp} using template: {EMAILJS_TEMPLATE_ID}")
-    logging.info(f"[EMAILJS] Payload: {payload}")
-    try:
-        response = requests.post(EMAILJS_API_URL, json=payload)
-        logging.info(f"[EMAILJS] Response: {response.status_code} {response.text}")
-        print("EmailJS response:", response.status_code, response.text)  # Debug line
-        if response.status_code != 200:
-            print(f"Error sending OTP email: {response.status_code} - {response.text}")
-        return response.status_code == 200
-    except requests.exceptions.RequestException as e:
-        logging.error(f"[EMAILJS] Request failed during OTP send: {e}")
-        print(f"Error sending OTP email (request failed): {e}")
-        return False
+    return _send_email("otp", template_params)
 
 def send_welcome_email(to_email: str, username: str) -> bool:
     """
-    Sends a welcome email using EmailJS.
-
-    Args:
-        to_email (str): Recipient's email address.
-        username (str): The username to be included in the email.
-
-    Returns:
-        bool: True if the email was sent successfully, False otherwise.
-    """
-    EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID_WELCOME")
-    if not EMAILJS_TEMPLATE_ID:
-        logging.error("[EMAILJS] Welcome Template ID is missing from environment variables.")
-        return False
-    if not EMAILJS_SERVICE_ID or not EMAILJS_USER_ID:
-        logging.error("[EMAILJS] Service ID or User ID is missing. Cannot send welcome email.")
-        return False
-
-    template_params = {
-        "to_email": to_email, 
-        "username": username,
-        "email": to_email,
-        "company_name": "MonkeyZ"
-    }
+    Send a welcome email.
     
-    payload = {
-        "service_id": EMAILJS_SERVICE_ID,
-        "template_id": EMAILJS_TEMPLATE_ID,
-        "user_id": EMAILJS_USER_ID,
-        "template_params": template_params
+    Args:
+        to_email (str): Recipient's email address
+        username (str): User's username
+    """
+    template_params = {
+        "to_email": to_email,
+        "email": to_email,
+        "username": username
     }
+    return _send_email("welcome", template_params)
 
-    logging.info(f"[EMAILJS] Sending welcome email to {to_email} with username: {username} using template: {EMAILJS_TEMPLATE_ID}")
-    try:
-        response = requests.post(EMAILJS_API_URL, json=payload)
-        logging.info(f"[EMAILJS] Response: {response.status_code} {response.text}")
-        if response.status_code != 200:
-            logging.error(f"Error sending welcome email: {response.status_code} - {response.text}")
-        return response.status_code == 200
-    except requests.exceptions.RequestException as e:
-        logging.error(f"[EMAILJS] Request failed during welcome email send: {e}")
-        return False
+def send_contact_email(to_email: str, name: str, message: str) -> bool:
+    """
+    Send a contact form email.
+    
+    Args:
+        to_email (str): Recipient's email address
+        name (str): Sender's name
+        message (str): Message content
+    """
+    template_params = {
+        "to_email": to_email,
+        "from_name": name,
+        "message": message
+    }
+    return _send_email("contact_us", template_params)
+
+def send_auto_reply_email(to_email: str, subject: str, message: str) -> bool:
+    """
+    Send an auto-reply email.
+    
+    Args:
+        to_email (str): Recipient's email address
+        subject (str): Email subject
+        message (str): Message content
+    """
+    template_params = {
+        "to_email": to_email,
+        "subject": subject,
+        "message": message
+    }
+    return _send_email("auto_reply", template_params)

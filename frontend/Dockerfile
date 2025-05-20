@@ -6,13 +6,14 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Install dependencies and serve package globally
-RUN npm ci && npm install -g serve react-scripts
+# react-scripts will be installed locally from package.json via npm ci
+RUN npm ci && npm install -g serve
 
 # Copy code into container
 COPY . .
 
 # Build the app
-RUN CI=false npm run build
+RUN npm run build
 
 # Expose port 8080 for DigitalOcean
 EXPOSE 8080

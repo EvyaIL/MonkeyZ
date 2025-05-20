@@ -10,8 +10,9 @@ from src.models.token.token_exception import NotVaildTokenException
 from src.models.token.token import TokenData
 load_dotenv()
 
-SECRET_KEY = str(os.getenv('SECRET_KEY'))
-ALGORITHM = str(os.getenv('ALGORITHM')) 
+# Get environment variables and remove any quotes that might be present
+SECRET_KEY = str(os.getenv('SECRET_KEY', 'default_secret_key')).strip('"\'')
+ALGORITHM = str(os.getenv('ALGORITHM', 'HS256')).strip('"\'')
 try:
     ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '30'))
 except (TypeError, ValueError):
