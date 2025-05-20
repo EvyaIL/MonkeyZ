@@ -12,7 +12,7 @@ RUN npm ci && npm install -g serve react-scripts
 COPY . .
 
 # Build the app
-RUN npm run build
+RUN CI=false npm run build
 
 # Expose port 8080 for DigitalOcean
 EXPOSE 8080
