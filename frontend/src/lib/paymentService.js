@@ -134,60 +134,153 @@ function tryLoadSdk() {
       loadAttempts++;
       isLoadingGrowSdk = true;
 
-      const script = document.createElement('script');
-      script.src = IS_PRODUCTION 
-        ? 'https://meshulam.co.il/api/light/server/1.0/js'
-        : 'https://sandbox.meshulam.co.il/api/light/server/1.0/js';
-      script.async = true;
-      
+      const urls = IS_PRODUCTION 
+        ? [
+            'https://meshulam.co.il/api/light/server/1.0/js',
+            'https://www.meshulam.co.il/api/light/server/1.0/js',
+            'https://api.meshulam.co.il/api/light/server/1.0/js'
+          ]
+        : [
+            'https://sandbox.meshulam.co.il/api/light/server/1.0/js',
+            'https://www.sandbox.meshulam.co.il/api/light/server/1.0/js'
+          ];
+
+      // Try loading from different URLs with metadata
+      const loadScript = (url) => {
+        // Clean up any existing scripts first
+        const existingScripts = document.querySelectorAll('script[src*="meshulam.co.il"]');
+        existingScripts.forEach(script => script.remove());
+
+        // Create and load the script
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.charset = 'utf-8';
+        script.async = false; // Changed to false to ensure synchronous loading
+        script.defer = false; // Keep defer false for proper loading order
+        
+        // Set script attributes for CORS and security
+        script.crossOrigin = 'anonymous';
+        script.referrerPolicy = 'no-referrer-when-downgrade';
+        
+        // Set specific mode for development environment
+        if (!IS_PRODUCTION) {
+          script.setAttribute('mode', 'cors');
+          // Add timestamp to prevent caching in development
+          script.src = `${url}?_=${Date.now()}`;
+        } else {
+          script.src = url;
+        }
+        
+        // Add metadata and timing measurement
+        script.setAttribute('data-version', '1.0');
+        script.setAttribute('data-env', IS_PRODUCTION ? 'production' : 'sandbox');
+        
+        // Add performance mark for debugging
+        const startTime = performance.now();
+        script.addEventListener('load', () => {
+          const loadTime = performance.now() - startTime;
+          console.log(`Script loaded in ${loadTime}ms from ${url}`);
+        });
+
+        return script;
+      };
+
+      let currentScript = null;
+      let currentUrlIndex = 0;
       let initCheckInterval;
       let timeoutId;
       
       const cleanup = () => {
         if (timeoutId) clearTimeout(timeoutId);
         if (initCheckInterval) clearInterval(initCheckInterval);
-        script.onload = null;
-        script.onerror = null;
+        if (currentScript) {
+          currentScript.onload = null;
+          currentScript.onerror = null;
+          currentScript.remove();
+          currentScript = null;
+        }
         isLoadingGrowSdk = false;
       };
 
-      // Check for successful SDK initialization
-      const checkInit = () => {
-        if (window.growPayment) {
+      const tryNextUrl = () => {
+        if (currentUrlIndex >= urls.length) {
           cleanup();
-          const configured = configureGrowSdk();
-          if (configured) {
-            isGrowSdkLoaded = true;
-            loadAttempts = 0;
-            resolve();
-          } else {
-            delete window.growPayment;
-            script.remove();
-            reject(new Error('נכשל אתחול מערכת התשלומים. אנא נסה שנית.'));
+          reject(new Error('נכשלה טעינת מערכת התשלומים - כל הנסיונות נכשלו.'));
+          return;
+        }
+
+        if (currentScript) {
+          cleanup();
+        }
+
+        currentScript = loadScript(urls[currentUrlIndex]);
+        currentUrlIndex++;
+
+        // Check for successful SDK initialization with more detailed error logging
+        const checkInit = () => {
+          try {
+            if (window.growPayment) {
+              clearInterval(initCheckInterval);
+              console.log('SDK object found, attempting configuration...');
+              const configured = configureGrowSdk();
+              if (configured) {
+                cleanup();
+                isGrowSdkLoaded = true;
+                loadAttempts = 0;
+                console.log('SDK successfully configured');
+                resolve();
+              } else {
+                console.error('Failed to configure SDK:', {
+                  sdkPresent: !!window.growPayment,
+                  sdkMethods: Object.keys(window.growPayment || {}),
+                });
+                delete window.growPayment;
+                tryNextUrl();
+              }
+            }
+          } catch (err) {
+            console.error('Error during SDK initialization check:', err);
+            tryNextUrl();
           }
+        };
+
+        currentScript.onload = () => {
+          console.log(`Script loaded from ${currentScript.src}, checking initialization...`);
+          // Start checking for initialization
+          initCheckInterval = setInterval(checkInit, 100);
+        };
+        
+        currentScript.onerror = (error) => {
+          console.error(`Failed to load script from ${currentScript.src}:`, error);
+          tryNextUrl();
+        };
+
+        // Set a timeout for the current attempt
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          console.warn(`Timeout loading from ${currentScript.src}, trying next URL`);
+          tryNextUrl();
+        }, 5000); // 5 second timeout per URL
+
+        try {
+          // Attempt to preload the script
+          const preloadLink = document.createElement('link');
+          preloadLink.rel = 'preload';
+          preloadLink.as = 'script';
+          preloadLink.href = currentScript.src;
+          preloadLink.crossOrigin = 'anonymous';
+          document.head.appendChild(preloadLink);
+
+          // Then append the actual script
+          document.body.appendChild(currentScript);
+        } catch (error) {
+          console.error('Error appending script:', error);
+          tryNextUrl();
         }
       };
 
-      script.onload = () => {
-        // Start checking for initialization
-        initCheckInterval = setInterval(checkInit, 100);
-      };
-      
-      script.onerror = () => {
-        cleanup();
-        script.remove();
-        reject(new Error('נכשלה טעינת מערכת התשלומים - שגיאת רשת.'));
-      };
-
-      // Set a timeout for the entire loading process
-      timeoutId = setTimeout(() => {
-        cleanup();
-        script.remove();
-        reject(new Error('נכשלה טעינת מערכת התשלומים - תם הזמן המוקצב.'));
-      }, 10000);
-      
-      script.crossOrigin = "anonymous"; // Add CORS header
-      document.body.appendChild(script);
+      // Start the loading process with the first URL
+      tryNextUrl();
     } catch (error) {
       console.error('Unexpected error during SDK load:', error);
       reject(new Error('אירעה שגיאה בלתי צפויה בטעינת מערכת התשלומים.'));
@@ -210,11 +303,16 @@ export async function loadGrowSdk() {
 
   // Check network connectivity first
   try {
-    const networkTest = await fetch('https://meshulam.co.il/favicon.ico', {
+    // Use no-cors mode to test connectivity without CORS issues
+    const networkTest = await fetch(IS_PRODUCTION ? 'https://meshulam.co.il/favicon.ico' : 'https://sandbox.meshulam.co.il/favicon.ico', {
       method: 'HEAD',
-      mode: 'no-cors'
+      mode: 'no-cors',
+      cache: 'no-cache',
+      credentials: 'omit'
     });
-    if (!networkTest.ok && !networkTest.type === 'opaque') {
+    
+    // In no-cors mode, we only get "opaque" response
+    if (networkTest.type !== 'opaque') {
       throw new Error('לא ניתן להתחבר לשרת התשלומים. אנא בדוק את חיבור האינטרנט שלך.');
     }
   } catch (error) {
