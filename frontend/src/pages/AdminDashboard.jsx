@@ -4,6 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { useGlobalProvider } from '../context/GlobalProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash, faKey } from '@fortawesome/free-solid-svg-icons';
+import TagManager from '../components/admin/TagManager';
 
 const AdminDashboard = () => {
   const { t } = useTranslation();
@@ -11,6 +12,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState([]);
 
   const [formData, setFormData] = useState({
     name: { en: '', he: '' },
@@ -21,7 +23,7 @@ const AdminDashboard = () => {
     is_new: false,
     discount_percentage: 0,
     stock_count: 0,
-    keys: []
+    tags: [],
   });
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -74,6 +76,11 @@ const AdminDashboard = () => {
     e.preventDefault();
     
     try {
+      const submitData = {
+        ...formData,
+        tags: selectedTags
+      };
+
       const url = selectedProduct 
         ? `/api/admin/products/${selectedProduct.id}` 
         : '/api/admin/products';
@@ -84,7 +91,7 @@ const AdminDashboard = () => {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
       if (response.ok) {
@@ -130,29 +137,35 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-gray-900 py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-white">{t('admin_dashboard')}</h1>
-            <button
-              onClick={() => {
-                setSelectedProduct(null);
-                setFormData({
-                  name: { en: '', he: '' },
-                  description: { en: '', he: '' },
-                  category: '',
-                  price: 0,
-                  is_best_seller: false,
-                  is_new: false,
-                  discount_percentage: 0,
-                  stock_count: 0,
-                  keys: []
-                });
-                setIsModalOpen(true);
-              }}
-              className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-dark transition-colors flex items-center"
-            >
-              <FontAwesomeIcon icon={faPlus} className="mr-2" />
-              {t('add_product')}
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('product_management')}</h2>
+              <button
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setFormData({
+                    name: { en: '', he: '' },
+                    description: { en: '', he: '' },
+                    category: '',
+                    price: 0,
+                    is_best_seller: false,
+                    is_new: false,
+                    discount_percentage: 0,
+                    stock_count: 0,
+                    tags: [],
+                  });
+                  setIsModalOpen(true);
+                }}
+                className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-dark transition-colors flex items-center"
+              >
+                <FontAwesomeIcon icon={faPlus} className="mr-2" />
+                {t('add_product')}
+              </button>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-4">{t('tag_management')}</h2>
+              <TagManager />
+            </div>
           </div>
 
           {/* Products Table */}
@@ -162,6 +175,7 @@ const AdminDashboard = () => {
                 <tr className="bg-gray-700">
                   <th className="px-4 py-3 text-left text-white">{t('name')}</th>
                   <th className="px-4 py-3 text-left text-white">{t('category')}</th>
+                  <th className="px-4 py-3 text-left text-white">{t('tags')}</th>
                   <th className="px-4 py-3 text-left text-white">{t('price')}</th>
                   <th className="px-4 py-3 text-left text-white">{t('stock')}</th>
                   <th className="px-4 py-3 text-left text-white">{t('actions')}</th>
@@ -172,6 +186,19 @@ const AdminDashboard = () => {
                   <tr key={product.id} className="hover:bg-gray-700/50">
                     <td className="px-4 py-3 text-white">{product.name.en}</td>
                     <td className="px-4 py-3 text-white">{product.category}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {product.tags.map(tag => (
+                          <span
+                            key={tag.id}
+                            className="px-2 py-1 rounded text-xs text-white"
+                            style={{ backgroundColor: tag.color }}
+                          >
+                            {tag.name.en}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-white">₪{product.price}</td>
                     <td className="px-4 py-3 text-white">{product.stock_count}</td>
                     <td className="px-4 py-3">
