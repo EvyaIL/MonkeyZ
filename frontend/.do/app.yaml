@@ -10,8 +10,8 @@ services:
   instance_count: 2
   instance_size_slug: apps-s-1vcpu-1gb
   name: cdmonkey-frontend
-  build_command: bash do-deploy.sh
-  run_command: node standalone-server.js
+  build_command: npm install --omit=dev && npm run build
+  run_command: node server.js
   source_dir: frontend
   health_check:
     http_path: /health.json
