@@ -7,6 +7,9 @@ import { validateEmail } from "../lib/authUtils";
 import { Helmet } from "react-helmet";
 import TestProduct from '../components/TestProduct';
 
+// Import IS_PRODUCTION from paymentService
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
 const Checkout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -16,13 +19,19 @@ const Checkout = () => {
   const [phone, setPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
   useEffect(() => {
     // Load SDK when component mounts
-    loadGrowSdk().catch(err => {
-      console.error('Failed to load payment SDK:', err);
-      setErrorMsg(t('payment_sdk_load_error') || 'Failed to load payment system');
-    });
+    loadGrowSdk()
+      .then(() => {
+        console.log('SDK loaded successfully');
+        setSdkLoaded(true);
+      })
+      .catch(err => {
+        console.error('Failed to load payment SDK:', err);
+        setErrorMsg(t('payment_sdk_load_error') || 'Failed to load payment system');
+      });
 
     // Payment event handlers
     const eventHandlers = {
@@ -143,8 +152,43 @@ const Checkout = () => {
               {t("total")}: ₪{cartTotal ? cartTotal.toFixed(2) : '0.00'}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {t("payment_methods_available")}
+              {t("secure_payment")}
             </p>
+            
+            {/* SDK loading status indicator */}
+            <div className="mt-2 text-xs py-1 px-2 inline-flex items-center rounded-full">
+              {sdkLoaded ? (
+                <span className="text-green-600 bg-green-100 py-1 px-2 rounded-full">
+                  ✓ {t("payment_system_ready")}
+                </span>
+              ) : (
+                <span className="text-yellow-600 bg-yellow-100 py-1 px-2 rounded-full">
+                  ⟳ {t("loading_payment_system")}
+                </span>
+              )}
+            </div>
+            
+            {/* Testing button for developers */}
+            {!IS_PRODUCTION && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadGrowSdk()
+                      .then(() => {
+                        setSdkLoaded(true);
+                        alert('SDK loaded successfully! Check console for details');
+                      })
+                      .catch(err => {
+                        setErrorMsg('Failed to load SDK: ' + err.message);
+                      });
+                  }}
+                  className="text-xs bg-blue-100 text-blue-800 py-1 px-2 rounded"
+                >
+                  Test SDK Load
+                </button>
+              </div>
+            )}
           </div>
 
           {errorMsg && (

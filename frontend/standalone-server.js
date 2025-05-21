@@ -1,94 +1,44 @@
-// Standalone server for production deployment
-// Uses only built-in Node.js modules for maximum reliability
-const http = require('http');
-const fs = require('fs');
+const express = require('express');
 const path = require('path');
+const cors = require('cors');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+const app = express();
 
-// Print startup diagnostics
-console.log('=== Server Startup Diagnostics ===');
-console.log('Node version:', process.version);
-console.log('Current directory:', process.cwd());
-try {
-  console.log('Directory contents:', fs.readdirSync('.').join(', '));
-  if (fs.existsSync('./build')) {
-    console.log('Build directory contents:', fs.readdirSync('./build').join(', '));
+// Enable CORS for all routes
+app.use(cors());
+
+// Proxy middleware for Meshulam SDK
+app.use('/sdk-proxy', createProxyMiddleware({
+  target: process.env.NODE_ENV === 'production' 
+    ? 'https://meshulam.co.il'
+    : 'https://sandbox.meshulam.co.il',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/sdk-proxy': '/api/light/server/1.0'
+  },
+  onProxyRes: function (proxyRes, req, res) {
+    proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+    proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+    proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type';
   }
-} catch (err) {
-  console.error('Error reading directory:', err);
-}
-console.log('==============================');
+}));
 
-// Define the MIME types for different file extensions
-const mimeTypes = {
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.wav': 'audio/wav',
-  '.mp4': 'video/mp4',
-  '.woff': 'application/font-woff',
-  '.ttf': 'application/font-ttf',
-  '.eot': 'application/vnd.ms-fontobject',
-  '.otf': 'application/font-otf',
-  '.wasm': 'application/wasm'
-};
+// Serve static files
+app.use(express.static(path.join(__dirname, 'build')));
 
-// Create the server
-const server = http.createServer((req, res) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  
-  // Handle health check
-  if (req.url === '/health.json') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'healthy' }));
-    return;
-  }
-
-  // Parse the URL to get the pathname
-  let filePath = path.join(__dirname, 'build', req.url === '/' ? 'index.html' : req.url);
-  
-  // If the path doesn't point to a file, serve index.html (for SPA routing)
-  fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      filePath = path.join(__dirname, 'build', 'index.html');
-    }
-    
-    serveFile(filePath, res);
-  });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'health.html'));
 });
 
-// Function to serve a file
-function serveFile(filePath, res) {
-  const extname = String(path.extname(filePath)).toLowerCase();
-  const contentType = mimeTypes[extname] || 'application/octet-stream';
-  
-  fs.readFile(filePath, (err, content) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        // File not found
-        res.writeHead(404);
-        res.end('File not found');
-      } else {
-        // Server error
-        res.writeHead(500);
-        res.end(`Server Error: ${err.code}`);
-      }
-    } else {
-      // Successful response
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content, 'utf-8');
-    }
-  });
-}
+// Catch all routes
+app.get('/*', function (req, res) {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
 
 // Start the server
 const port = process.env.PORT || 8080;
-server.listen(port, '0.0.0.0', () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
-  console.log(`Health check available at: http://localhost:${port}/health.json`);
+  console.log(`Health check available at: http://localhost:${port}/health`);
 });
