@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { default as Slider } from "rc-slider";
+=======
+import Slider from "rc-slider";
+>>>>>>> parent of 1ee295a (a)
 =======
 import Slider from "rc-slider";
 >>>>>>> parent of 1ee295a (a)
