@@ -3,6 +3,7 @@ import { createPayment, loadGrowSdk, TEST_CARDS } from "../lib/paymentService";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
+import { validateEmail } from "../lib/authUtils";
 import { Helmet } from "react-helmet";
 import TestProduct from '../components/TestProduct';
 
@@ -82,7 +83,7 @@ const Checkout = () => {
       return;
     }
 
-    if (!email || !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+    if (!email || !validateEmail(email)) {
       setErrorMsg(t('invalid_email') || "Please enter a valid email address");
       return;
     }
@@ -187,7 +188,7 @@ const Checkout = () => {
                 className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
                 required
                 autoComplete="email"
-                pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
+                pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
               />
             </div>
 

@@ -98,40 +98,100 @@ function configureGrowSdk() {
   };
 
   if (window.growPayment) {
-    window.growPayment.configure(config);
+    try {
+      window.growPayment.configure(config);
+      return true;
+    } catch (err) {
+      console.error('Failed to configure Grow SDK:', err);
+      return false;
+    }
   }
+  return false;
 }
 
 function tryLoadSdk() {
   return new Promise((resolve, reject) => {
-    loadAttempts++;
-    isLoadingGrowSdk = true;
-
-    const script = document.createElement('script');
-    script.src = IS_PRODUCTION 
-      ? 'https://meshulam.co.il/api/light/server/1.0/js'
-      : 'https://sandbox.meshulam.co.il/api/light/server/1.0/js';
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      if (!window.growPayment) {
-        reject(new Error('טעינת מערכת התשלומים נכשלה. אנא נסה שנית.'));
-        return;
+    try {
+      // If SDK is already present, try to configure it first
+      if (window.growPayment) {
+        const configured = configureGrowSdk();
+        if (configured) {
+          isGrowSdkLoaded = true;
+          loadAttempts = 0;
+          resolve();
+          return;
+        }
+        // If configuration failed, clean up and try again
+        delete window.growPayment;
       }
-      isGrowSdkLoaded = true;
-      isLoadingGrowSdk = false;
-      loadAttempts = 0;
-      configureGrowSdk();
-      resolve();
-    };
-    
-    script.onerror = (error) => {
-      isLoadingGrowSdk = false;
-      reject(error);
-    };
-    
-    document.body.appendChild(script);
+
+      // Cleanup any existing script
+      const existingScript = document.querySelector('script[src*="meshulam.co.il"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      loadAttempts++;
+      isLoadingGrowSdk = true;
+
+      const script = document.createElement('script');
+      script.src = IS_PRODUCTION 
+        ? 'https://meshulam.co.il/api/light/server/1.0/js'
+        : 'https://sandbox.meshulam.co.il/api/light/server/1.0/js';
+      script.async = true;
+      
+      let initCheckInterval;
+      let timeoutId;
+      
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (initCheckInterval) clearInterval(initCheckInterval);
+        script.onload = null;
+        script.onerror = null;
+        isLoadingGrowSdk = false;
+      };
+
+      // Check for successful SDK initialization
+      const checkInit = () => {
+        if (window.growPayment) {
+          cleanup();
+          const configured = configureGrowSdk();
+          if (configured) {
+            isGrowSdkLoaded = true;
+            loadAttempts = 0;
+            resolve();
+          } else {
+            delete window.growPayment;
+            script.remove();
+            reject(new Error('נכשל אתחול מערכת התשלומים. אנא נסה שנית.'));
+          }
+        }
+      };
+
+      script.onload = () => {
+        // Start checking for initialization
+        initCheckInterval = setInterval(checkInit, 100);
+      };
+      
+      script.onerror = () => {
+        cleanup();
+        script.remove();
+        reject(new Error('נכשלה טעינת מערכת התשלומים - שגיאת רשת.'));
+      };
+
+      // Set a timeout for the entire loading process
+      timeoutId = setTimeout(() => {
+        cleanup();
+        script.remove();
+        reject(new Error('נכשלה טעינת מערכת התשלומים - תם הזמן המוקצב.'));
+      }, 10000);
+      
+      script.crossOrigin = "anonymous"; // Add CORS header
+      document.body.appendChild(script);
+    } catch (error) {
+      console.error('Unexpected error during SDK load:', error);
+      reject(new Error('אירעה שגיאה בלתי צפויה בטעינת מערכת התשלומים.'));
+    }
   });
 }
 
@@ -146,6 +206,20 @@ export async function loadGrowSdk() {
 
   if (!window.location.protocol.startsWith('https') && !window.location.hostname.includes('localhost')) {
     throw new Error('מערכת התשלומים דורשת חיבור מאובטח (HTTPS) או שרת מקומי.');
+  }
+
+  // Check network connectivity first
+  try {
+    const networkTest = await fetch('https://meshulam.co.il/favicon.ico', {
+      method: 'HEAD',
+      mode: 'no-cors'
+    });
+    if (!networkTest.ok && !networkTest.type === 'opaque') {
+      throw new Error('לא ניתן להתחבר לשרת התשלומים. אנא בדוק את חיבור האינטרנט שלך.');
+    }
+  } catch (error) {
+    console.error('Network connectivity test failed:', error);
+    throw new Error('נכשל חיבור לשרת התשלומים. אנא בדוק את חיבור האינטרנט שלך.');
   }
 
   try {
