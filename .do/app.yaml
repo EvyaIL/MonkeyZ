@@ -1,33 +1,28 @@
-name: monkeyz
 services:
-- name: frontend
+- environment_slug: node-js
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${mongodb1.DATABASE_URL}
+  - key: CA_CERT
+    scope: RUN_TIME
+    value: ${mongodb1.CA_CERT}
   github:
     branch: main
     deploy_on_push: true
-    repo: your-github-username/MonkeyZ  # Update with your actual repo
+    repo: EvyaIL/CDMonkey
+  http_port: 8080
+  instance_count: 2
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: cdmonkey-frontend
+  build_command: npm install && npm run build
+  run_command: node server.js
   source_dir: frontend
-  dockerfile_path: Dockerfile
-  http_port: 8080  # This is important for the health check
-  routes:
-  - path: /
   health_check:
-    http_path: /
-    port: 8080  # Must match EXPOSE in Dockerfile and serve command
-    initial_delay_seconds: 20  # Give more time for build
-    period_seconds: 5
-- name: backend
-  github:
-    branch: main
-    deploy_on_push: true
-    repo: your-github-username/MonkeyZ  # Update with your actual repo
-  source_dir: backend
-  dockerfile_path: Dockerfile
-  routes:
-  - path: /api
-  env:
-  - key: ALLOWED_ORIGINS
-    value: ${APP_URL},https://monkeyz.co.il
-
-databases:
-- name: mongodb
-  engine: mongodb
+    http_path: /health.json
+    port: 8080
+    initial_delay_seconds: 40
+    period_seconds: 10
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3

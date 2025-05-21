@@ -1,7 +1,71 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+databases:
+- cluster_name: mongodb1
+  engine: MONGODB
+  name: mongodb1
+  production: true
+  version: "8"
+domains:
+- domain: monkeyz.co.il
+  type: PRIMARY
+  zone: monkeyz.co.il
+- domain: www.monkeyz.co.il
+  type: ALIAS
+  zone: monkeyz.co.il
+envs:
+- key: REACT_APP_PATH_BACKEND
+  scope: RUN_AND_BUILD_TIME
+  value: |
+    https://api.monkeyz.co.il
+- key: REACT_APP_GOOGLE_CLIENT_ID
+  scope: RUN_AND_BUILD_TIME
+  value: 946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com
+- key: REACT_APP_EMAILJS_RESET_TEMPLATE
+  scope: RUN_AND_BUILD_TIME
+  value: template_9f1h1dn
+- key: REACT_APP_EMAILJS_PUBLIC_KEY
+  scope: RUN_AND_BUILD_TIME
+  value: OZANGbTigZyYpNfAT
+- key: REACT_APP_EMAILJS_SERVICE_ID
+  scope: RUN_AND_BUILD_TIME
+  value: service_xheer8t
+- key: REACT_APP_EMAILJS_OTP_TEMPLATE
+  scope: RUN_AND_BUILD_TIME
+  value: template_fi5fm2c
+- key: REACT_APP_EMAILJS_WELCOME_TEMP
+  scope: RUN_AND_BUILD_TIME
+  value: template_iwzazla
+- key: REACT_APP_PAYMENT_FAIL_URL
+  scope: RUN_AND_BUILD_TIME
+  value: https://monkeyz.co.il/fail
+- key: REACT_APP_PAYMENT_SUCCESS_URL
+  scope: RUN_AND_BUILD_TIME
+  value: https://monkeyz.co.il/success
+- key: REACT_APP_GROW_API_KEY
+  scope: RUN_AND_BUILD_TIME
+  value: your_real_grow_api_key_here
+features:
+- buildpack-stack=ubuntu-22
+ingress:
+  rules:
+  - component:
+      name: cdmonkey-frontend
+    match:
+      path:
+        prefix: /
 name: frontend
 region: fra
 services:
 - environment_slug: node-js
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${mongodb1.DATABASE_URL}
+  - key: CA_CERT
+    scope: RUN_TIME
+    value: ${mongodb1.CA_CERT}
   github:
     branch: main
     deploy_on_push: true
@@ -10,7 +74,7 @@ services:
   instance_count: 2
   instance_size_slug: apps-s-1vcpu-1gb
   name: cdmonkey-frontend
-  build_command: npm install --omit=dev && npm run build
+  build_command: npm install && npm run build
   run_command: node server.js
   source_dir: frontend
   health_check:
