@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Slider } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
 const RangeInput = ({ value, onChange }) => {
@@ -12,89 +13,91 @@ const RangeInput = ({ value, onChange }) => {
   const [minInputValue, setMinInputValue] = useState(String(value.min));
   const [maxInputValue, setMaxInputValue] = useState(String(value.max));
 
-  // Sync local input states if prop value changes (e.g., from slider drag)
+  // Sync local input states if prop value changes
   useEffect(() => {
     setMinInputValue(String(value.min));
     setMaxInputValue(String(value.max));
   }, [value.min, value.max]);
 
-  // Removed unused handleChange function
+  const handleSliderChange = (_, newValue) => {
+    onChange({ min: newValue[0], max: newValue[1] });
+  };
 
   const handleMinInput = (e) => {
     const val = e.target.value;
-    if (/^\d{0,3}$/.test(val)) { // Allow up to 3 digits, numeric only
+    if (/^\d{0,3}$/.test(val)) {
       setMinInputValue(val);
+      const numVal = parseInt(val, 10);
+      if (!isNaN(numVal) && numVal >= sliderMin && numVal <= value.max) {
+        onChange({ min: numVal, max: value.max });
+      }
     }
   };
 
   const handleMaxInput = (e) => {
     const val = e.target.value;
-    if (/^\d{0,3}$/.test(val)) { // Allow up to 3 digits, numeric only
+    if (/^\d{0,3}$/.test(val)) {
       setMaxInputValue(val);
+      const numVal = parseInt(val, 10);
+      if (!isNaN(numVal) && numVal <= sliderMax && numVal >= value.min) {
+        onChange({ min: value.min, max: numVal });
+      }
     }
   };
 
   const handleMinBlur = () => {
     let parsedMin = parseInt(minInputValue, 10);
-    if (minInputValue === '' || isNaN(parsedMin)) {
+    if (minInputValue === '' || isNaN(parsedMin) || parsedMin < sliderMin) {
       parsedMin = sliderMin;
+    } else if (parsedMin > value.max) {
+      parsedMin = value.max - 1;
     }
-    parsedMin = Math.max(sliderMin, Math.min(sliderMax, parsedMin));
-
-    if (parsedMin >= value.max) {
-      onChange({ min: Math.max(sliderMin, value.max - 1), max: value.max });
-    } else {
-      onChange({ min: parsedMin, max: value.max });
-    }
+    setMinInputValue(String(parsedMin));
+    onChange({ min: parsedMin, max: value.max });
   };
 
   const handleMaxBlur = () => {
     let parsedMax = parseInt(maxInputValue, 10);
-    if (maxInputValue === '' || isNaN(parsedMax)) {
+    if (maxInputValue === '' || isNaN(parsedMax) || parsedMax > sliderMax) {
       parsedMax = sliderMax;
+    } else if (parsedMax < value.min) {
+      parsedMax = value.min + 1;
     }
-    parsedMax = Math.max(sliderMin, Math.min(sliderMax, parsedMax));
-
-    if (parsedMax <= value.min) {
-      onChange({ min: value.min, max: Math.min(sliderMax, value.min + 1) });
-    } else {
-      onChange({ min: value.min, max: parsedMax });
-    }
+    setMaxInputValue(String(parsedMax));
+    onChange({ min: value.min, max: parsedMax });
   };
 
-  const handleMinChange = (e) => {
-    const newMin = Math.min(parseInt(e.target.value), value.max - 1);
-    onChange({ min: newMin, max: value.max });
-  };
-
-  const handleMaxChange = (e) => {
-    const newMax = Math.max(parseInt(e.target.value), value.min + 1);
-    onChange({ min: value.min, max: newMax });
-  };
-  
   return (
     <div className="w-full flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label className="text-gray-300">Min Price: {value.min}</label>
-        <input
-          type="range"
-          min={sliderMin}
-          max={sliderMax - 1}
-          value={value.min}
-          onChange={handleMinChange}
-          className="w-full"
-        />
-        
-        <label className="text-gray-300">Max Price: {value.max}</label>
-        <input
-          type="range"
-          min={value.min + 1}
-          max={sliderMax}
-          value={value.max}
-          onChange={handleMaxChange}
-          className="w-full"
-        />
-      </div>
+      <Slider
+        getAriaLabel={() => 'Price range'}
+        value={[value.min, value.max]}
+        onChange={handleSliderChange}
+        min={sliderMin}
+        max={sliderMax}
+        step={1}
+        disableSwap
+        sx={{
+          width: '100%',
+          '& .MuiSlider-thumb': {
+            height: 24,
+            width: 24,
+            backgroundColor: '#fff',
+            border: '2px solid #22c55e',
+            '&:focus, &:hover, &.Mui-active': {
+              boxShadow: 'inherit',
+            },
+          },
+          '& .MuiSlider-track': {
+            height: 8,
+            backgroundColor: '#22c55e',
+          },
+          '& .MuiSlider-rail': {
+            height: 8,
+            backgroundColor: '#374151',
+          },
+        }}
+      />
       <div className={`flex justify-between items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
         {isRTL ? (
           <>
@@ -104,8 +107,7 @@ const RangeInput = ({ value, onChange }) => {
               value={minInputValue}
               min={sliderMin}
               max={sliderMax}
-              step={1}
-              onInput={handleMinInput}
+              onChange={handleMinInput}
               onBlur={handleMinBlur}
             />
             <span className="text-white mx-2">-</span>
@@ -115,8 +117,7 @@ const RangeInput = ({ value, onChange }) => {
               value={maxInputValue}
               min={sliderMin}
               max={sliderMax}
-              step={1}
-              onInput={handleMaxInput}
+              onChange={handleMaxInput}
               onBlur={handleMaxBlur}
             />
           </>
@@ -128,8 +129,7 @@ const RangeInput = ({ value, onChange }) => {
               value={minInputValue}
               min={sliderMin}
               max={sliderMax}
-              step={1}
-              onInput={handleMinInput}
+              onChange={handleMinInput}
               onBlur={handleMinBlur}
             />
             <span className="text-white mx-2">-</span>
@@ -139,8 +139,7 @@ const RangeInput = ({ value, onChange }) => {
               value={maxInputValue}
               min={sliderMin}
               max={sliderMax}
-              step={1}
-              onInput={handleMaxInput}
+              onChange={handleMaxInput}
               onBlur={handleMaxBlur}
             />
           </>

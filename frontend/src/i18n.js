@@ -8,6 +8,8 @@ import heAccount from './locales/he-account.json';
 // Merge Hebrew translations with account translations
 const mergedHe = { ...he, ...heAccount };
 
+const savedLanguage = localStorage.getItem('i18nextLng');
+
 i18n
   .use(initReactI18next)
   .init({
@@ -15,9 +17,14 @@ i18n
       he: { translation: mergedHe },
       en: { translation: en },
     },
-    lng: 'he', // Default language is Hebrew
+    lng: savedLanguage || 'he', // Use saved language or default to Hebrew
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   });
+
+// Save language choice when it changes
+i18n.on('languageChanged', (lng) => {
+  localStorage.setItem('i18nextLng', lng);
+});
 
 export default i18n;

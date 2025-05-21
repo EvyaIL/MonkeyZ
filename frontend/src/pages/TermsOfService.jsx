@@ -90,7 +90,7 @@ const TermsOfService = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-accent mb-4">9. {t("contact_us")}</h2>
+            <h2 className="text-xl font-semibold text-accent mb-4">9. {t("contact")}</h2>
             <p className="text-white">
               {t("terms_contact_text")}{" "}
               <a href="mailto:support@monkeyz.co.il" className="text-accent hover:underline">

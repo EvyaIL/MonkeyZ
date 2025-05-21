@@ -75,6 +75,11 @@
   "user_login_success": "User Login Successfully",
   "google_signin_failed": "Google sign in failed.",
   "blog": "Blog",
+  "blog_title": "Blog",
+  "blog_meta_description": "Read the latest posts from the MonkeyZ blog.",
+  "blog_header": "Our Blog",
+  "blog_subheader": "News, updates, and thoughts from the MonkeyZ team.",
+  "blog_no_posts": "No posts to display yet. Check back soon!",
   "read_more": "Read More",
   "posted_on": "Posted on",
   "by": "By",
@@ -136,6 +141,8 @@
   "terms_liability_text": "MonkeyZ shall not be liable for any direct, indirect, incidental, special, or consequential damages resulting from the use or inability to use our products or services.",
   "terms_contact_text": "If you have any questions about our Terms of Service, please contact us at",
   "terms_meta_description": "Terms of Service for MonkeyZ - Please read these terms carefully before using our services.",
+  "contact": "Contact",
+  "contact_us": "Contact Us",
   "details": "Details",
   "product": "Product",
   "product_name": "Product Name",
@@ -167,7 +174,6 @@
   "copyright_prefix": "All rights reserved",
   "contact_subtitle": "We'd love to hear from you! Fill out the form below to get in touch.",
   "or_email_us_directly": "Or email us directly at",
-  
   "signin_error_empty_field": "Email or username is required",
   "signin_error_invalid_username": "Username must be at least 3 characters",
   "signin_error_invalid_username_chars": "Username can only contain letters, numbers, and _ . -",
@@ -185,5 +191,13 @@
   "out_of_stock": "Out of Stock",
   "new": "NEW",
   "no_image_available": "No image available",
-  "check_back_later": "Please check back later for our featured products"
+  "check_back_later": "Please check back later for our featured products",
+  "blog_title": "Blog",
+  "blog_meta_description": "Read the latest posts from the MonkeyZ blog.",
+  "blog_header": "Our Blog",
+  "blog_subheader": "News, updates, and thoughts from the MonkeyZ team.",
+  "blog_no_posts": "No posts to display yet. Check back soon!",
+  "send_message": "Send message",
+  "enter_your_username": "Enter your username",
+  "enter_your_email": "Enter your email"
 }

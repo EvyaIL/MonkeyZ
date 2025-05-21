@@ -61,6 +61,14 @@ const Navbar = () => {
     };
   }, [mobileMenuOpen]);
 
+  // Close user menu when route changes
+  useEffect(() => {
+    const userDropdown = document.getElementById('user-dropdown');
+    if (userDropdown) {
+      userDropdown.classList.add('hidden');
+    }
+  }, [navigate]);
+
   // Calculate total items in cart for badge
   const totalCartItems = Object.values(cartItems).reduce((acc, item) => acc + item.count, 0);
   
@@ -130,6 +138,7 @@ const Navbar = () => {
             {user ? (
               <div className="relative">
                 <button 
+                  id="user-menu-button"
                   className="gap-2 cursor-pointer rounded-full border-2 border-accent/30 dark:border-accent/50 p-2 hover:bg-accent/10 dark:hover:bg-accent/20 transition-all duration-200 flex items-center"
                   aria-label="User menu"
                   aria-expanded="false"

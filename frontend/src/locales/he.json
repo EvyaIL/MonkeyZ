@@ -90,6 +90,11 @@
   "enter_username_or_email": "הזן שם משתמש או אימייל",
   "google_signin_failed": "התחברות עם גוגל נכשלה.",
   "blog": "בלוג",
+  "blog_title": "בלוג",
+  "blog_meta_description": "קראו את הפוסטים האחרונים בבלוג של MonkeyZ.",
+  "blog_header": "הבלוג שלנו",
+  "blog_subheader": "חדשות, עדכונים ומחשבות מצוות MonkeyZ.",
+  "blog_no_posts": "אין פוסטים להצגה כרגע. חזרו בקרוב!",
   "read_more": "קרא עוד",
   "posted_on": "פורסם בתאריך",
   "by": "מאת",
@@ -150,8 +155,8 @@
   "limitation_of_liability": "הגבלת אחריות",
   "terms_liability_text": "MonkeyZ לא תהיה אחראית לכל נזק ישיר, עקיף, מקרי, מיוחד או תוצאתי הנובע מהשימוש או אי-השימוש במוצרים או בשירותים שלנו.",
   "terms_contact_text": "אם יש לך שאלות כלשהן לגבי תנאי השימוש שלנו, אנא צור קשר בכתובת",
+  "contact_us": "צור קשר",
   "terms_meta_description": "תנאי השימוש של MonkeyZ - אנא קרא תנאים אלה בקפידה לפני השימוש בשירותים שלנו.",
-  
   "signin_error_empty_field": "דרוש שם משתמש או אימייל",
   "signin_error_invalid_username": "שם משתמש חייב להיות לפחות 3 תווים",
   "signin_error_invalid_username_chars": "שם משתמש יכול להכיל רק אותיות, מספרים וסימנים _ . -",
@@ -177,7 +182,6 @@
   "signing_in": "מתחבר...",
   "back_to_login": "חזרה להתחברות",
   "username_or_email": "שם משתמש או אימייל",
-  
   "resetPassword": {
     "title": "איפוס סיסמה",
     "metaDescription": "איפוס סיסמה לחשבון MonkeyZ שלך",
@@ -249,7 +253,6 @@
   "message_placeholder": "מה תרצה לשאול או לספר לנו?",
   "send_message": "שלח הודעה",
   "sending": "שולח",
-  
   "username_or_email": "שם משתמש או אימייל",
   "enter_username_or_email": "הזן את שם המשתמש או האימייל שלך",
   "signin_error_empty_field": "שם משתמש או אימייל נדרשים",

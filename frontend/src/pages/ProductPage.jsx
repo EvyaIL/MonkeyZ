@@ -259,7 +259,7 @@ const ProductPage = () => {
         {displayCategory && <meta property="product:category" content={displayCategory} />}
       </Helmet>
       <div className="p-4 md:p-9 flex flex-col items-center justify-center min-h-screen">
-        <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5">
+        <div className="content-container w-full max-w-6xl mt-5">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-8" aria-live="polite">
               <Spinner />
