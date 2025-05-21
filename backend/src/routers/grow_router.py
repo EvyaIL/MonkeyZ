@@ -10,10 +10,8 @@ import hashlib
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 GROW_API_URL = "https://sandbox.meshulam.co.il/api/light/server/1.0/createPaymentProcess"
-GROW_API_KEY = os.getenv("GROW_API_KEY")
-GROW_WEBHOOK_SECRET = os.getenv("GROW_WEBHOOK_SECRET")
-GROW_USER_ID = os.getenv("GROW_USER_ID", "d3e2efab83ef581a")  # Test account
-GROW_PAGE_CODE = os.getenv("GROW_PAGE_CODE", "bc6203286633")  # Test wallet page code
+GROW_USER_ID = os.getenv("GROW_USER_ID")  # Must be set in environment variables
+GROW_PAGE_CODE = os.getenv("GROW_PAGE_CODE")  # Must be set in environment variables
 
 class PaymentRequest(BaseModel):
     sum: float
@@ -49,8 +47,8 @@ def verify_webhook_signature(payload: dict, signature: str) -> bool:
 
 @router.post("/create")
 async def create_payment(data: PaymentRequest):
-    if not GROW_API_KEY:
-        raise HTTPException(status_code=500, detail="Grow API key not configured")
+    if not GROW_USER_ID or not GROW_PAGE_CODE:
+        raise HTTPException(status_code=500, detail="Grow credentials not configured")
 
     payload = {
         "userId": GROW_USER_ID,

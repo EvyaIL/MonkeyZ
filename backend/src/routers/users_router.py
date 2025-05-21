@@ -79,7 +79,7 @@ class GoogleAuthRequest(BaseModel):
 
 @users_router.post("/google")
 async def google_login(data: GoogleAuthRequest, user_controller: UserController = Depends(get_user_controller_dependency)):
-    GOOGLE_CLIENT_ID = "946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com"
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
     logging.info("[Google OAuth] Attempting Google login/signup")
     google_token_info_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={data.credential}"
     resp = requests.get(google_token_info_url)

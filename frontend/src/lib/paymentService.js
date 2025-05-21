@@ -1,8 +1,5 @@
 import emailjs from '@emailjs/browser';
 
-const GROW_USER_ID = process.env.REACT_APP_GROW_USER_ID;
-const GROW_PAGE_CODE = process.env.REACT_APP_GROW_PAGE_CODE;
-const GROW_API_KEY = process.env.REACT_APP_GROW_API_KEY;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const GROW_API = IS_PRODUCTION 
   ? 'https://meshulam.co.il/api/light/server/1.0/createPaymentProcess'
@@ -14,11 +11,11 @@ let growSdkLoadPromise = null;
 let loadAttempts = 0;
 const maxAttempts = 3;
 
-// Test card numbers for development
-export const TEST_CARDS = {
-  SUCCESSFUL: '4580458045804580', // Regular single payment only
-  SUCCESSFUL_3DS: '4580000000000000', // 3D Secure test card
-  INSTALLMENTS: '4580111111111121', // Supports installments
+// For development and testing only
+const TEST_CARDS = IS_PRODUCTION ? null : {
+  SUCCESSFUL: '4580458045804580',
+  SUCCESSFUL_3DS: '4580000000000000',
+  INSTALLMENTS: '4580111111111121',
 };
 
 function configureGrowSdk() {
@@ -42,8 +39,8 @@ function configureGrowSdk() {
           // Send order confirmation email
           try {
             await emailjs.send(
-              process.env.REACT_APP_ORDER_CONFIRMATION_SERVICE_ID,
-              process.env.REACT_APP_ORDER_CONFIRMATION_TEMPLATE_ID,
+              process.env.REACT_APP_EMAILJS_SERVICE_ID,
+              process.env.REACT_APP_EMAILJS_ORDER_TEMPLATE,
               {
                 to_email: response.data.email,
                 customer_name: response.data.fullName,
@@ -52,14 +49,12 @@ function configureGrowSdk() {
                 payment_method,
                 installments: number_of_payments,
                 transaction_id
-              },
-              process.env.REACT_APP_EMAILJS_PUBLIC_KEY
+              }
             );
           } catch (error) {
             console.error('Failed to send order confirmation:', error);
           }
 
-          // Dispatch success event
           window.dispatchEvent(new CustomEvent('paymentSuccess', { 
             detail: {
               ...response.data,
@@ -197,24 +192,22 @@ export const createPayment = async (paymentData) => {
   const retryCount = 3;
   const retryDelay = 1000;
 
+  if (!process.env.REACT_APP_GROW_USER_ID || !process.env.REACT_APP_GROW_PAGE_CODE) {
+    throw new Error('חסרים פרטי התחברות למערכת התשלומים. אנא צור קשר עם התמיכה.');
+  }
+
   for (let attempt = 1; attempt <= retryCount; attempt++) {
     try {
       if (!isGrowSdkLoaded) {
         await loadGrowSdk();
       }
 
-      // Validate phone number (Israeli format)
       if (!paymentData.phone?.match(/^05\d{8}$/)) {
         throw new Error('מספר הטלפון חייב להתחיל ב-05 ולהכיל 10 ספרות.');
       }
 
-      // Validate full name (first and last name)
       if (!paymentData.fullName?.trim().includes(' ')) {
         throw new Error('יש להזין שם מלא (שם פרטי ושם משפחה).');
-      }
-
-      if (!GROW_USER_ID || !GROW_PAGE_CODE) {
-        throw new Error('חסרים פרטי התחברות למערכת התשלומים. אנא צור קשר עם התמיכה.');
       }
 
       if (!paymentData.amount || paymentData.amount < 100) {
@@ -228,16 +221,16 @@ export const createPayment = async (paymentData) => {
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          userId: GROW_USER_ID,
-          pageCode: GROW_PAGE_CODE,
+          userId: process.env.REACT_APP_GROW_USER_ID,
+          pageCode: process.env.REACT_APP_GROW_PAGE_CODE,
           chargeType: 1,
           sum: paymentData.amount,
           currency: 1,
-          successUrl: `${window.location.origin}/payment-success`,
+          successUrl: process.env.REACT_APP_PAYMENT_SUCCESS_URL || `${window.location.origin}/payment-success`,
+          failUrl: process.env.REACT_APP_PAYMENT_FAIL_URL || `${window.location.origin}/payment-failed`,
           cancelUrl: `${window.location.origin}/payment-cancelled`,
-          failUrl: `${window.location.origin}/payment-failed`,
-          description: 'MonkeyZ Purchase',
           notifyUrl: `${window.location.origin}/api/payments/webhook`,
+          description: 'MonkeyZ Purchase',
           pageField: {
             fullName: paymentData.fullName,
             phone: paymentData.phone.replace(/\D/g, ''),
@@ -281,17 +274,11 @@ export const createPayment = async (paymentData) => {
         throw new Error(data.message || 'האתחול של מערכת התשלומים נכשל. אנא נסה שנית.');
       }
     } catch (error) {
-      console.error(`Payment error (attempt ${attempt}/${retryCount}):`, error);
-
-      if (attempt < retryCount && !error.message.includes('Invalid')) {
-        console.log(`Retrying payment in ${retryDelay/1000} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        continue;
+      if (attempt === retryCount) {
+        throw error;
       }
-
-      return {
-        error: error.message || "אירעה שגיאה בעת ביצוע התשלום. אנא נסה שנית.",
-      };
+      console.error(`Payment attempt ${attempt} failed:`, error);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
 };
