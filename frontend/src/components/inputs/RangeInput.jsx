@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Range } from "rc-slider";
+import { default as Slider } from "rc-slider";
 import "rc-slider/assets/index.css";
 import { useTranslation } from "react-i18next";
 
@@ -68,7 +68,8 @@ const RangeInput = ({ value, onChange }) => {
 
   return (
     <div className="w-full flex flex-col gap-4">
-      <Range
+      <Slider
+        range
         min={sliderMin}
         max={sliderMax}
         value={[value.min, value.max]}

@@ -181,7 +181,7 @@ const SignUp = () => {
             title={t("phone_number", "Phone Number")}
             type="tel"
             value={form.phone_number}
-            placeholder="05XXXXXXXX"
+            placeholder={t("enter_your_phone", "Enter your phone number")}
             onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
             autoComplete="tel"
             required

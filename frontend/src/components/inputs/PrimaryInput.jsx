@@ -28,7 +28,7 @@ const PrimaryInput = ({
         min={min}
         max={max}
         placeholder={placeholder}
-        className={`bg-secondary p-2 rounded-lg shadow-sm text-white outline-none focus:ring-2 focus:ring-accent ring-2 ring-border transition-all duration-200 ${otherStyle}`}
+        className={`bg-secondary p-2 rounded-lg shadow-sm text-white outline-none focus:ring-2 focus:ring-accent ring-2 ring-border transition-all duration-200 text-right rtl:text-right ltr:text-left ${otherStyle}`}
         onChange={onChange}
         {...rest}
       />

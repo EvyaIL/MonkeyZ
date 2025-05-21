@@ -9,7 +9,7 @@
   "create_account": "צור חשבון",
   "enter_your_username": "הזן את שם המשתמש שלך",
   "enter_your_email": "הזן את האימייל שלך",
-  "enter_your_phone": "הזן מספר טלפון בפורמט 05XXXXXXXX או +972XXXXXXXXX",
+  "enter_your_phone": "הזן את מספר הטלפון שלך",
   "enter_otp": "הזן קוד אימות",
   "enter_the_otp": "הזן את קוד האימות שנשלח לאימייל שלך",
   "create_account": "צור חשבון",
@@ -124,7 +124,7 @@
   "privacy_security_text": "אנו מיישמים אמצעי אבטחה מתאימים להגנה על המידע האישי שלך מפני גישה או חשיפה לא מורשית.",
   "user_rights": "הזכויות שלך",
   "privacy_rights_text": "בהתאם למיקומך, ייתכן שיש לך זכויות לגבי המידע האישי שלך, כמו הזכות לגשת, לתקן או למחוק את הנתונים שלך.",
-  "privacy_contact_text": "אם יש לך שאלות כלשהן לגבי מדיניות הפרטיות שלנו, אנא צור קשר בכתובת",
+  "privacyContactText": "אם יש לך שאלות כלשהן לגבי מדיניות הפרטיות שלנו, אנא צור קשר בכתובת",
   "privacy_policy_meta_description": "מדיניות הפרטיות של MonkeyZ - למד איך אנו אוספים, משתמשים ומגנים על המידע האישי שלך.",
   "acceptance_of_terms": "קבלת התנאים",
   "terms_acceptance_text": "על ידי גישה או שימוש באתר MonkeyZ, אתה מסכים להיות מחויב לתנאי השימוש הללו ולכל החוקים והתקנות החלים.",
@@ -151,7 +151,7 @@
   "terms_liability_text": "MonkeyZ לא תהיה אחראית לכל נזק ישיר, עקיף, מקרי, מיוחד או תוצאתי הנובע מהשימוש או אי-השימוש במוצרים או בשירותים שלנו.",
   "terms_contact_text": "אם יש לך שאלות כלשהן לגבי תנאי השימוש שלנו, אנא צור קשר בכתובת",
   "terms_meta_description": "תנאי השימוש של MonkeyZ - אנא קרא תנאים אלה בקפידה לפני השימוש בשירותים שלנו.",
-  
+  "contact_us": "צור קשר",
   "signin_error_empty_field": "דרוש שם משתמש או אימייל",
   "signin_error_invalid_username": "שם משתמש חייב להיות לפחות 3 תווים",
   "signin_error_invalid_username_chars": "שם משתמש יכול להכיל רק אותיות, מספרים וסימנים _ . -",
@@ -177,7 +177,6 @@
   "signing_in": "מתחבר...",
   "back_to_login": "חזרה להתחברות",
   "username_or_email": "שם משתמש או אימייל",
-  
   "resetPassword": {
     "title": "איפוס סיסמה",
     "metaDescription": "איפוס סיסמה לחשבון MonkeyZ שלך",
@@ -249,7 +248,6 @@
   "message_placeholder": "מה תרצה לשאול או לספר לנו?",
   "send_message": "שלח הודעה",
   "sending": "שולח",
-  
   "username_or_email": "שם משתמש או אימייל",
   "enter_username_or_email": "הזן את שם המשתמש או האימייל שלך",
   "signin_error_empty_field": "שם משתמש או אימייל נדרשים",

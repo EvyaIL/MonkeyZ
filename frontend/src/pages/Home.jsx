@@ -123,7 +123,8 @@ const Home = () => {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [errorBest, setErrorBest] = useState("");
   const [errorRecent, setErrorRecent] = useState("");
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || "he";
 
   useEffect(() => {
     getBestSellers();
@@ -144,21 +145,23 @@ const Home = () => {
     setLoadingBest(true);
     setErrorBest("");
     const { data, error } = await apiService.get("/product/best-sellers");
-    if (error || !data || !Array.isArray(data) || data.length === 0) {
+    
+    if (error || !data || !Array.isArray(data)) {
       console.log("Using fallback products for best sellers");
       setErrorBest(error ? t("failed_to_load_best_sellers") : "");
-      // Filter fallback products to only include those marked as best_seller
+      // Filter fallback products to only include best sellers
       const bestSellerFallbacks = fallbackProducts.filter(p => p.best_seller === true);
       setBestSellers(bestSellerFallbacks.length > 0 ? bestSellerFallbacks : fallbackProducts.slice(0, 5));
     } else {
-      // If we have fewer than 3 products from API, enhance with fallback best seller products
+      // If we have data but fewer than 3 products, enhance with fallback best sellers
       if (data.length < 3) {
-        // Filter fallback products to only include those marked as best_seller
         const bestSellerFallbacks = fallbackProducts.filter(p => p.best_seller === true);
         const enhancedProducts = mergeUniqueProducts(data, bestSellerFallbacks);
         setBestSellers(enhancedProducts.slice(0, 5)); // Limit to 5 products
       } else {
-        setBestSellers(data);
+        // Add best_seller flag to API products
+        const productsWithFlag = data.map(p => ({ ...p, best_seller: true }));
+        setBestSellers(productsWithFlag);
       }
     }
     setLoadingBest(false);
@@ -169,8 +172,9 @@ const Home = () => {
     setErrorRecent("");
     const params = { limit: 8 };
     const { data, error } = await apiService.get("/product/recent", params);
+    
     if (error) {
-      setErrorRecent("Failed to load recent products.");
+      setErrorRecent(t("failed_to_load_recent", "Failed to load recent products."));
       setRecent(fallbackProducts);
     } else {
       setRecent(mergeUniqueProducts(data || [], fallbackProducts));

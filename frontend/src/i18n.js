@@ -15,7 +15,7 @@ i18n
       he: { translation: mergedHe },
       en: { translation: en },
     },
-    lng: 'he', // Default language is Hebrew
+    lng: localStorage.getItem('language') || 'he', // Use saved language or default to Hebrew
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   });

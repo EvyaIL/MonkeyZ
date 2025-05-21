@@ -1,6 +1,9 @@
 {
+  "contact_us": "Contact Us",
   "welcome": "Welcome, {{username}}!",
   "welcome_prefix": "Welcome",
+  "blog_header": "Latest Updates & News",
+  "blog_subheader": "Stay informed about our latest products and services",
   "all_products": "All Products",
   "about_us": "About Us",
   "contact": "Contact",
@@ -16,6 +19,8 @@
   "logout": "Logout",
   "email": "Email",
   "phone": "Phone",
+  "phone_number": "Phone Number",
+  "enter_your_phone": "Enter your phone number",
   "username": "Username",
   "send": "Send",
   "message": "Message",
@@ -109,7 +114,7 @@
   "privacy_security_text": "We implement appropriate security measures to protect your personal information from unauthorized access or disclosure.",
   "user_rights": "Your Rights",
   "privacy_rights_text": "Depending on your location, you may have rights regarding your personal information, such as the right to access, correct, or delete your data.",
-  "privacy_contact_text": "If you have any questions about our Privacy Policy, please contact us at",
+  "privacyContactText": "If you have any questions about our Privacy Policy, please contact us at",
   "privacy_policy_meta_description": "Privacy Policy for MonkeyZ - Learn how we collect, use and protect your personal information.",
   "acceptance_of_terms": "Acceptance of Terms",
   "terms_acceptance_text": "By accessing or using the MonkeyZ website, you agree to be bound by these Terms of Service and all applicable laws and regulations.",
@@ -167,7 +172,6 @@
   "copyright_prefix": "All rights reserved",
   "contact_subtitle": "We'd love to hear from you! Fill out the form below to get in touch.",
   "or_email_us_directly": "Or email us directly at",
-  
   "signin_error_empty_field": "Email or username is required",
   "signin_error_invalid_username": "Username must be at least 3 characters",
   "signin_error_invalid_username_chars": "Username can only contain letters, numbers, and _ . -",
@@ -185,5 +189,7 @@
   "out_of_stock": "Out of Stock",
   "new": "NEW",
   "no_image_available": "No image available",
-  "check_back_later": "Please check back later for our featured products"
+  "check_back_later": "Please check back later for our featured products",
+  "blog_meta_description": "Read the latest blog posts from MonkeyZ.",
+  "contact_us": "Contact Us"
 }

@@ -4,10 +4,15 @@ import { useTranslation } from "react-i18next";
 const LanguageSwitcher = () => {
   const { i18n } = useTranslation();
   
+  const handleLanguageChange = (lang) => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem('language', lang);
+  };
+  
   return (
     <div className="flex gap-2 items-center" role="region" aria-label="Language selection">
       <button
-        onClick={() => i18n.changeLanguage("he")}
+        onClick={() => handleLanguageChange("he")}
         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 
           ${i18n.language === "he" 
             ? "bg-accent text-white shadow-sm" 
@@ -18,7 +23,7 @@ const LanguageSwitcher = () => {
         עברית
       </button>
       <button
-        onClick={() => i18n.changeLanguage("en")}
+        onClick={() => handleLanguageChange("en")}
         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200
           ${i18n.language === "en" 
             ? "bg-accent text-white shadow-sm" 
