@@ -1,25 +1,59 @@
 #!/bin/bash
-# This script will be run during the build process on DigitalOcean
-# If react-scripts is not found, install it globally
+# Ultra-simplified build script for DigitalOcean
 
-# Check if react-scripts is installed
-if ! command -v react-scripts &> /dev/null; then
-    echo "react-scripts not found, installing globally..."
-    npm install -g react-scripts
-fi
+echo "===== DIAGNOSTICS ====="
+echo "Node version: $(node -v)"
+echo "NPM version: $(npm -v)"
+echo "Current directory: $(pwd)"
+echo "======================="
 
-# Install dependencies if node_modules doesn't exist
-if [ ! -d "node_modules" ]; then
-    echo "Installing dependencies..."
-    npm ci
-fi
+# Install tools globally (required for DigitalOcean)
+echo "Installing global tools..."
+npm install -g serve react-scripts
 
-# Build the app
-echo "Building the application..."
-npm run build
+# Install dependencies with maximum compatibility
+echo "Installing dependencies..."
+npm install --no-optional --no-audit --no-fund
 
-# Create health check file
+# Build the React app
+echo "Building React application..."
+CI=false npm run build
+
+# Create health check files
+echo "Creating health check endpoints..."
 echo '{"status":"healthy"}' > build/health.json
+cp public/health.html build/health.html
 
-# Output success
+# Create specialized files for DigitalOcean
+echo "Creating startup files for DigitalOcean..."
+cp server.js build/
+cp start.sh build/
+chmod +x build/start.sh
+
+# Create a simplified package.json in the build directory
+echo "Creating simplified package.json..."
+cat > build/package.json << 'EOL'
+{
+  "name": "monkeyz-frontend-production",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "serve": "^14.2.1"
+  },
+  "scripts": {
+    "start": "serve -s . -l 8080 || node server.js"
+  }
+}
+EOL
+
+# Add Procfile in build directory
+echo "Creating Procfile..."
+echo "web: npm start" > build/Procfile
+
 echo "Build completed successfully!"
+echo "Files in build directory:"
+ls -la build/

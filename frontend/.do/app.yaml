@@ -1,19 +1,26 @@
-name: monkeyz-frontend
+name: frontend
+region: fra
 services:
-- name: frontend
+- environment_slug: node-js
   github:
     branch: main
     deploy_on_push: true
-  source_dir: .
-  build_command: bash ./do-build.sh
-  run_command: bash ./do-run.sh
+    repo: EvyaIL/CDMonkey
   http_port: 8080
-  instance_size_slug: basic-xs
+  instance_count: 2
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: cdmonkey-frontend
+  build_command: bash ./do-build-simplified.sh
+  run_command: bash ./start.sh
+  source_dir: frontend
   health_check:
     http_path: /health.json
     port: 8080
-    initial_delay_seconds: 10
-    period_seconds: 5
+    initial_delay_seconds: 40
+    period_seconds: 10
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
   routes:
   - path: /
   envs:
