@@ -11,11 +11,11 @@ let growSdkLoadPromise = null;
 let loadAttempts = 0;
 const maxAttempts = 3;
 
-// For development and testing only
-const TEST_CARDS = IS_PRODUCTION ? null : {
-  SUCCESSFUL: '4580458045804580',
-  SUCCESSFUL_3DS: '4580000000000000',
-  INSTALLMENTS: '4580111111111121',
+// Test card numbers - only available in non-production environments
+export const TEST_CARDS = IS_PRODUCTION ? undefined : {
+  SUCCESSFUL: '4580458045804580', // Regular single payment only
+  SUCCESSFUL_3DS: '4580000000000000', // 3D Secure test card
+  INSTALLMENTS: '4580111111111121', // Supports installments
 };
 
 function configureGrowSdk() {
@@ -192,7 +192,19 @@ export const createPayment = async (paymentData) => {
   const retryCount = 3;
   const retryDelay = 1000;
 
+  // Log environment and configuration
+  console.log('Payment Environment:', {
+    isProduction: IS_PRODUCTION,
+    hasGrowSDK: !!window.growPayment,
+    hasUserID: !!process.env.REACT_APP_GROW_USER_ID,
+    hasPageCode: !!process.env.REACT_APP_GROW_PAGE_CODE,
+  });
+
   if (!process.env.REACT_APP_GROW_USER_ID || !process.env.REACT_APP_GROW_PAGE_CODE) {
+    console.error('Missing Grow credentials:', {
+      userId: !!process.env.REACT_APP_GROW_USER_ID,
+      pageCode: !!process.env.REACT_APP_GROW_PAGE_CODE
+    });
     throw new Error('חסרים פרטי התחברות למערכת התשלומים. אנא צור קשר עם התמיכה.');
   }
 
@@ -261,11 +273,17 @@ export const createPayment = async (paymentData) => {
       });
 
       if (!response.ok) {
+        console.error('Payment API error:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
         const errorData = await response.json().catch(() => null);
+        console.error('Payment API error details:', errorData);
         throw new Error(errorData?.message || `בעיה בתקשורת עם שרת התשלומים. קוד שגיאה: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Payment API response:', data);
 
       if (data.status && window.growPayment) {
         window.growPayment.renderPaymentOptions(data.authCode);

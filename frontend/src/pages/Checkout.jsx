@@ -9,13 +9,12 @@ import TestProduct from '../components/TestProduct';
 const Checkout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { cartItems, cartTotal } = useGlobalProvider();
+  const { cartTotal } = useGlobalProvider();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTestMode, setIsTestMode] = useState(process.env.NODE_ENV !== 'production');
 
   useEffect(() => {
     // Load SDK when component mounts
@@ -24,50 +23,48 @@ const Checkout = () => {
       setErrorMsg(t('payment_sdk_load_error') || 'Failed to load payment system');
     });
 
-    // Add payment event listeners
-    const paymentSuccessHandler = (e) => {
-      console.log('Payment successful:', e.detail);
-      navigate('/payment-success');
+    // Payment event handlers
+    const eventHandlers = {
+      paymentSuccess: (e) => {
+        console.log('Payment successful:', e.detail);
+        navigate('/payment-success');
+      },
+      paymentFailure: (e) => {
+        console.error('Payment failed:', e.detail);
+        setErrorMsg(e.detail?.message || t('payment_failed') || 'Payment failed. Please try again.');
+        setIsSubmitting(false);
+      },
+      paymentError: (e) => {
+        console.error('Payment error:', e.detail);
+        setErrorMsg(e.detail?.message || t('payment_error') || 'An error occurred during payment');
+        setIsSubmitting(false);
+      },
+      paymentTimeout: () => {
+        console.error('Payment timeout');
+        setErrorMsg(t('payment_timeout') || 'Payment request timed out. Please try again.');
+        setIsSubmitting(false);
+      },
+      paymentCancel: () => {
+        console.log('Payment cancelled by user');
+        setErrorMsg(t('payment_cancelled_by_user') || 'Payment was cancelled.');
+        setIsSubmitting(false);
+      },
+      walletStateChange: (e) => {
+        console.log('Wallet state changed:', e.detail);
+        setIsSubmitting(e.detail.state === 'open');
+      }
     };
 
-    const paymentFailureHandler = (e) => {
-      setErrorMsg(t('payment_failed') || 'Payment failed. Please try again.');
-      setIsSubmitting(false);
-    };
+    // Add event listeners
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      window.addEventListener(event, handler);
+    });
 
-    const paymentErrorHandler = (e) => {
-      setErrorMsg(e.detail?.message || t('payment_error') || 'An error occurred during payment');
-      setIsSubmitting(false);
-    };
-
-    const paymentTimeoutHandler = () => {
-      setErrorMsg(t('payment_timeout') || 'Payment request timed out. Please try again.');
-      setIsSubmitting(false);
-    };
-
-    const paymentCancelHandler = () => {
-      setErrorMsg(t('payment_cancelled_by_user') || 'Payment was cancelled.');
-      setIsSubmitting(false);
-    };
-
-    const walletStateHandler = (e) => {
-      setIsSubmitting(e.detail.state === 'open');
-    };
-
-    window.addEventListener('paymentSuccess', paymentSuccessHandler);
-    window.addEventListener('paymentFailure', paymentFailureHandler);
-    window.addEventListener('paymentError', paymentErrorHandler);
-    window.addEventListener('paymentTimeout', paymentTimeoutHandler);
-    window.addEventListener('paymentCancel', paymentCancelHandler);
-    window.addEventListener('walletStateChange', walletStateHandler);
-
+    // Cleanup function
     return () => {
-      window.removeEventListener('paymentSuccess', paymentSuccessHandler);
-      window.removeEventListener('paymentFailure', paymentFailureHandler);
-      window.removeEventListener('paymentError', paymentErrorHandler);
-      window.removeEventListener('paymentTimeout', paymentTimeoutHandler);
-      window.removeEventListener('paymentCancel', paymentCancelHandler);
-      window.removeEventListener('walletStateChange', walletStateHandler);
+      Object.entries(eventHandlers).forEach(([event, handler]) => {
+        window.removeEventListener(event, handler);
+      });
     };
   }, [t, navigate]);
 
@@ -105,38 +102,22 @@ const Checkout = () => {
         phone,
       };
 
+      console.log('Initiating payment with payload:', payload);
       const res = await createPayment(payload);
 
       if (res.error) {
+        console.error('Payment creation error:', res.error);
         setErrorMsg(res.error);
         setIsSubmitting(false);
       }
     } catch (err) {
+      console.error('Payment processing error:', err);
       setErrorMsg(t('payment_error') || "Payment error. Please try again.");
       setIsSubmitting(false);
     }
   };
 
-  // Render test cards section in development
-  const renderTestCards = () => {
-    if (!isTestMode) return null;
 
-    return (
-      <div className="mt-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          {t('test_cards')}:
-        </h3>
-        <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-          <p>🟢 {t('successful_payment')}: {TEST_CARDS.SUCCESSFUL}</p>
-          <p>🔒 {t('3ds_payment')}: {TEST_CARDS.SUCCESSFUL_3DS}</p>
-          <p>📅 {t('installments_payment')}: {TEST_CARDS.INSTALLMENTS}</p>
-          <p>❌ {t('failed_payment')}: {TEST_CARDS.FAILURE}</p>
-          <p>⏳ {t('timeout_payment')}: {TEST_CARDS.TIMEOUT}</p>
-          <p>⚠️ {t('error_payment')}: {TEST_CARDS.ERROR}</p>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
@@ -246,7 +227,18 @@ const Checkout = () => {
             <img src="/images/googlepay.svg" alt="Google Pay" className="h-8" />
           </div>
 
-          {renderTestCards()}
+          {process.env.NODE_ENV !== 'production' && TEST_CARDS && (
+            <>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                {t('test_cards')}:
+              </h3>
+              <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                <p>🟢 {t('successful_payment')}: {TEST_CARDS.SUCCESSFUL}</p>
+                <p>🔒 {t('3ds_payment')}: {TEST_CARDS.SUCCESSFUL_3DS}</p>
+                <p>📅 {t('installments_payment')}: {TEST_CARDS.INSTALLMENTS}</p>
+              </div>
+            </>
+          )}
 
           <p className="mt-4 text-xs text-center text-gray-500 dark:text-gray-400">
             {t("secure_payment_note")}

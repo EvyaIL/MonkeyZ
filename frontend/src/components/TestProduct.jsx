@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPayment } from '../lib/paymentService';
-import emailjs from '@emailjs/browser';
 
 const TestProduct = () => {
   const { t } = useTranslation();
