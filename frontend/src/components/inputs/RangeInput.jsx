@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Range } from "rc-slider";
-import "rc-slider/assets/index.css";
 import { useTranslation } from "react-i18next";
 
 const RangeInput = ({ value, onChange }) => {
@@ -20,9 +18,7 @@ const RangeInput = ({ value, onChange }) => {
     setMaxInputValue(String(value.max));
   }, [value.min, value.max]);
 
-  const handleChange = (vals) => {
-    onChange({ min: vals[0], max: vals[1] });
-  };
+  // Removed unused handleChange function
 
   const handleMinInput = (e) => {
     const val = e.target.value;
@@ -66,23 +62,39 @@ const RangeInput = ({ value, onChange }) => {
     }
   };
 
+  const handleMinChange = (e) => {
+    const newMin = Math.min(parseInt(e.target.value), value.max - 1);
+    onChange({ min: newMin, max: value.max });
+  };
+
+  const handleMaxChange = (e) => {
+    const newMax = Math.max(parseInt(e.target.value), value.min + 1);
+    onChange({ min: value.min, max: newMax });
+  };
+  
   return (
     <div className="w-full flex flex-col gap-4">
-      <Range
-        min={sliderMin}
-        max={sliderMax}
-        value={[value.min, value.max]}
-        onChange={handleChange}
-        allowCross={false}
-        step={1}
-        trackStyle={[{ backgroundColor: '#22c55e', height: 8 }]}
-        handleStyle={[
-          { borderColor: '#22c55e', height: 24, width: 24, marginTop: -8, backgroundColor: '#fff' },
-          { borderColor: '#22c55e', height: 24, width: 24, marginTop: -8, backgroundColor: '#fff' }
-        ]}
-        railStyle={{ backgroundColor: '#374151', height: 8 }}
-        dir={isRTL ? "rtl" : "ltr"}
-      />
+      <div className="flex flex-col gap-2">
+        <label className="text-gray-300">Min Price: {value.min}</label>
+        <input
+          type="range"
+          min={sliderMin}
+          max={sliderMax - 1}
+          value={value.min}
+          onChange={handleMinChange}
+          className="w-full"
+        />
+        
+        <label className="text-gray-300">Max Price: {value.max}</label>
+        <input
+          type="range"
+          min={value.min + 1}
+          max={sliderMax}
+          value={value.max}
+          onChange={handleMaxChange}
+          className="w-full"
+        />
+      </div>
       <div className={`flex justify-between items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
         {isRTL ? (
           <>
