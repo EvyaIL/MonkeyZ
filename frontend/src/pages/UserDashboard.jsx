@@ -6,13 +6,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faHeart, faHistory, faUpload } from '@fortawesome/free-solid-svg-icons';
 import { faDiscord } from '@fortawesome/free-brands-svg-icons';
 
-const UserDashboard = () => {
-  const { t } = useTranslation();
-  const { user, notify } = useGlobalProvider();
+const UserDashboard = () => {  const { t } = useTranslation();
+  const { user, notify, favorites, toggleFavorite, userProfile } = useGlobalProvider();
   const [profile, setProfile] = useState(null);
-  const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState([]);
   const [isDiscordConnected, setIsDiscordConnected] = useState(false);
+  const [favoriteProducts, setFavoriteProducts] = useState([]);
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: 'image/*',
@@ -41,29 +40,58 @@ const UserDashboard = () => {
       }
     }
   });
-
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch('/api/profile', {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setProfile(data);
-          setFavorites(data.favorite_items || []);
-          setOrders(data.past_orders || []);
-          setIsDiscordConnected(!!data.discord_profile);
+        if (userProfile) {
+          setProfile(userProfile);
+          setOrders(userProfile.past_orders || []);
+          setIsDiscordConnected(!!userProfile.discord_profile);
+        } else {
+          const response = await fetch('/api/profile', {
+            credentials: 'include'
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setProfile(data);
+            setOrders(data.past_orders || []);
+            setIsDiscordConnected(!!data.discord_profile);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch profile:', error);
       }
     };
 
+    const fetchFavoriteProducts = async () => {
+      if (favorites && favorites.length > 0) {
+        try {
+          // Fetch details for each product ID in favorites
+          const productDetails = await Promise.all(
+            favorites.map(async (productId) => {
+              const response = await fetch(`/api/products/${productId}`);
+              if (response.ok) {
+                return await response.json();
+              }
+              return null;
+            })
+          );
+          
+          // Filter out any null responses
+          setFavoriteProducts(productDetails.filter(product => product !== null));
+        } catch (error) {
+          console.error('Failed to fetch favorite products:', error);
+        }
+      } else {
+        setFavoriteProducts([]);
+      }
+    };
+
     if (user) {
       fetchProfile();
+      fetchFavoriteProducts();
     }
-  }, [user]);
+  }, [user, userProfile, favorites]);
 
   const handleConnectDiscord = async () => {
     // Redirect to Discord OAuth URL
@@ -94,6 +122,18 @@ const UserDashboard = () => {
               <div>
                 <h3 className="text-white text-lg">{user?.username}</h3>
                 <p className="text-gray-400">{user?.email}</p>
+                {/* Admin Access (if applicable) */}
+                {userProfile?.is_admin && (
+                  <div className="mt-4">
+                    <h4 className="text-accent font-semibold mb-2">{t('admin_access')}</h4>
+                    <a 
+                      href="/admin" 
+                      className="bg-accent text-white px-4 py-2 rounded-lg inline-block hover:bg-accent-dark transition-colors"
+                    >
+                      {t('go_to_admin_dashboard')}
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -115,17 +155,32 @@ const UserDashboard = () => {
                 {t('connect_discord')}
               </button>
             )}
-          </div>
-
-          {/* Favorites */}
+          </div>          {/* Favorites */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">{t('favorites')}</h2>
-            {favorites.length > 0 ? (
+            {favoriteProducts.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {favorites.map(item => (
+                {favoriteProducts.map(item => (
                   <div key={item.id} className="bg-gray-700 rounded-lg p-4 flex items-center justify-between">
-                    <span className="text-white">{item.name}</span>
-                    <FontAwesomeIcon icon={faHeart} className="text-red-500" />
+                    <div className="flex items-center">
+                      {item.image && (
+                        <img 
+                          src={item.image} 
+                          alt={item.name.en}
+                          className="w-12 h-12 object-cover rounded mr-3"
+                        />
+                      )}
+                      <div>
+                        <span className="text-white block">{item.name.en}</span>
+                        <span className="text-accent">₪{item.price}</span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => toggleFavorite(item.id)}
+                      className="text-red-500 hover:text-red-400 transition-colors"
+                    >
+                      <FontAwesomeIcon icon={faHeart} className="text-red-500" />
+                    </button>
                   </div>
                 ))}
               </div>

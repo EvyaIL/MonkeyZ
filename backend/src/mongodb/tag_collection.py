@@ -1,5 +1,5 @@
 from typing import List, Optional
-from ..mongodb import MongoDB
+from .mongodb import MongoDB
 from ...models.product.tag import ProductTag, ProductTagInDB
 from datetime import datetime
 import uuid

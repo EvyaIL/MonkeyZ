@@ -86,6 +86,15 @@ class MongoDb:
         """ Initializes Beanie ODM with the provided database and document models. """
         await init_beanie(database=db, document_models=model)
 
+    def get_db(self):
+        """
+        Returns the default database instance from the MongoDB client.
+        """
+        if not self.client:
+            raise Exception("MongoDB client is not connected. Call connection() first.")
+        # If using a connection string with a default database, return it
+        return self.client.get_default_database()
+
 def is_valid_mongodb_uri(uri: str) -> bool:
     """
     Validates if a string is a properly formatted MongoDB URI.

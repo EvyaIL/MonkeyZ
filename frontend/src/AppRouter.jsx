@@ -3,6 +3,7 @@ import { useGlobalProvider } from "./context/GlobalProvider";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import Unauthorized from "./pages/Unauthorized";
 import Navbar from "./components/Navbar";
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
@@ -19,6 +20,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminRoute from "./components/wrapper/AdminRoute";
 
 // Protected Route component
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -65,10 +67,16 @@ const AppRouter = () => {
         <Route
           path="/admin/dashboard"
           element={
-            <ProtectedRoute adminOnly={true}>
+            <AdminRoute>
               <AdminDashboard />
-            </ProtectedRoute>
+            </AdminRoute>
           }
+        />
+
+        {/* Additional Admin Route */}
+        <Route
+          path="/admin"
+          element={<Navigate to="/admin/dashboard" replace />}
         />
 
         {/* Blog routes */}
@@ -105,6 +113,9 @@ const AppRouter = () => {
             </div>
           }
         />
+
+        {/* Unauthorized Access Page */}
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />

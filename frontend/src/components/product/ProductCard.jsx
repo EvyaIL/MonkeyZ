@@ -1,12 +1,14 @@
 import { useNavigate } from "react-router-dom";
-// import PrimaryButton from "../buttons/PrimaryButton";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faHeart as solidHeart } from '@fortawesome/free-solid-svg-icons';
+import { faHeart as regularHeart } from '@fortawesome/free-regular-svg-icons';
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 const ProductCard = ({ product, otherStyle }) => {
   const navigate = useNavigate();
-  const { addItemToCart } = useGlobalProvider();
+  const { addItemToCart, favorites, toggleFavorite } = useGlobalProvider();
   const { t, i18n } = useTranslation();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -33,6 +35,8 @@ const ProductCard = ({ product, otherStyle }) => {
   const goToProductDetails = () => {
     navigate(`/product/${encodeURIComponent(product.id)}`);
   };
+
+  const isFavorite = favorites && favorites.includes(product.id);
 
   return (
     <div
@@ -75,6 +79,18 @@ const ProductCard = ({ product, otherStyle }) => {
             }}
           />
           
+          {/* Favorite button (top left) */}
+          <button
+            className="absolute top-2 left-2 bg-gray-900/80 rounded-full p-2 hover:bg-accent transition-colors z-10"
+            onClick={e => {
+              e.stopPropagation();
+              toggleFavorite(product.id);
+            }}
+            aria-label={isFavorite ? t('remove_from_favorites') : t('add_to_favorites')}
+          >
+            <FontAwesomeIcon icon={isFavorite ? solidHeart : regularHeart} className={isFavorite ? 'text-red-500' : 'text-gray-300'} />
+          </button>
+
           {/* Price tag */}
           <div className="absolute top-2 right-2 bg-accent text-white px-2 py-1 rounded-md font-semibold shadow-md">
             ₪{product.price.toFixed(2)}

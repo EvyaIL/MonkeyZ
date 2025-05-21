@@ -1,13 +1,13 @@
 from typing import Optional, List
-from ..mongodb import MongoDB
-from ...models.user.discord_profile import DiscordProfile, DiscordProfileInDB
-from ...models.user.user_profile import UserProfile, UserProfileInDB
+from .mongodb import MongoDb
+from src.models.user.discord_profile import DiscordProfile, DiscordProfileInDB
+from src.models.user.user_profile import UserProfile, UserProfileInDB
 import uuid
 from datetime import datetime
 
 class UserProfileCollection:
     def __init__(self):
-        self.db = MongoDB().get_db()
+        self.db = MongoDb().get_db()
         self.collection = self.db.user_profiles
         self.discord_collection = self.db.discord_profiles
 

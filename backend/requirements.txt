@@ -2,8 +2,10 @@ annotated-types==0.7.0
 anyio==4.6.0
 bcrypt==4.2.0
 beanie==1.26.0
+boto3==1.34.136  # Added for AWS S3 integration
 click==8.1.7
 colorama==0.4.6
+discord.py==2.3.2  # Added for Discord bot integration
 dnspython==2.6.1
 ecdsa==0.19.0
 email-validator # Added for Pydantic EmailStr validation

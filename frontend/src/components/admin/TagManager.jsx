@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGlobalProvider } from '../../context/GlobalProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faPlus, faCheck } from '@fortawesome/free-solid-svg-icons';
 
-const TagManager = ({ onTagSelect }) => {
+const TagManager = ({ onTagSelect, selectedTags = [], selectable = false }) => {
   const { t } = useTranslation();
-  const { notify } = useGlobalProvider();
+  const { notify, token } = useGlobalProvider();
   const [tags, setTags] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -18,26 +18,45 @@ const TagManager = ({ onTagSelect }) => {
     fetchTags();
   }, []);
 
+  const toggleTagSelection = (tagId) => {
+    if (!selectable || !onTagSelect) return;
+    
+    if (selectedTags.includes(tagId)) {
+      onTagSelect(selectedTags.filter(id => id !== tagId));
+    } else {
+      onTagSelect([...selectedTags, tagId]);
+    }
+  };
   const fetchTags = async () => {
     try {
+      const authToken = localStorage.getItem('token');
       const response = await fetch('/api/admin/tags', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
       });
       if (response.ok) {
         const data = await response.json();
         setTags(data);
+      } else {
+        throw new Error('Failed to fetch tags');
       }
     } catch (error) {
       console.error('Failed to fetch tags:', error);
+      notify({ message: t('failed_to_fetch_tags'), type: 'error' });
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const authToken = localStorage.getItem('token');
       const response = await fetch('/api/admin/tags', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         credentials: 'include',
         body: JSON.stringify(formData)
       });
@@ -48,30 +67,39 @@ const TagManager = ({ onTagSelect }) => {
         setIsModalOpen(false);
         notify({ message: t('tag_created'), type: 'success' });
       } else {
-        throw new Error('Failed to create tag');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to create tag');
       }
     } catch (error) {
-      notify({ message: t('tag_create_failed'), type: 'error' });
+      notify({ message: error.message || t('tag_create_failed'), type: 'error' });
     }
   };
-
   const handleDelete = async (tagId) => {
     if (!window.confirm(t('confirm_delete_tag'))) return;
 
     try {
+      const authToken = localStorage.getItem('token');
       const response = await fetch(`/api/admin/tags/${tagId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
       });
 
       if (response.ok) {
         setTags(prev => prev.filter(tag => tag.id !== tagId));
+        // Also remove from selected tags if it was selected
+        if (selectedTags.includes(tagId) && onTagSelect) {
+          onTagSelect(selectedTags.filter(id => id !== tagId));
+        }
         notify({ message: t('tag_deleted'), type: 'success' });
       } else {
-        throw new Error('Failed to delete tag');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to delete tag');
       }
     } catch (error) {
-      notify({ message: t('tag_delete_failed'), type: 'error' });
+      notify({ message: error.message || t('tag_delete_failed'), type: 'error' });
     }
   };
 
@@ -92,19 +120,30 @@ const TagManager = ({ onTagSelect }) => {
         {tags.map(tag => (
           <div
             key={tag.id}
-            className="bg-gray-700 p-2 rounded flex items-center justify-between"
+            className={`bg-gray-700 p-2 rounded flex items-center justify-between ${selectable ? 'cursor-pointer' : ''} ${selectable && selectedTags.includes(tag.id) ? 'ring-2 ring-accent' : ''}`}
             style={{ borderLeft: `4px solid ${tag.color}` }}
+            onClick={selectable ? () => toggleTagSelection(tag.id) : undefined}
           >
-            <span className="text-white">{tag.name.en}</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleDelete(tag.id)}
-                className="text-red-400 hover:text-red-300"
-                title={t('delete')}
-              >
-                <FontAwesomeIcon icon={faTrash} />
-              </button>
+            <div className="flex items-center space-x-2">
+              {selectable && selectedTags.includes(tag.id) && (
+                <FontAwesomeIcon icon={faCheck} className="text-accent" />
+              )}
+              <span className="text-white">{tag.name.en}</span>
             </div>
+            {!selectable && (
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(tag.id);
+                  }}
+                  className="text-red-400 hover:text-red-300"
+                  title={t('delete')}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -25,9 +25,10 @@ const AdminDashboard = () => {
     stock_count: 0,
     tags: [],
   });
-
   const { getRootProps, getInputProps } = useDropzone({
-    accept: 'image/*',
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
+    },
     maxFiles: 1,
     onDrop: async (acceptedFiles) => {
       const file = acceptedFiles[0];
@@ -35,9 +36,12 @@ const AdminDashboard = () => {
       formData.append('file', file);
 
       try {
-        const response = await fetch('/api/products/upload-image', {
+        const response = await fetch('/api/admin/products/upload-image', {
           method: 'POST',
           body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
           credentials: 'include'
         });
 
@@ -52,26 +56,42 @@ const AdminDashboard = () => {
         notify({ message: t('upload_failed'), type: 'error' });
       }
     }
-  });
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
+  });  useEffect(() => {
+    if (selectedProduct) {
+      setFormData(selectedProduct);
+      
+      // If tags is an array of objects, extract their IDs
+      if (selectedProduct.tags && selectedProduct.tags.length > 0) {
+        if (typeof selectedProduct.tags[0] === 'object') {
+          setSelectedTags(selectedProduct.tags.map(tag => tag.id));
+        } else {
+          // If tags is already an array of IDs
+          setSelectedTags(selectedProduct.tags);
+        }
+      } else {
+        setSelectedTags([]);
+      }
+    }
+  }, [selectedProduct]);
   const fetchProducts = async () => {
     try {
       const response = await fetch('/api/admin/products', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       });
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
+      } else {
+        throw new Error('Failed to fetch products');
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
+      notify({ message: t('failed_to_fetch_products'), type: 'error' });
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -88,7 +108,8 @@ const AdminDashboard = () => {
       const response = await fetch(url, {
         method: selectedProduct ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         credentials: 'include',
         body: JSON.stringify(submitData)
@@ -99,13 +120,13 @@ const AdminDashboard = () => {
         setIsModalOpen(false);
         fetchProducts();
       } else {
-        throw new Error('Request failed');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Request failed');
       }
     } catch (error) {
-      notify({ message: t('operation_failed'), type: 'error' });
+      notify({ message: error.message || t('operation_failed'), type: 'error' });
     }
   };
-
   const handleAddKeys = async (productId) => {
     const keys = prompt(t('enter_keys'));
     if (!keys) return;
@@ -116,7 +137,8 @@ const AdminDashboard = () => {
       const response = await fetch(`/api/admin/products/${productId}/keys`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         credentials: 'include',
         body: JSON.stringify({ keys: keyList })
@@ -126,12 +148,18 @@ const AdminDashboard = () => {
         notify({ message: t('keys_added'), type: 'success' });
         fetchProducts();
       } else {
-        throw new Error('Failed to add keys');
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to add keys');
       }
     } catch (error) {
-      notify({ message: t('failed_to_add_keys'), type: 'error' });
+      notify({ message: error.message || t('failed_to_add_keys'), type: 'error' });
     }
   };
+
+  // Add separate useEffect for fetching products on component mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-900 py-12">
@@ -140,9 +168,9 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
               <h2 className="text-2xl font-bold text-white mb-4">{t('product_management')}</h2>
-              <button
-                onClick={() => {
+              <button                onClick={() => {
                   setSelectedProduct(null);
+                  setSelectedTags([]);
                   setFormData({
                     name: { en: '', he: '' },
                     description: { en: '', he: '' },
@@ -202,11 +230,22 @@ const AdminDashboard = () => {
                     <td className="px-4 py-3 text-white">₪{product.price}</td>
                     <td className="px-4 py-3 text-white">{product.stock_count}</td>
                     <td className="px-4 py-3">
-                      <div className="flex space-x-2">
-                        <button
+                      <div className="flex space-x-2">                        <button
                           onClick={() => {
                             setSelectedProduct(product);
                             setFormData(product);
+                            
+                            // Handle tags depending on their format
+                            if (product.tags && product.tags.length > 0) {
+                              if (typeof product.tags[0] === 'object') {
+                                setSelectedTags(product.tags.map(tag => tag.id));
+                              } else {
+                                setSelectedTags([...product.tags]);
+                              }
+                            } else {
+                              setSelectedTags([]);
+                            }
+                            
                             setIsModalOpen(true);
                           }}
                           className="text-accent hover:text-accent-dark transition-colors"
@@ -220,23 +259,26 @@ const AdminDashboard = () => {
                           title={t('add_keys')}
                         >
                           <FontAwesomeIcon icon={faKey} />
-                        </button>
-                        <button
+                        </button>                        <button
                           onClick={async () => {
                             if (window.confirm(t('confirm_delete'))) {
                               try {
                                 const response = await fetch(`/api/admin/products/${product.id}`, {
                                   method: 'DELETE',
-                                  credentials: 'include'
+                                  credentials: 'include',
+                                  headers: {
+                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                  }
                                 });
                                 if (response.ok) {
                                   notify({ message: t('product_deleted'), type: 'success' });
                                   fetchProducts();
                                 } else {
-                                  throw new Error('Failed to delete');
+                                  const errorData = await response.json();
+                                  throw new Error(errorData.detail || 'Failed to delete');
                                 }
                               } catch (error) {
-                                notify({ message: t('delete_failed'), type: 'error' });
+                                notify({ message: error.message || t('delete_failed'), type: 'error' });
                               }
                             }
                           }}
@@ -353,6 +395,23 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
+              {/* Stock Management */}
+              <div>
+                <label className="block text-white mb-1">{t('stock_count')}</label>
+                <input
+                  type="number"
+                  value={formData.stock_count}
+                  onChange={e => setFormData(prev => ({
+                    ...prev,
+                    stock_count: parseInt(e.target.value)
+                  }))}
+                  className="w-full bg-gray-700 text-white rounded px-3 py-2"
+                  min="0"
+                  step="1"
+                  required
+                />
+              </div>
+
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex items-center">
                   <input
@@ -392,6 +451,15 @@ const AdminDashboard = () => {
                     max="100"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-white mb-1">{t('tags')}</label>
+                <TagManager 
+                  selectable={true} 
+                  selectedTags={selectedTags} 
+                  onTagSelect={setSelectedTags} 
+                />
               </div>
 
               <div {...getRootProps()} className="border-2 border-dashed border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-accent transition-colors">

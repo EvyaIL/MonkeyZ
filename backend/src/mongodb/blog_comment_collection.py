@@ -28,11 +28,15 @@ class BlogCommentCollection:
             {"comment_id": comment_id},
             {"$addToSet": {"likes": user_id}}
         )
-        return result.modified_count > 0
-
-    async def remove_like(self, comment_id: str, user_id: str) -> bool:
+        return result.modified_count > 0    async def remove_like(self, comment_id: str, user_id: str) -> bool:
         result = await self.collection.update_one(
             {"comment_id": comment_id},
             {"$pull": {"likes": user_id}}
         )
         return result.modified_count > 0
+        
+    async def get_comment_by_id(self, comment_id: str) -> Optional[BlogCommentInDB]:
+        comment = await self.collection.find_one({"comment_id": comment_id})
+        if comment:
+            return BlogCommentInDB(**comment)
+        return None
