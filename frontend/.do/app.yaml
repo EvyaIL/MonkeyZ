@@ -67,7 +67,7 @@ services:
   instance_count: 1
   instance_size_slug: basic-xxs
   name: front-end
-  run_command: node standalone-server.js
+  run_command: node server.js
   source_dir: frontend/
   envs:
   - key: DATABASE_URL

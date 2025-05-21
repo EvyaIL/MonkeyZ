@@ -1,25 +1,25 @@
-// Enhanced Express server for DigitalOcean deployment
-const express = require('express');
+// Self-contained server for DigitalOcean deployment
+const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const app = express();
 
-// Log startup diagnostics
-console.log('=== Server Startup Diagnostics ===');
-console.log('Current directory:', process.cwd());
-console.log('Directory contents:', fs.readdirSync('.').join(', '));
-console.log('Node version:', process.version);
-console.log('================================');
-
-// Request logging
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
-  });
-  next();
-});
+// Define MIME types for different file extensions
+const mimeTypes = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'application/font-woff',
+  '.ttf': 'application/font-ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.otf': 'application/font-otf',
+  '.wasm': 'application/wasm'
+};
 
 // Determine build folder path - try multiple options
 let buildPath = './build';
@@ -34,30 +34,57 @@ if (!fs.existsSync(buildPath)) {
   }
 }
 
-// Serve static files from build directory
-console.log(`Serving static files from: ${buildPath}`);
-app.use(express.static(buildPath));
+// Create the server
+const server = http.createServer((req, res) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  
+  // Handle health check
+  if (req.url === '/health.json') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'healthy' }));
+    return;
+  }
 
-// Multiple health check endpoints
-app.get(['/health.json', '/health', '/.well-known/health'], (req, res) => {
-  console.log('Health check requested');
-  res.json({ status: 'healthy', time: new Date().toISOString() });
+  // Parse the URL to get the pathname
+  let filePath = path.join(__dirname, 'build', req.url === '/' ? 'index.html' : req.url);
+  
+  // If the path doesn't point to a file, serve index.html (for SPA routing)
+  fs.stat(filePath, (err, stats) => {
+    if (err || !stats.isFile()) {
+      filePath = path.join(__dirname, 'build', 'index.html');
+    }
+    
+    serveFile(filePath, res);
+  });
 });
 
-// Serve React app for all other routes (SPA support)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, buildPath, 'index.html'));
-});
+// Function to serve a file
+function serveFile(filePath, res) {
+  const extname = String(path.extname(filePath)).toLowerCase();
+  const contentType = mimeTypes[extname] || 'application/octet-stream';
+  
+  fs.readFile(filePath, (err, content) => {
+    if (err) {
+      if (err.code === 'ENOENT') {
+        // File not found
+        res.writeHead(404);
+        res.end('File not found');
+      } else {
+        // Server error
+        res.writeHead(500);
+        res.end(`Server Error: ${err.code}`);
+      }
+    } else {
+      // Successful response
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(content, 'utf-8');
+    }
+  });
+}
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// Start server
+// Start the server
 const port = process.env.PORT || 8080;
-app.listen(port, '0.0.0.0', () => {
+server.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
   console.log(`Health check available at: http://localhost:${port}/health.json`);
 });
