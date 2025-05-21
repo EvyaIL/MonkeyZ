@@ -1,12 +1,19 @@
 name: monkeyz-frontend
-static_sites:
+services:
 - name: frontend
   github:
     branch: main
     deploy_on_push: true
   source_dir: .
-  build_command: npm install && npm run build
-  output_dir: build
+  build_command: bash ./do-build.sh
+  run_command: npm start
+  http_port: 8080
+  instance_size_slug: basic-xs
+  health_check:
+    http_path: /health.json
+    port: 8080
+    initial_delay_seconds: 10
+    period_seconds: 5
   routes:
   - path: /
   envs:
