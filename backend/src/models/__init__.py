@@ -1,0 +1,3 @@
+"""
+MonkeyZ data models.
+"""

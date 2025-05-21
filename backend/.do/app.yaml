@@ -1,0 +1,52 @@
+name: monkeyz-backend
+services:
+- name: api
+  github:
+    branch: main
+    deploy_on_push: true
+  source_dir: .
+  http_port: 8000
+  instance_count: 1
+  instance_size_slug: basic-xs
+  routes:
+  - path: /
+  envs:
+  - key: MONGODB_URI
+    scope: RUN_TIME
+    value: 
+    type: SECRET
+  - key: SECRET_KEY
+    scope: RUN_TIME
+    value: 
+    type: SECRET
+  - key: ALGORITHM
+    scope: RUN_TIME
+    value: HS256
+  - key: ACCESS_TOKEN_EXPIRE_MINUTES
+    scope: RUN_TIME
+    value: "30"
+  - key: EMAILJS_SERVICE_ID
+    scope: RUN_TIME
+    value: 
+    type: SECRET
+  - key: EMAILJS_USER_ID
+    scope: RUN_TIME
+    value: 
+    type: SECRET
+  - key: EMAILJS_TEMPLATE_ID_PASSWORD_RESET
+    scope: RUN_TIME
+    value: 
+  - key: EMAILJS_TEMPLATE_ID_OTP
+    scope: RUN_TIME
+    value: 
+  - key: EMAILJS_TEMPLATE_ID_WELCOME
+    scope: RUN_TIME
+    value: 
+  - key: GROW_API_KEY
+    scope: RUN_TIME
+    value: 
+    type: SECRET
+  health_check:
+    http_path: /health
+    initial_delay_seconds: 30
+    period_seconds: 10

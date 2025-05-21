@@ -49,10 +49,14 @@ async def test_mongodb_connection():
         return False
 
 if __name__ == "__main__":
-    logging.info("Starting MongoDB connection test")
+    # For DigitalOcean deployment, verify MongoDB connection
+    logging.info("Testing MongoDB connection for DigitalOcean deployment...")
     result = asyncio.run(test_mongodb_connection())
     
     if result:
-        logging.info("✅ MongoDB connection test PASSED")
+        logging.info("✅ MongoDB connection test successful! Ready for deployment.")
+        exit(0)
     else:
-        logging.error("❌ MongoDB connection test FAILED")
+        logging.error("❌ MongoDB connection test failed! Check your connection string and network.")
+        logging.error("For DigitalOcean deployment, ensure you're using the correct connection string from the DO dashboard.")
+        exit(1)

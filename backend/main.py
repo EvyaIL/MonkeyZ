@@ -46,6 +46,11 @@ app = FastAPI(
 from src.routers import grow_router # Changed from 'from routers import grow_router'
 app.include_router(grow_router.router)
 
+# Health check endpoint for DigitalOcean App Platform
+@app.get("/health", tags=["health"])
+def health_check():
+    return {"status": "healthy"}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
