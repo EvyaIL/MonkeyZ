@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
+<<<<<<< HEAD
 import { default as Slider } from "rc-slider";
+=======
+import Slider from "rc-slider";
+>>>>>>> parent of 1ee295a (a)
 import "rc-slider/assets/index.css";
 import { useTranslation } from "react-i18next";
 
