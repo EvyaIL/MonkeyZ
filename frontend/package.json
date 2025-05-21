@@ -6,30 +6,30 @@
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "@react-oauth/google": "^0.12.2",
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.13",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "autoprefixer": "^10.4.20",
     "axios": "^1.7.7",
+    "daisyui": "^5.0.35",
     "express": "^4.18.2",
     "i18next": "^25.1.3",
+    "postcss": "^8.4.47",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-helmet": "^6.1.0",
     "react-i18next": "^15.5.1",
     "react-router-dom": "^7.2.0",
     "react-scripts": "^5.0.1",
+    "tailwindcss": "^3.4.13",
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
-    "@tailwindcss/aspect-ratio": "^0.4.2",
-    "@tailwindcss/forms": "^0.5.7",
-    "@tailwindcss/typography": "^0.5.13",
-    "autoprefixer": "^10.4.20",
-    "daisyui": "^5.0.35",
     "dotenv": "^16.4.5",
-    "postcss": "^8.4.47",
-    "prettier": "^3.2.5",
-    "tailwindcss": "^3.4.13"
+    "prettier": "^3.2.5"
   },
   "scripts": {
     "start": "node server.js",
