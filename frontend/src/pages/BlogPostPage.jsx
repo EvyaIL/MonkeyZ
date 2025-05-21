@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { getPostBySlug } from '../data/BlogData'; // Assuming BlogData.js is in src/data
 import NotFound from './NotFound';
 import { Helmet } from 'react-helmet';
-import BlogCommentSection from '../components/blog/BlogCommentSection';
 
 const BlogPostPage = () => {
   const { slug } = useParams();
@@ -44,10 +43,6 @@ const BlogPostPage = () => {
           className="prose prose-lg lg:prose-xl max-w-none dark:prose-invert prose-headings:text-accent prose-a:text-accent hover:prose-a:text-accent-dark"
           dangerouslySetInnerHTML={{ __html: postContent }}
         />
-        
-        {/* Add comments section */}
-        <BlogCommentSection postId={post.id} />
-        
         <div className="mt-10 pt-6 border-t border-border">
           <Link to="/blog" className="text-accent hover:underline">
             &larr; {t('back_to_blog')}

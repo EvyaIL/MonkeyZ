@@ -9,10 +9,6 @@ from src.routers.users_router import users_router
 from src.routers.products_router import product_router
 from src.base_exception.base_exception import BaseException
 from src.routers.keys_router import key_router
-from src.routers.profile_router import router as profile_router
-from src.routers.blog_router import router as blog_router
-from src.routers.tag_router import router as tag_router
-from src.routers.admin_router import router as admin_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
@@ -49,10 +45,6 @@ app = FastAPI(
 
 from src.routers import grow_router # Changed from 'from routers import grow_router'
 app.include_router(grow_router.router)
-app.include_router(profile_router)
-app.include_router(blog_router)
-app.include_router(tag_router)
-app.include_router(admin_router)
 
 app.add_middleware(
     CORSMiddleware,

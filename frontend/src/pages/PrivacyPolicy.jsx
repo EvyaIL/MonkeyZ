@@ -77,9 +77,9 @@ const PrivacyPolicy = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-accent mb-4">7. {t("contact")}</h2>
+            <h2 className="text-xl font-semibold text-accent mb-4">7. {t("contact_us")}</h2>
             <p className="text-white">
-              {t("privacyContactText")}{" "}
+              {t("privacy_contact_text")}{" "}
               <a href="mailto:support@monkeyz.co.il" className="text-accent hover:underline">
                 support@monkeyz.co.il
               </a>.

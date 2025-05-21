@@ -213,7 +213,7 @@ const ProductShowcase = ({ products, title }) => {
         >
           <div
             className="flex transition-transform duration-700 ease-in-out h-full"
-            style={{ transform: `translateX(${lang === "he" ? "" : "-"}${currentIndex * 100}%)` }}
+            style={{ transform: `translateX(-${currentIndex * 100}%)` }}
             aria-live="polite"
           >
             {validProducts.map((product, index) => { 
@@ -232,7 +232,7 @@ const ProductShowcase = ({ products, title }) => {
               return (
                 <div
                   key={productId || `product-slide-${index}`}
-                  className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/20 rounded-lg transition-colors ${lang === "he" ? "flex-row-reverse" : ""}`}
+                  className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/20 rounded-lg transition-colors`}
                   onClick={() => productId && navigate(`/product/${encodeURIComponent(productId)}`)}
                   tabIndex={isActive ? 0 : -1} // Only allow focus on current slide
                   role="group"
@@ -293,18 +293,14 @@ const ProductShowcase = ({ products, title }) => {
                     {isMobileView && (
                       <div className="mt-3">
                         <PrimaryButton
-                          title={p.inStock === false ? t("out_of_stock") : t("add_to_cart")}
+                          title={t("add_to_cart")}
                           ariaLabel={`${t("add")} ${nameToDisplay} ${t("to_cart")}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (p.id && p.inStock !== false) {
-                              handleAddToCart(p);
-                            }
+                            handleAddToCart(p);
                           }}
                           disabled={!p.id || p.inStock === false}
-                          otherStyle={`text-sm text-white font-semibold py-2 px-4 rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 ${
-                            p.inStock === false ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-accent hover:bg-accent-dark'
-                          }`}
+                          otherStyle="text-sm py-1.5 px-3"
                         />
                       </div>
                     )}
@@ -320,11 +316,11 @@ const ProductShowcase = ({ products, title }) => {
               e.stopPropagation();
               prevProduct();
             }}
-            className={`absolute ${lang === "he" ? "right-2" : "left-2"} top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md`}
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("previous_product")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={lang === "he" ? "M9 5l7 7-7 7" : "M15 19l-7-7 7-7"} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <button 
@@ -332,17 +328,17 @@ const ProductShowcase = ({ products, title }) => {
               e.stopPropagation();
               nextProduct();
             }}
-            className={`absolute ${lang === "he" ? "left-2" : "right-2"} top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md`}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("next_product")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={lang === "he" ? "M15 19l-7-7 7-7" : "M9 5l7 7-7 7"} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
 
         {/* Desktop Add to Cart Button */}
-        <div className={`mt-4 flex ${lang === "he" ? "justify-start" : "justify-end"}`}>
+        <div className="mt-4 flex justify-end">
           {!isMobileView && (() => {
               const currentProductForButton = validProducts[currentIndex] || {}; 
               const cp = currentProductForButton;
@@ -351,18 +347,20 @@ const ProductShowcase = ({ products, title }) => {
               const isOutOfStock = cp.inStock === false;
               return (
                   <PrimaryButton
-                    title={isOutOfStock ? t("out_of_stock") : t("add_to_cart")}
-                    ariaLabel={`${t("add")} ${nameForButton} ${t("to_cart")}`}
+                    title={isOutOfStock 
+                      ? lang === "he" ? "אזל מהמלאי" : t("out_of_stock") 
+                      : lang === "he" ? "הוסף לעגלה" : t("add_to_cart")}
+                    ariaLabel={isOutOfStock
+                      ? lang === "he" ? "אזל מהמלאי" : t("out_of_stock")
+                      : `${lang === "he" ? "הוסף" : t("add") } ${nameForButton} ${lang === "he" ? "לעגלה" : t("to_cart")}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (cp.id && !isOutOfStock) {
-                        handleAddToCart(cp);
+                         handleAddToCart(cp);
                       }
                     }}
                     disabled={!cp.id || isOutOfStock}
-                    otherStyle={`text-white font-semibold py-2 px-4 rounded-lg shadow-lg transform transition-all duration-200 hover:scale-105 ${
-                      isOutOfStock ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-accent hover:bg-accent-dark'
-                    }`}
+                    otherStyle={isOutOfStock ? "bg-gray-400 hover:bg-gray-400" : ""}
                   />
               );
           })()}
@@ -372,7 +370,7 @@ const ProductShowcase = ({ products, title }) => {
         <div className={`flex justify-center items-center mt-6 ${lang === "he" ? "flex-row-reverse" : ""} space-x-3`}>
           {/* Previous button (visible on mobile) */}
           <SecondaryButton
-            title={lang === "he" ? "›" : "‹"}
+            title="‹"
             onClick={prevProduct}
             ariaLabel={lang === "he" ? "מוצר קודם" : t("previous_product")}
             otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
@@ -411,7 +409,7 @@ const ProductShowcase = ({ products, title }) => {
           
           {/* Next button (visible on mobile) */}
           <SecondaryButton
-            title={lang === "he" ? "›" : "›"}
+            title="›"
             onClick={nextProduct}
             ariaLabel={lang === "he" ? "מוצר הבא" : t("next_product")}
             otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"

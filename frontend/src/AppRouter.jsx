@@ -1,10 +1,10 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import { useGlobalProvider } from "./context/GlobalProvider";
+import { Routes, Route } from "react-router-dom";
+// import { useTranslation } from "react-i18next"; // Not used directly here
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
-import Unauthorized from "./pages/Unauthorized";
 import Navbar from "./components/Navbar";
+// Footer is likely handled in App.jsx or a higher-level component
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
 import AllProducts from "./pages/AllProducts";
@@ -18,28 +18,11 @@ import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
-import UserDashboard from "./pages/UserDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminRoute from "./components/wrapper/AdminRoute";
-
-// Protected Route component
-const ProtectedRoute = ({ children, adminOnly = false }) => {
-  const { user, isAuthenticated } = useGlobalProvider();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/sign-in" />;
-  }
-
-  if (adminOnly && (!user || user.role !== 0)) {
-    return <Navigate to="/" />;
-  }
-
-  return children;
-};
 
 const AppRouter = () => {
   return (
     <>
+      {/* Navbar is rendered here, Footer is likely in App.jsx or similar parent component */}
       <Navbar />
       <Routes>
         {/* Main pages */}
@@ -54,30 +37,6 @@ const AppRouter = () => {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
-
-        {/* Protected Dashboard Routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <UserDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          }
-        />
-
-        {/* Additional Admin Route */}
-        <Route
-          path="/admin"
-          element={<Navigate to="/admin/dashboard" replace />}
-        />
 
         {/* Blog routes */}
         <Route path="/blog" element={<BlogPage />} />
@@ -114,12 +73,10 @@ const AppRouter = () => {
           }
         />
 
-        {/* Unauthorized Access Page */}
-        <Route path="/unauthorized" element={<Unauthorized />} />
-
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      {/* Footer is typically rendered in App.jsx or a main layout component after the Routes */}
     </>
   );
 };

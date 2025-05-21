@@ -1,20 +1,16 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { apiService } from "../lib/apiService";
 
 const GlobalContext = createContext();
 export const useGlobalProvider = () => useContext(GlobalContext);
 
 const GlobalProvider = ({ children }) => {
-  const { t } = useTranslation();
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [cartItems, setCartItems] = useState({});
   const [openCart, setOpenCart] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [favorites, setFavorites] = useState([]);
-  const [userProfile, setUserProfile] = useState(null);
 
   // Ensure apiService always has the latest token
   useEffect(() => {
@@ -40,58 +36,6 @@ const GlobalProvider = ({ children }) => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
-  // Fetch user profile when user is available
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (user && token) {
-        try {
-          const response = await fetch('/api/profile', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const profileData = await response.json();
-            setUserProfile(profileData);
-            setFavorites(profileData.favorite_items || []);
-          }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
-        }
-      }
-    };
-    
-    fetchUserProfile();
-  }, [user, token]);
-
-  // Ensure user profile is loaded when user logs in
-  useEffect(() => {
-    const loadUserProfile = async () => {
-      if (user && token && !userProfile) {
-        try {
-          const response = await fetch('/api/profile', {
-            credentials: 'include',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const profileData = await response.json();
-            setUserProfile(profileData);
-            setFavorites(profileData.favorite_items || []);
-          }
-        } catch (error) {
-          console.error('Error loading user profile:', error);
-        }
-      }
-    };
-    
-    loadUserProfile();
-  }, [user, token, userProfile]);
 
   const logout = async () => {
     localStorage.removeItem("token");
@@ -242,79 +186,6 @@ const GlobalProvider = ({ children }) => {
     }
   }, []);
 
-  // Toggle favorite item
-  const toggleFavorite = async (productId) => {
-    if (!user) {
-      notify({ message: "You must be logged in to add favorites", type: "warning" });
-      return false;
-    }
-    
-    try {
-      const response = await fetch(`/api/profile/favorites/${productId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        // Update favorites locally
-        if (favorites.includes(productId)) {
-          setFavorites(prev => prev.filter(id => id !== productId));
-          notify({ message: "Removed from favorites", type: "success" });
-        } else {
-          setFavorites(prev => [...prev, productId]);
-          notify({ message: "Added to favorites", type: "success" });
-        }
-        return true;
-      } else {
-        throw new Error('Failed to update favorite');
-      }
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      notify({ message: "Failed to update favorites", type: "error" });
-      return false;
-    }
-  };
-
-  // Check if user is admin
-  const isAdmin = () => {
-    return user?.role === 0 || user?.is_admin === true;
-  };
-
-  // Function to update user profile
-  const updateUserProfile = async (profileData) => {
-    if (!user || !token) {
-      showError("You must be logged in to update your profile");
-      return false;
-    }
-    
-    try {
-      const response = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include',
-        body: JSON.stringify(profileData)
-      });
-      
-      if (response.ok) {
-        const updatedProfile = await response.json();
-        setUserProfile(updatedProfile);
-        showSuccess("Profile updated successfully");
-        return true;
-      } else {
-        throw new Error('Failed to update profile');
-      }
-    } catch (error) {
-      showError(error.message || "Failed to update profile");
-      return false;
-    }
-  };
-
   return (
     <GlobalContext.Provider
       value={{
@@ -336,13 +207,7 @@ const GlobalProvider = ({ children }) => {
         notify,
         showError,
         showSuccess,
-        notification,
-        favorites,
-        toggleFavorite,
-        userProfile,
-        setUserProfile,
-        isAdmin,
-        updateUserProfile
+        notification
       }}
     >
       {children}

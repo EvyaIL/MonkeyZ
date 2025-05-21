@@ -1,0 +1,10 @@
+{
+  "password": "סיסמה",
+  "enter_your_password": "הזן את הסיסמה שלך",
+  "dont_have_account": "אין לך חשבון? הירשם",
+  "forgot_password": "שכחת סיסמה?",
+  "signing_in": "מתחבר...",
+  "back_to_login": "חזרה להתחברות",
+  "username_or_email": "שם משתמש או אימייל",
+  "enter_username_or_email": "הזן את שם המשתמש או האימייל שלך"
+}

@@ -29,12 +29,12 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
 
     async def get_best_sellers(self) -> list[Product]:
         """
-            Retrieves all the active best sellers products from the database.
+            Retrieves all the best sellers products from the database.
 
             Returns:
-                list[Product]: A list of all active best sellers products in the database.
+                list[Product]: A list of all best sellers products in the database.
         """
-        return await Product.find_many({"$and": [{"best_seller": True}, {"active": True}]}).to_list()
+        return await Product.find_many(Product.best_seller == True).to_list()
 
     async def get_recent_products(self, limit: int) -> list[Product]:
         """
