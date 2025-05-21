@@ -10,13 +10,13 @@ services:
   instance_count: 2
   instance_size_slug: apps-s-1vcpu-1gb
   name: cdmonkey-frontend
-  build_command: npm run build
-  run_command: npm start
+  build_command: npm install && npm run build
+  run_command: npm run start:do
   source_dir: frontend
   health_check:
     http_path: /health.json
     port: 8080
-    initial_delay_seconds: 30
+    initial_delay_seconds: 40
     period_seconds: 10
     timeout_seconds: 5
     success_threshold: 1

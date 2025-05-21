@@ -1,5 +1,7 @@
 #!/bin/bash
-# Ultra-minimal startup script for DigitalOcean
+# Install express first
+npm install express
+# Then start the server
 node server.js
 
 // Print extensive diagnostics
