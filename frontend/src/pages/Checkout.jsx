@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { Helmet } from "react-helmet";
+import TestProduct from '../components/TestProduct';
 
 const Checkout = () => {
   const { t } = useTranslation();
@@ -144,111 +145,117 @@ const Checkout = () => {
         <meta name="description" content={t("checkout_meta_description")} />
       </Helmet>
 
-      <form
-        onSubmit={handlePay}
-        className="flex flex-col gap-4 max-w-md mx-auto mt-8 bg-white dark:bg-secondary p-8 rounded-lg shadow-lg border border-base-300 dark:border-gray-700 w-full"
-        aria-label={t("checkout_form")}
-      >
-        <h2 className="text-3xl font-bold text-primary dark:text-accent text-center mb-2">
-          {t("checkout")}
-        </h2>
-
-        <div className="text-base-content dark:text-white text-center mb-4">
-          <p className="text-xl font-semibold mb-2">
-            {t("total")}: ₪{cartTotal ? cartTotal.toFixed(2) : '0.00'}
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {t("payment_methods_available")}
-          </p>
-        </div>
-
-        {errorMsg && (
-          <div
-            className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded text-center"
-            role="alert"
-            aria-live="polite"
-          >
-            {errorMsg}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t("full_name")}
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              placeholder={t("full_name_placeholder")}
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
-              required
-              autoComplete="name"
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t("email")}
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder={t("email_placeholder")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
-              required
-              autoComplete="email"
-              pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t("phone")}
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              placeholder={t("phone_placeholder")}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
-              required
-              autoComplete="tel"
-              pattern="05[0-9]{8}"
-              maxLength="10"
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          className="mt-6 w-full bg-accent text-white py-3 px-6 rounded-md font-semibold hover:bg-accent-dark focus:outline-none focus:ring-4 focus:ring-accent focus:ring-opacity-50 transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
-          disabled={isSubmitting || !cartTotal}
-          aria-busy={isSubmitting}
+      {cartTotal > 0 ? (
+        // Regular checkout form for cart items
+        <form
+          onSubmit={handlePay}
+          className="flex flex-col gap-4 max-w-md mx-auto mt-8 bg-white dark:bg-secondary p-8 rounded-lg shadow-lg border border-base-300 dark:border-gray-700 w-full"
+          aria-label={t("checkout_form")}
         >
-          {isSubmitting ? t("processing") : t("pay_now")}
-        </button>
+          <h2 className="text-3xl font-bold text-primary dark:text-accent text-center mb-2">
+            {t("checkout")}
+          </h2>
 
-        {/* Payment method icons */}
-        <div className="mt-6 flex justify-center space-x-4">
-          <img src="/images/visa.svg" alt="Visa" className="h-8" />
-          <img src="/images/mastercard.svg" alt="Mastercard" className="h-8" />
-          <img src="/images/bit.svg" alt="Bit" className="h-8" />
-          <img src="/images/googlepay.svg" alt="Google Pay" className="h-8" />
-        </div>
+          <div className="text-base-content dark:text-white text-center mb-4">
+            <p className="text-xl font-semibold mb-2">
+              {t("total")}: ₪{cartTotal ? cartTotal.toFixed(2) : '0.00'}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {t("payment_methods_available")}
+            </p>
+          </div>
 
-        {renderTestCards()}
+          {errorMsg && (
+            <div
+              className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded text-center"
+              role="alert"
+              aria-live="polite"
+            >
+              {errorMsg}
+            </div>
+          )}
 
-        <p className="mt-4 text-xs text-center text-gray-500 dark:text-gray-400">
-          {t("secure_payment_note")}
-        </p>
-      </form>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t("full_name")}
+              </label>
+              <input
+                id="fullName"
+                type="text"
+                placeholder={t("full_name_placeholder")}
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
+                required
+                autoComplete="name"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t("email")}
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder={t("email_placeholder")}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
+                required
+                autoComplete="email"
+                pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t("phone")}
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                placeholder={t("phone_placeholder")}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent"
+                required
+                autoComplete="tel"
+                pattern="05[0-9]{8}"
+                maxLength="10"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="mt-6 w-full bg-accent text-white py-3 px-6 rounded-md font-semibold hover:bg-accent-dark focus:outline-none focus:ring-4 focus:ring-accent focus:ring-opacity-50 transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+            disabled={isSubmitting || !cartTotal}
+            aria-busy={isSubmitting}
+          >
+            {isSubmitting ? t("processing") : t("pay_now")}
+          </button>
+
+          {/* Payment method icons */}
+          <div className="mt-6 flex justify-center space-x-4">
+            <img src="/images/visa.svg" alt="Visa" className="h-8" />
+            <img src="/images/mastercard.svg" alt="Mastercard" className="h-8" />
+            <img src="/images/bit.svg" alt="Bit" className="h-8" />
+            <img src="/images/googlepay.svg" alt="Google Pay" className="h-8" />
+          </div>
+
+          {renderTestCards()}
+
+          <p className="mt-4 text-xs text-center text-gray-500 dark:text-gray-400">
+            {t("secure_payment_note")}
+          </p>
+        </form>
+      ) : (
+        // Show test product when cart is empty
+        <TestProduct />
+      )}
     </div>
   );
 };

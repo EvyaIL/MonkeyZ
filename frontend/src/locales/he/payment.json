@@ -1,0 +1,8 @@
+{
+  "test_product": "מוצר בדיקה",
+  "test_product_description": "מוצר זה משמש לבדיקת מערכת התשלומים",
+  "processing": "מעבד...",
+  "buy_now": "קנה עכשיו",
+  "payment_success": "התשלום בוצע בהצלחה",
+  "payment_failed": "התשלום נכשל"
+}
