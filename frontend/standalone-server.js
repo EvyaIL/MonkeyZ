@@ -1,10 +1,22 @@
-// Self-contained Express server with bundled dependencies
-// This server doesn't require Express to be installed
-// It uses the built-in HTTP module to handle requests
-
+// Standalone server for production deployment
+// Uses only built-in Node.js modules for maximum reliability
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+// Print startup diagnostics
+console.log('=== Server Startup Diagnostics ===');
+console.log('Node version:', process.version);
+console.log('Current directory:', process.cwd());
+try {
+  console.log('Directory contents:', fs.readdirSync('.').join(', '));
+  if (fs.existsSync('./build')) {
+    console.log('Build directory contents:', fs.readdirSync('./build').join(', '));
+  }
+} catch (err) {
+  console.error('Error reading directory:', err);
+}
+console.log('==============================');
 
 // Define the MIME types for different file extensions
 const mimeTypes = {

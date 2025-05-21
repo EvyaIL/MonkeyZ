@@ -27,13 +27,15 @@
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
     "prettier": "^3.2.5"
   },
   "scripts": {
-    "start": "node standalone-server.js",
+    "start": "set PORT=3000 && react-scripts start",
     "build": "react-scripts build",
-    "start:dev": "react-scripts start"
+    "prod": "cross-env NODE_ENV=production node standalone-server.js",
+    "start:debug": "cross-env NODE_DEBUG=http,fs node standalone-server.js"
   },
   "engines": {
     "node": "20.x"
