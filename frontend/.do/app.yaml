@@ -51,14 +51,24 @@ features:
 ingress:
   rules:
   - component:
-      name: cdmonkey-frontend
+      name: front-end
     match:
-      path:
-        prefix: /
-name: frontend
+      path: /
+name: monkeyz
 region: fra
 services:
-- environment_slug: node-js
+- build_command: npm ci && npm run build
+  environment_slug: node-js
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: YOURUSERNAME/YOURREPO
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: front-end
+  run_command: node standalone-server.js
+  source_dir: frontend/
   envs:
   - key: DATABASE_URL
     scope: RUN_TIME
@@ -66,17 +76,6 @@ services:
   - key: CA_CERT
     scope: RUN_TIME
     value: ${mongodb1.CA_CERT}
-  github:
-    branch: main
-    deploy_on_push: true
-    repo: EvyaIL/CDMonkey
-  http_port: 8080
-  instance_count: 2
-  instance_size_slug: apps-s-1vcpu-1gb
-  name: cdmonkey-frontend
-  build_command: npm install --production=false && npm run build && cp standalone-server.js build/
-  run_command: node standalone-server.js
-  source_dir: frontend
   health_check:
     http_path: /health.json
     port: 8080
