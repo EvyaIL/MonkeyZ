@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useDropzone } from 'react-dropzone';
 import { useGlobalProvider } from '../context/GlobalProvider';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDiscord, faHeart, faHistory, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faHeart, faHistory, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faDiscord } from '@fortawesome/free-brands-svg-icons';
 
 const UserDashboard = () => {
   const { t } = useTranslation();
