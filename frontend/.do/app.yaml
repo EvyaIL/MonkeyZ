@@ -6,7 +6,7 @@ services:
     deploy_on_push: true
   source_dir: .
   build_command: bash ./do-build.sh
-  run_command: npm start
+  run_command: bash ./do-run.sh
   http_port: 8080
   instance_size_slug: basic-xs
   health_check:

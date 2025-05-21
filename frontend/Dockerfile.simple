@@ -1,0 +1,34 @@
+# Simple production Dockerfile for DigitalOcean
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install essential tools
+RUN apk add --no-cache curl bash
+
+# Copy package files first for better caching
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm ci
+RUN npm install -g serve
+
+# Copy source code
+COPY . .
+
+# Build the app
+RUN npm run build
+
+# Make sure health check files exist
+RUN mkdir -p /app/build
+RUN echo '{"status":"healthy"}' > /app/build/health.json
+
+# Health check configuration
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:8080/health.json || exit 1
+
+# Expose port for the app
+EXPOSE 8080
+
+# Start the server
+CMD ["serve", "-s", "build", "-l", "8080"]
