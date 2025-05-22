@@ -5,6 +5,7 @@ import { apiService } from "../lib/apiService";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
+import { addStructuredData } from "../lib/seo-helper";
 
 const fallbackProducts = [
   {
@@ -128,6 +129,29 @@ const Home = () => {
   useEffect(() => {
     getBestSellers();
     getRecent();
+    
+    // Add structured data for the homepage
+    const websiteSchema = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://monkeyz.co.il/#website",
+      "url": "https://monkeyz.co.il",
+      "name": "MonkeyZ",
+      "description": "Premium Digital Products & Services",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://monkeyz.co.il/products?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    };
+    
+    addStructuredData(websiteSchema);
+    
+    // Clean up when component unmounts
+    return () => {
+      const script = document.getElementById('structured-data');
+      if (script) script.remove();
+    };
     // eslint-disable-next-line
   }, []);
 
@@ -181,10 +205,23 @@ const Home = () => {
   return (
     <>
       <Helmet>
-        <title>{`MonkeyZ - ${t("home")}`}</title>
-        <meta name="description" content={t("home_meta_description") || "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service."} />
-        <meta property="og:title" content={`MonkeyZ - ${t("home")}`} />
-        <meta property="og:description" content={t("home_meta_description") || "MonkeyZ offers premium products and services. Discover our unique selection and enjoy fast, reliable service."} />
+        <title>{`MonkeyZ - ${t("home")} | Premium Digital Products & Services`}</title>
+        <meta name="description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions. Fast delivery, reliable service, and 24/7 support."} />
+        <meta name="keywords" content="MonkeyZ, digital products, software keys, VPN service, antivirus, cloud storage, password manager, premium software, online store" />
+        <link rel="canonical" href="https://monkeyz.co.il/" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content={`MonkeyZ - ${t("home")} | Premium Digital Products & Services`} />
+        <meta property="og:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
+        <meta property="og:url" content="https://monkeyz.co.il/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://monkeyz.co.il/og-image.jpg" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`MonkeyZ - ${t("home")} | Premium Digital Products`} />
+        <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
+        <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
       <div className="min-h-screen flex flex-col items-center justify-center p-6">
         <h1 className="text-primary dark:text-accent font-bold text-3xl mb-8" tabIndex={0}>

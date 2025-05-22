@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 import Spinner from "../components/Spinner";
 import { trackProductView } from "../lib/analytics";
+import { generateProductSchema, addStructuredData } from "../lib/seo-helper";
 
 const ProductPage = () => {
   const { name } = useParams(); // This can be either a name or ID depending on the URL
@@ -38,9 +39,30 @@ const ProductPage = () => {
     return () => {
       setQuantity(1);
       setAddedToCart(false);
+      // Clean up structured data when component unmounts
+      const script = document.getElementById('structured-data');
+      if (script) script.remove();
     };
     // eslint-disable-next-line
   }, [name]);
+  
+  // Add structured data when product data changes
+  useEffect(() => {
+    if (product && product.id) {
+      // Create structured data for product
+      const productData = {
+        ...product,
+        // Ensure properties needed for schema are present
+        name: displayName,
+        description: displayDesc,
+        imageUrl: product.image,
+        inStock: true
+      };
+      
+      const schema = generateProductSchema(productData);
+      addStructuredData(schema);
+    }
+  }, [product]);
 
   const fetchRelatedProducts = async (categoryOrName) => {
     if (!categoryOrName) return;
@@ -255,13 +277,24 @@ const ProductPage = () => {
       <Helmet>
         <title>{displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")}</title>
         <meta name="description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
+        <meta name="keywords" content={`MonkeyZ, ${displayName}, ${displayCategory}, digital products, software, premium`} />
+        <link rel="canonical" href={`https://monkeyz.co.il/product/${encodeURIComponent(name)}`} />
+        
+        {/* Open Graph / Facebook */}
         <meta property="og:title" content={displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")} />
         <meta property="og:description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
         {product.image && <meta property="og:image" content={product.image} />}
         <meta property="og:type" content="product" />
+        <meta property="og:url" content={`https://monkeyz.co.il/product/${encodeURIComponent(name)}`} />
         {product.price && <meta property="product:price:amount" content={formattedPrice} />}
         <meta property="product:price:currency" content="ILS" />
         {displayCategory && <meta property="product:category" content={displayCategory} />}
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")} />
+        <meta name="twitter:description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
+        {product.image && <meta name="twitter:image" content={product.image} />}
       </Helmet>
       <div className="p-4 md:p-9 flex flex-col items-center justify-center min-h-screen">
         <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5">

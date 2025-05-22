@@ -1,12 +1,11 @@
 # robots.txt for https://monkeyz.co.il/
-# Learn more: https://www.robotstxt.org/robotstxt.html
-# Last updated: 2025-05-19
+# Last updated: 2025-05-22
 
 User-agent: *
 # Allow crawling of all content
 Allow: /
 
-# Prevent crawling of private or duplicate pages
+# Prevent crawling of private, duplicate, or utility pages
 Disallow: /sign-in
 Disallow: /sign-up
 Disallow: /checkout
@@ -14,14 +13,27 @@ Disallow: /profile
 Disallow: /reset-password
 Disallow: /success
 Disallow: /fail
+Disallow: /analytics-test
+
+# Allow Google to index all product pages
+User-agent: Googlebot
+Allow: /product/
+Allow: /products
+Allow: /blog/
+
+# Allow Google Images to index all images
+User-agent: Googlebot-Image
+Allow: /product/
+Allow: /blog/
+Allow: /images/
 
 # Sitemap location
 Sitemap: https://monkeyz.co.il/sitemap.xml
 
-# Crawl delay for specific bots (optional)
+# Crawl delay for specific bots
 User-agent: AdsBot-Google
 Crawl-delay: 1
 
-# Allow product-specific crawlers
-User-agent: Googlebot-Image
-Allow: /product/
+# No need to index admin or API routes
+Disallow: /api/
+Disallow: /admin/

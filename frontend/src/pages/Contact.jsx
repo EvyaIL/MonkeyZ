@@ -1,7 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
+import { addStructuredData, generateBreadcrumbSchema } from "../lib/seo-helper";
 
 const SERVICE_ID = "service_xheer8t"; 
 const TEMPLATE_ID = "template_vmjo60f"; 
@@ -12,6 +13,34 @@ const Contact = () => {
   const formRef = useRef();
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Generate local business schema
+    const localBusinessSchema = {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": "https://monkeyz.co.il/#organization",
+      "name": "MonkeyZ",
+      "url": "https://monkeyz.co.il",
+      "logo": "https://monkeyz.co.il/logo192.png",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+972-000-0000",
+        "contactType": "customer service",
+        "email": "support@monkeyz.co.il",
+        "availableLanguage": ["Hebrew", "English"]
+      }
+    };
+    
+    // Generate breadcrumb schema
+    const breadcrumbSchema = generateBreadcrumbSchema([
+      { name: t('home'), url: 'https://monkeyz.co.il/' },
+      { name: t('contact'), url: 'https://monkeyz.co.il/contact' }
+    ]);
+    
+    // Add both schemas
+    addStructuredData([localBusinessSchema, breadcrumbSchema]);
+  }, [t]);
 
   const sendEmail = (e) => {
     e.preventDefault();
@@ -35,13 +64,35 @@ const Contact = () => {
   return (
     <>
       <Helmet>
-        <title>MonkeyZ - {t("contact")}</title>
-        <meta name="description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, or feedback."} />
-        <meta property="og:title" content={`MonkeyZ - ${t('contact')}`} />
-        <meta property="og:description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, or feedback."} />
+        <title>MonkeyZ - {t("contact")} | {t("contact_meta_title", "Get in Touch")}</title>
+        <meta name="description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, feedback, or collaboration opportunities. Our team is ready to assist you with all your digital product needs."} />
+        <meta name="keywords" content="contact MonkeyZ, support, digital product help, technical assistance, customer service" />
+        <link rel="canonical" href="https://monkeyz.co.il/contact" />
+        
+        {/* Open Graph Tags */}
+        <meta property="og:title" content={`MonkeyZ - ${t("contact")}`} />
+        <meta property="og:description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, feedback, or collaboration opportunities. Our team is ready to assist you with all your digital product needs."} />
+        <meta property="og:image" content="https://monkeyz.co.il/logo512.png" />
+        <meta property="og:url" content="https://monkeyz.co.il/contact" />
+        <meta property="og:type" content="website" />
+        
+        {/* Twitter Card Tags */}
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={`MonkeyZ - ${t("contact")}`} />
+        <meta name="twitter:description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, feedback, or collaboration opportunities. Our team is ready to assist you with all your digital product needs."} />
+        <meta name="twitter:image" content="https://monkeyz.co.il/logo512.png" />
       </Helmet>
       <main className="py-12 md:py-20 flex items-center justify-center">
         <div className="container mx-auto px-4">
+          {/* Breadcrumb */}
+          <nav className="w-full max-w-2xl mx-auto mb-4 text-sm text-gray-500 dark:text-gray-400">
+            <ol className="flex flex-wrap items-center space-x-1 rtl:space-x-reverse">
+              <li><a href="/" className="hover:text-accent">{t('home')}</a></li>
+              <li><span className="mx-1">›</span></li>
+              <li className="text-accent font-medium">{t('contact')}</li>
+            </ol>
+          </nav>
+          
           <section className="bg-white dark:bg-secondary p-8 md:p-12 rounded-lg shadow-lg w-full max-w-2xl mx-auto border border-base-300 dark:border-gray-700">
             <div className="text-center mb-10">
               <h1 className="text-4xl md:text-5xl font-bold text-primary dark:text-accent mb-3">
