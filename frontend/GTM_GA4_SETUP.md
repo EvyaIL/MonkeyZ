@@ -32,7 +32,8 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
      - **GA4 Measurement ID**: 
        - Name: "GA4 Measurement ID"
        - Variable Type: Constant
-       - Value: Paste your GA4 Measurement ID (e.g., G-SYF721LFGB)     - **Client ID**: 
+       - Value: Paste your GA4 Measurement ID (G-SYF721LFGB)     
+     - **Client ID**: 
        - Name: "Client ID"
        - Variable Type: 1st Party Cookie
        - Cookie Name: _ga_client_id (don't include the backticks)
@@ -62,19 +63,19 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
 
 ### 2. GA4 Configuration
 
-1. **Create GA4 Configuration Tag**:
+1. **Create Google Tag (Base Configuration)**:
    - In GTM, go to "Tags" > "New"
-   - Tag Name: "GA4 Configuration"
-   - Tag Type: Select "Google Analytics: GA4 Configuration"
-   - Measurement ID: Click the variable selector (curly brackets) and select your "GA4 Measurement ID" variable
-   - Under "Fields to Set", click "Add Field"
-     - Field Name: `client_id`
-     - Value: Click the variable selector and select your "Client ID" variable
-   - Under "User Properties", click "Add User Property" (optional)
-     - Property Name: `user_segments`
-     - Value: Click the variable selector and select your "user_properties" variable
-   - Under "Advanced Configuration", check "Send a page view event when this configuration loads"
-   - Triggering: Select "All Pages"
+   - Tag Name: "GA4 - Google Tag Configuration"
+   - Tag Type: Select "Google Tag" (not "Google Analytics: GA4 Configuration")
+   - For "Tag ID", enter your Measurement ID: G-SYF721LFGB
+   - Under "Settings", click "Show More Settings" if available
+     - If you see Fields to Set, add:
+       - Field Name: `client_id`
+       - Value: Click the variable selector and select your "Client ID" variable
+     - If you see User Properties, add (optional):
+       - Property Name: `user_segments`
+       - Value: Click the variable selector and select your "user_properties" variable
+   - Triggering: Select "All Pages" (or "Consent Initialization - All Pages" if you use consent management)
    - Click "Save"
 
 2. **Create Custom Event Tags**:
@@ -82,9 +83,10 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
      a. **View Item Tag**:
         - Tag Name: "GA4 - View Item"
         - Tag Type: "Google Analytics: GA4 Event"
-        - Configuration Tag: Select your GA4 Configuration tag
+        - Measurement ID: G-SYF721LFGB (your Measurement ID will appear automatically if Google tag is configured)
         - Event Name: "view_item"
         - Event Parameters:
+          - Click "Event Parameters" to expand the section
           - Click "Add Parameter"
           - Parameter Name: "items"
           - Value: {% raw %}{{ecommerce.items}}{% endraw %}
@@ -92,13 +94,13 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
           - Trigger Type: "Custom Event"
           - Event Name: "view_item"
           - Click "Save"
-     
-     b. **Add to Cart Tag**:
+       b. **Add to Cart Tag**:
         - Tag Name: "GA4 - Add to Cart"
         - Tag Type: "Google Analytics: GA4 Event"
-        - Configuration Tag: Select your GA4 Configuration tag
+        - Measurement ID: G-SYF721LFGB (should appear automatically)
         - Event Name: "add_to_cart"
         - Event Parameters:
+          - Click "Event Parameters" to expand the section
           - Click "Add Parameter"
           - Parameter Name: "items"
           - Value: {% raw %}{{ecommerce.items}}{% endraw %}
@@ -106,13 +108,13 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
           - Trigger Type: "Custom Event"
           - Event Name: "add_to_cart"
           - Click "Save"
-     
-     c. **Begin Checkout Tag**:
+       c. **Begin Checkout Tag**:
         - Tag Name: "GA4 - Begin Checkout"
         - Tag Type: "Google Analytics: GA4 Event"
-        - Configuration Tag: Select your GA4 Configuration tag
+        - Measurement ID: G-SYF721LFGB (should appear automatically)
         - Event Name: "begin_checkout"
         - Event Parameters:
+          - Click "Event Parameters" to expand the section
           - Click "Add Parameter"
           - Parameter Name: "items"
           - Value: {% raw %}{{ecommerce.items}}{% endraw %}
@@ -123,13 +125,13 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
           - Trigger Type: "Custom Event"
           - Event Name: "begin_checkout"
           - Click "Save"
-     
-     d. **Purchase Tag**:
+       d. **Purchase Tag**:
         - Tag Name: "GA4 - Purchase"
         - Tag Type: "Google Analytics: GA4 Event"
-        - Configuration Tag: Select your GA4 Configuration tag
+        - Measurement ID: G-SYF721LFGB (should appear automatically)
         - Event Name: "purchase"
         - Event Parameters:
+          - Click "Event Parameters" to expand the section
           - Click "Add Parameter"
           - Parameter Name: "transaction_id"
           - Value: {% raw %}{{ecommerce.transaction_id}}{% endraw %}
@@ -143,13 +145,13 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
           - Trigger Type: "Custom Event"
           - Event Name: "purchase"
           - Click "Save"
-     
-     e. **Funnel Progress Tag**:
+       e. **Funnel Progress Tag**:
         - Tag Name: "GA4 - Funnel Progress"
         - Tag Type: "Google Analytics: GA4 Event"
-        - Configuration Tag: Select your GA4 Configuration tag
+        - Measurement ID: G-SYF721LFGB (should appear automatically)
         - Event Name: "funnel_progress"
         - Event Parameters:
+          - Click "Event Parameters" to expand the section
           - Click "Add Parameter"
           - Parameter Name: "funnel_step"
           - Value: {% raw %}{{funnel_progress.current_step}}{% endraw %}
@@ -166,50 +168,549 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
 
 ### 3. UTM Parameter Tracking
 
-1. **Create Variables for UTM Parameters**:
-   - For each UTM parameter, create a URL Parameter Variable as a fallback:
+UTM parameters are essential for tracking the effectiveness of your marketing campaigns. This section provides a comprehensive implementation guide for setting up robust UTM parameter tracking in GTM and GA4 for the MonkeyZ e-commerce platform.
+
+1. **Understanding UTM Parameters**:
+   - UTM parameters are query parameters added to URLs to track marketing campaign performance
+   - Common UTM parameters include:
+     - `utm_source`: Identifies the source of your traffic (e.g., google, facebook, newsletter)
+     - `utm_medium`: Identifies the marketing medium (e.g., cpc, email, social)
+     - `utm_campaign`: Identifies a specific campaign name or promotion
+     - `utm_term`: Identifies search terms (for paid search campaigns)
+     - `utm_content`: Identifies specific content or variations within ads
+
+2. **Create URL Parameter Variables in GTM**:
+   - In GTM, navigate to "Variables" > "User-Defined Variables" > "New"
+   - For each UTM parameter, create a URL Parameter Variable:
+   
      a. **UTM Source URL Parameter**:
         - Variable Name: "URL Parameter - utm_source"
-        - Variable Type: "URL"
-        - Component Type: "Query"
-        - Query Key: "utm_source"
+        - Variable Type: Select "URL"
+        - Component Type: Select "Query"
+        - Query Key: Enter "utm_source"
+        - Click "Save"
      
      b. **UTM Medium URL Parameter**:
         - Variable Name: "URL Parameter - utm_medium"
-        - Variable Type: "URL"
-        - Component Type: "Query"
-        - Query Key: "utm_medium"
+        - Variable Type: Select "URL"
+        - Component Type: Select "Query"
+        - Query Key: Enter "utm_medium"
+        - Click "Save"
      
      c. **UTM Campaign URL Parameter**:
         - Variable Name: "URL Parameter - utm_campaign"
-        - Variable Type: "URL"
-        - Component Type: "Query"
-        - Query Key: "utm_campaign"
+        - Variable Type: Select "URL"
+        - Component Type: Select "Query"
+        - Query Key: Enter "utm_campaign"
+        - Click "Save"
+     
+     d. **UTM Term URL Parameter**:
+        - Variable Name: "URL Parameter - utm_term"
+        - Variable Type: Select "URL"
+        - Component Type: Select "Query"
+        - Query Key: Enter "utm_term"
+        - Click "Save"
+     
+     e. **UTM Content URL Parameter**:
+        - Variable Name: "URL Parameter - utm_content"
+        - Variable Type: Select "URL"
+        - Component Type: Select "Query"
+        - Query Key: Enter "utm_content"
+        - Click "Save"
 
-2. **Configure UTM Tracking in GA4**:
-   - Edit your GA4 Configuration tag
-   - Under "Fields to Set", add the following:
-     a. For utm_source:
-        - Field Name: `campaign_source`
-        - Value: Use this expression:
-          ```
-          {% raw %}{{utm_source}}{% endraw %} || {% raw %}{{URL Parameter - utm_source}}{% endraw %}
-          ```
+3. **Create Data Layer Variables for UTM Parameters**:
+   - These variables will be used as a fallback if UTM parameters are passed via the data layer
+   - In GTM, go to "Variables" > "User-Defined Variables" > "New"
+   
+     a. **Data Layer - utm_source**:
+        - Variable Name: "DL - utm_source"
+        - Variable Type: Select "Data Layer Variable"
+        - Data Layer Variable Name: "utm_source"
+        - Click "Save"
      
-     b. For utm_medium:
-        - Field Name: `campaign_medium`
-        - Value: Use this expression:
-          ```
-          {% raw %}{{utm_medium}}{% endraw %} || {% raw %}{{URL Parameter - utm_medium}}{% endraw %}
-          ```
+     b. **Data Layer - utm_medium**:
+        - Variable Name: "DL - utm_medium"
+        - Variable Type: Select "Data Layer Variable"
+        - Data Layer Variable Name: "utm_medium"
+        - Click "Save"
      
-     c. For utm_campaign:
-        - Field Name: `campaign_name`
-        - Value: Use this expression:
+     c. **Data Layer - utm_campaign**:
+        - Variable Name: "DL - utm_campaign"
+        - Variable Type: Select "Data Layer Variable"
+        - Data Layer Variable Name: "utm_campaign"
+        - Click "Save"
+
+4. **Create First-Party Cookie Variables for Persistence**:
+   - UTM parameters must be stored in cookies to persist across sessions
+   - In GTM, go to "Variables" > "User-Defined Variables" > "New"
+   
+     a. **UTM Source Cookie**:
+        - Variable Name: "Cookie - utm_source"
+        - Variable Type: Select "1st Party Cookie"
+        - Cookie Name: "utm_source"
+        - Click "Save"
+     
+     b. **UTM Medium Cookie**:
+        - Variable Name: "Cookie - utm_medium"
+        - Variable Type: Select "1st Party Cookie"
+        - Cookie Name: "utm_medium"
+        - Click "Save"
+     
+     c. **UTM Campaign Cookie**:
+        - Variable Name: "Cookie - utm_campaign"
+        - Variable Type: Select "1st Party Cookie"
+        - Cookie Name: "utm_campaign"
+        - Click "Save"
+     
+     d. **UTM Term Cookie**:
+        - Variable Name: "Cookie - utm_term"
+        - Variable Type: Select "1st Party Cookie"
+        - Cookie Name: "utm_term"
+        - Click "Save"
+     
+     e. **UTM Content Cookie**:
+        - Variable Name: "Cookie - utm_content"
+        - Variable Type: Select "1st Party Cookie"
+        - Cookie Name: "utm_content"
+        - Click "Save"
+     
+     f. **First Session Date Cookie** (for attribution tracking):
+        - Variable Name: "Cookie - first_session_date"
+        - Variable Type: Select "1st Party Cookie"
+        - Cookie Name: "first_session_date"
+        - Click "Save"
+
+5. **Create Custom JavaScript Variables for UTM Logic**:
+   - These variables handle sophisticated logic for UTM parameter attribution
+   - In GTM, go to "Variables" > "User-Defined Variables" > "New"
+   
+     a. **JS - UTM Source Logic**:
+        - Variable Name: "JS - UTM Source"
+        - Variable Type: Select "Custom JavaScript"
+        - Custom JavaScript:
+          ```javascript
+          function() {
+            // Priority: 1. URL Parameter, 2. Data Layer, 3. Cookie, 4. Return direct
+            var urlParam = {{URL Parameter - utm_source}};
+            var dataLayerParam = {{DL - utm_source}};
+            var cookieParam = {{Cookie - utm_source}};
+            
+            if (urlParam && urlParam !== 'undefined' && urlParam !== '') {
+              return urlParam;
+            } else if (dataLayerParam && dataLayerParam !== 'undefined' && dataLayerParam !== '') {
+              return dataLayerParam;
+            } else if (cookieParam && cookieParam !== 'undefined' && cookieParam !== '') {
+              return cookieParam;
+            } else {
+              return 'direct';  // Default value for organic traffic
+            }
+          }
           ```
-          {% raw %}{{utm_campaign}}{% endraw %} || {% raw %}{{URL Parameter - utm_campaign}}{% endraw %}
+        - Click "Save"
+     
+     b. **JS - UTM Medium Logic**:
+        - Variable Name: "JS - UTM Medium"
+        - Variable Type: Select "Custom JavaScript"
+        - Custom JavaScript:
+          ```javascript
+          function() {
+            // Priority: 1. URL Parameter, 2. Data Layer, 3. Cookie, 4. Return none
+            var urlParam = {{URL Parameter - utm_medium}};
+            var dataLayerParam = {{DL - utm_medium}};
+            var cookieParam = {{Cookie - utm_medium}};
+            
+            if (urlParam && urlParam !== 'undefined' && urlParam !== '') {
+              return urlParam;
+            } else if (dataLayerParam && dataLayerParam !== 'undefined' && dataLayerParam !== '') {
+              return dataLayerParam;
+            } else if (cookieParam && cookieParam !== 'undefined' && cookieParam !== '') {
+              return cookieParam;
+            } else {
+              return 'none';  // Default value for organic traffic
+            }
+          }
           ```
-   - Under "Settings", check "Enable campaign data forwarding to GA4" if available
+        - Click "Save"
+     
+     c. **JS - UTM Campaign Logic**:
+        - Variable Name: "JS - UTM Campaign"
+        - Variable Type: Select "Custom JavaScript"
+        - Custom JavaScript:
+          ```javascript
+          function() {
+            // Priority: 1. URL Parameter, 2. Data Layer, 3. Cookie, 4. Return not set
+            var urlParam = {{URL Parameter - utm_campaign}};
+            var dataLayerParam = {{DL - utm_campaign}};
+            var cookieParam = {{Cookie - utm_campaign}};
+            
+            if (urlParam && urlParam !== 'undefined' && urlParam !== '') {
+              return urlParam;
+            } else if (dataLayerParam && dataLayerParam !== 'undefined' && dataLayerParam !== '') {
+              return dataLayerParam;
+            } else if (cookieParam && cookieParam !== 'undefined' && cookieParam !== '') {
+              return cookieParam;
+            } else {
+              return 'not set';  // Default value for organic traffic
+            }
+          }
+          ```
+        - Click "Save"       d. **JS - First Touch Attribution**:
+        - Variable Name: "JS - First Touch Attribution"
+        - Variable Type: Select "Custom JavaScript"
+        - Custom JavaScript:
+          ```javascript
+          function() {
+            // This function records first-touch attribution
+            var firstSessionDate = {{Cookie - first_session_date}};
+            var currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            
+            // If this is the first session, record all UTM parameters
+            if (!firstSessionDate || firstSessionDate === 'undefined' || firstSessionDate === '') {
+              return true; // This is first touch, should store UTM params
+            }
+            
+            return false; // Not first touch, don't overwrite first-touch params
+          }
+          ```
+        - Click "Save"
+
+6. **Create Enhanced Tag to Store UTM Parameters in Cookies**:
+   - This tag handles the storage of UTM parameters in cookies with attribution logic
+   - In GTM, go to "Tags" > "New"
+   
+     a. **Tag Configuration**:
+        - Tag Name: "Store UTM Parameters in Cookies"
+        - Tag Type: Select "Custom HTML"
+        - HTML:
+          ```html
+          <script>
+            // Function to set cookie with proper encoding
+            function setCookie(name, value, days) {
+              var expires = "";
+              if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+              }
+              // Encode the value to handle special characters
+              var encodedValue = encodeURIComponent(value || "");
+              document.cookie = name + "=" + encodedValue + expires + "; path=/; SameSite=Lax";
+            }
+            
+            // Function to check if a cookie exists
+            function getCookie(name) {
+              var nameEQ = name + "=";
+              var ca = document.cookie.split(';');
+              for(var i=0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+              }
+              return null;
+            }
+            
+            // Set UTM cookies if parameters exist in URL
+            var urlParams = new URLSearchParams(window.location.search);
+            var isFirstTouch = {{JS - First Touch Attribution}};
+            var currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            var cookieExpiration = 30; // 30 days expiration for all cookies
+            
+            // Record first session date if it doesn't exist
+            if (isFirstTouch) {
+              setCookie('first_session_date', currentDate, 365); // Set for 1 year
+            }
+            
+            // Store current UTM parameters (last-touch attribution)
+            if(urlParams.has('utm_source')) {
+              var source = urlParams.get('utm_source');
+              setCookie('utm_source', source, cookieExpiration);
+              
+              // Store first-touch UTM source if this is first visit
+              if (isFirstTouch) {
+                setCookie('first_touch_source', source, 365);
+              }
+            }
+            
+            if(urlParams.has('utm_medium')) {
+              var medium = urlParams.get('utm_medium');
+              setCookie('utm_medium', medium, cookieExpiration);
+              
+              // Store first-touch UTM medium if this is first visit
+              if (isFirstTouch) {
+                setCookie('first_touch_medium', medium, 365);
+              }
+            }
+            
+            if(urlParams.has('utm_campaign')) {
+              var campaign = urlParams.get('utm_campaign');
+              setCookie('utm_campaign', campaign, cookieExpiration);
+              
+              // Store first-touch UTM campaign if this is first visit
+              if (isFirstTouch) {
+                setCookie('first_touch_campaign', campaign, 365);
+              }
+            }
+            
+            if(urlParams.has('utm_term')) {
+              setCookie('utm_term', urlParams.get('utm_term'), cookieExpiration);
+            }
+            
+            if(urlParams.has('utm_content')) {
+              setCookie('utm_content', urlParams.get('utm_content'), cookieExpiration);
+            }
+            
+            // Track session count for frequency analysis
+            var sessionCount = getCookie('session_count') || 0;
+            setCookie('session_count', parseInt(sessionCount) + 1, 365);
+            
+            // Record last visit timestamp for recency analysis
+            setCookie('last_visit_date', currentDate, 365);
+          </script>
+          ```
+        - Click "Save"
+     
+     b. **Triggering**:
+        - Click "Triggering"
+        - Select "All Pages" (this will run on every page load to check for UTM parameters)
+        - Click "Save"
+
+7. **Configure Campaign Parameters in Google Tag**:
+   - Edit your "Google Tag" (GA4 configuration tag)
+   - In GTM, go to "Tags" > select your "Google Tag"
+   
+     a. **Access Configure Tag Settings**:
+        - Click to edit your Google Tag configuration
+        - You'll see the "Configuration settings" section in the tag editor
+        - There should be a "Configuration Parameter" column and a "Value" column where you can add parameters
+       b. **Add Campaign Parameter Fields**:
+        - Click the "+" button next to "Configuration Parameter" to add a new parameter
+        - Add the following parameter mappings one by one:
+     
+        1. For utm_source:
+           - Configuration Parameter: `campaign_source` (exact spelling required)
+           - Value: Click in the value field and select your "JS - UTM Source" variable
+           - This ensures proper attribution hierarchy is maintained
+        
+        2. For utm_medium:
+           - Configuration Parameter: `campaign_medium` (exact spelling required)
+           - Value: Select your "JS - UTM Medium" variable
+        
+        3. For utm_campaign:
+           - Configuration Parameter: `campaign_name` (exact spelling required)
+           - Value: Select your "JS - UTM Campaign" variable
+        
+        4. For utm_term:
+           - Configuration Parameter: `campaign_term` (exact spelling required)
+           - Value: Select your "URL Parameter - utm_term" variable
+        
+        5. For utm_content:
+           - Configuration Parameter: `campaign_content` (exact spelling required)
+           - Value: Select your "URL Parameter - utm_content" variable
+        
+        6. For session_id (optional but recommended for cross-session analysis):
+           - Configuration Parameter: `session_id`
+           - Value: `{{Random Number}}`
+       c. **Add User Properties for Campaign Attribution**:
+        - Scroll down to "Advanced Settings" section
+        - Click "Additional Tag Metadata"
+        - Add the following key-value pairs for your user properties:
+        
+        1. First Touch Source:
+           - Key: `user_property.first_touch_source`
+           - Value: `{{Cookie - first_touch_source}}`
+        
+        2. First Touch Medium:
+           - Key: `user_property.first_touch_medium`
+           - Value: `{{Cookie - first_touch_medium}}`
+        
+        3. First Touch Campaign:
+           - Key: `user_property.first_touch_campaign`
+           - Value: `{{Cookie - first_touch_campaign}}`
+        
+        4. Last Touch Source:
+           - Key: `user_property.last_touch_source`
+           - Value: `{{JS - UTM Source}}`
+        
+        5. Last Touch Medium:
+           - Key: `user_property.last_touch_medium`
+           - Value: `{{JS - UTM Medium}}`
+        
+        6. Last Touch Campaign:
+           - Key: `user_property.last_touch_campaign`
+           - Value: `{{JS - UTM Campaign}}`
+     
+     d. **Save Your Configuration**:
+        - Review all settings to ensure accuracy
+        - Click "Save" to apply changes to your Google Tag
+
+8. **Create UTM Parameter Debug Console Tag**:
+   - This tag helps verify your UTM parameter implementation
+   - In GTM, go to "Tags" > "New"
+   
+     a. **Tag Configuration**:
+        - Tag Name: "Debug - UTM Parameters"
+        - Tag Type: Select "Custom HTML"
+        - HTML:
+          ```html
+          <script>
+            console.group("UTM Parameter Debugging");
+            
+            // URL Parameters
+            console.log("URL Parameters:");
+            console.log("utm_source:", {{URL Parameter - utm_source}});
+            console.log("utm_medium:", {{URL Parameter - utm_medium}});
+            console.log("utm_campaign:", {{URL Parameter - utm_campaign}});
+            console.log("utm_term:", {{URL Parameter - utm_term}});
+            console.log("utm_content:", {{URL Parameter - utm_content}});
+            
+            // Data Layer Values
+            console.log("\nData Layer Values:");
+            console.log("utm_source:", {{DL - utm_source}});
+            console.log("utm_medium:", {{DL - utm_medium}});
+            console.log("utm_campaign:", {{DL - utm_campaign}});
+            
+            // Cookie Values
+            console.log("\nCookie Values:");
+            console.log("utm_source:", {{Cookie - utm_source}});
+            console.log("utm_medium:", {{Cookie - utm_medium}});
+            console.log("utm_campaign:", {{Cookie - utm_campaign}});
+            console.log("utm_term:", {{Cookie - utm_term}});
+            console.log("utm_content:", {{Cookie - utm_content}});
+            console.log("first_touch_source:", {{Cookie - first_touch_source}});
+            console.log("first_touch_medium:", {{Cookie - first_touch_medium}});
+            console.log("first_touch_campaign:", {{Cookie - first_touch_campaign}});
+            console.log("first_session_date:", {{Cookie - first_session_date}});
+            
+            // Final Attribution Values
+            console.log("\nFinal Attribution Values (sent to GA4):");
+            console.log("campaign_source:", {{JS - UTM Source}});
+            console.log("campaign_medium:", {{JS - UTM Medium}});
+            console.log("campaign_name:", {{JS - UTM Campaign}});
+            console.log("Is First Touch:", {{JS - First Touch Attribution}});
+            
+            console.groupEnd();
+          </script>
+          ```
+        - Click "Save"
+     
+     b. **Triggering**:
+        - Click "Triggering"
+        - Create a custom trigger that only fires in debug mode:
+          - Trigger Type: Custom Event
+          - Event Name: gtm.js
+          - This trigger fires on: Some Custom Events
+          - Add condition: Debug Mode equals true
+        - Click "Save"
+
+9. **Create Custom Dimensions in GA4 for Advanced Attribution**:
+   - In your GA4 property, go to "Admin" > "Custom definitions" 
+   - Click "Create custom dimensions"
+   - Create the following user-scoped dimensions:
+   
+     a. **First Touch Source**:
+        - Dimension name: "First Touch Source"
+        - Scope: "User"
+        - Description: "First marketing source that brought the user to the site"
+        - User property name: "first_touch_source"
+        - Click "Save"
+     
+     b. **First Touch Medium**:
+        - Dimension name: "First Touch Medium"
+        - Scope: "User"
+        - Description: "First marketing medium that brought the user to the site"
+        - User property name: "first_touch_medium"
+        - Click "Save"
+       c. **First Touch Campaign**:
+        - Dimension name: "First Touch Campaign"
+        - Scope: "User"
+        - Description: "First campaign that brought the user to the site"
+        - User property name: "first_touch_campaign"
+        - Click "Save"
+     
+     d. **Days Since First Visit**:
+        - Dimension name: "Days Since First Visit"
+        - Scope: "User"
+        - Description: "Number of days since user's first visit"
+        - User property name: "days_since_first_visit"
+        - Click "Save"
+
+10. **Testing UTM Implementation with Sample URLs**:
+    - Use GTM Preview mode to test your implementation
+    - Test with these sample URLs for the MonkeyZ website:
+      - `https://monkeyz.co.il/?utm_source=facebook&utm_medium=social&utm_campaign=summer_sale&utm_content=story_ad`
+      - `https://monkeyz.co.il/products/?utm_source=google&utm_medium=cpc&utm_campaign=product_launch&utm_term=kids_toys`
+      - `https://monkeyz.co.il/checkout/?utm_source=email&utm_medium=newsletter&utm_campaign=abandoned_cart`
+    
+    - In GTM Preview mode, verify:
+      - All UTM parameters are properly captured in variables
+      - Cookie storage is working correctly
+      - First/last touch attribution logic is functioning
+      - Campaign parameters are passed to GA4
+    
+    - Use GA4 DebugView to verify data transmission:
+      - In GA4, go to "Configure" > "DebugView"
+      - Check that all campaign parameters are correctly received
+      - Confirm user properties for attribution are properly set
+
+11. **Creating UTM Parameter Analysis Reports in GA4**:
+    - In GA4, create custom reports to analyze campaign effectiveness:
+    
+     a. **Multi-Channel Conversion Paths**:
+        - In GA4, go to "Explore"
+        - Create a new exploration
+        - Add dimensions:
+          - First Touch Source
+          - First Touch Medium
+          - Last Touch Source 
+          - Last Touch Medium
+        - Add metrics:
+          - Conversions
+          - Revenue
+          - Conversion Rate
+        - Save as "Multi-Channel Attribution Analysis"
+     
+     b. **Campaign Performance Dashboard**:
+        - In GA4, go to "Explore"
+        - Create a new exploration with funnel visualization
+        - Add dimensions:
+          - Campaign Source
+          - Campaign Medium
+          - Campaign Name
+        - Add metrics:
+          - Sessions
+          - Product Views
+          - Add to Carts
+          - Purchases
+          - Revenue
+        - Save as "Campaign Performance Dashboard"
+
+12. **UTM Link Building Tool for MonkeyZ Marketing**:
+    - Consider implementing a UTM link builder for your marketing team
+    - Recommended structure for MonkeyZ UTM parameters:
+      - utm_source: marketing platform (facebook, google, instagram, email, etc.)
+      - utm_medium: marketing type (cpc, social, email, banner, etc.)
+      - utm_campaign: campaign identifier (summer_sale, new_product, holiday_2023, etc.)
+      - utm_content: specific creative (banner_1, story_ad, carousel_3, etc.)
+      - utm_term: search keywords for paid search campaigns
+
+    - Example UTM URL for MonkeyZ Facebook Campaign:
+      `https://monkeyz.co.il/collections/new-arrivals?utm_source=facebook&utm_medium=social&utm_campaign=spring_collection_2023&utm_content=video_ad_1`
+
+13. **Troubleshooting Common UTM Issues**:
+    - If UTM parameters aren't appearing in GA4:
+      - Check for typos in field names (e.g., "campaign_source" not "campaignSource")
+      - Verify that your JavaScript variables are returning values (check browser console)
+      - Ensure cookies are being set properly (check Application tab in Chrome DevTools)
+    
+    - If parameters appear intermittently:
+      - Check for cookie expiration issues
+      - Verify your attribution logic for edge cases
+      - Test cross-domain tracking if applicable
+    
+    - If attribution data is incorrect:
+      - Review the priority logic in your JavaScript variables
+      - Check for conflicting implementations or tags
+      - Validate with GA4 DebugView the actual values being sent
 
 ### 4. User Segments Configuration
 
@@ -224,30 +725,34 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
         - Dimension name: "User ID"
         - Scope: "User"
         - Description: "Unique identifier for logged-in users"
+        - User property name: "user_id"
         - Click "Save"
-     
-     b. **User Segments**:
+       b. **User Segments**:
         - Dimension name: "User Segments"
         - Scope: "User"
         - Description: "User segment categories (recent_purchaser, frequent_visitor, etc.)"
+        - User property name: "user_segments"
         - Click "Save"
      
      c. **Visit Count**:
         - Dimension name: "Visit Count"
         - Scope: "User"
         - Description: "Number of visits from this user"
+        - User property name: "visit_count"
         - Click "Save"
      
      d. **Days Since First Visit**:
         - Dimension name: "Days Since First Visit"
         - Scope: "User"
         - Description: "Number of days since user's first visit"
+        - User property name: "days_since_first_visit"
         - Click "Save"
      
      e. **Language Preference**:
         - Dimension name: "Language Preference"
         - Scope: "User"
         - Description: "User's preferred language"
+        - User property name: "language_preference"
         - Click "Save"
 
 2. **Create Audiences Based on Segments**:
@@ -388,10 +893,9 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
    - Click on "User ID Collection"
    - Toggle the switch to enable User-ID
    - Click "Save"
-   
-   - Configure User-ID in your GA4 Configuration tag in GTM:
-     - Edit your GA4 Configuration tag
-     - Under "Fields to Set", add a new field:
+     - Configure User-ID in your Google Tag in GTM:
+     - Edit your GA4 - Google Tag Configuration
+     - Under "Settings" > "More Settings" > "Fields to Set", add a new field:
        - Field Name: `user_id`
        - Value: `{% raw %}{{user_properties.user_id}}{% endraw %}`
      - Click "Save"
@@ -413,13 +917,20 @@ This document provides guidance on configuring Google Analytics 4 (GA4) and Goog
 ### 7. Testing
 
 1. **Preview Mode**:
-   - Use GTM Preview mode to test all events
+   - Use GTM Preview mode to test all events (click the "Preview" button in GTM)
+   - When prompted, enter your website URL and click "Start"
    - Visit `/analytics-test` in your application to trigger test events
+   - You should see events appearing in the GTM preview panel
 
 2. **DebugView**:
-   - In GA4, use DebugView to see real-time events
+   - In GA4, go to "Admin" > "DebugView" to see real-time events
    - Verify that ecommerce events are being captured correctly
    - Confirm that user properties and segments are set properly
+   
+3. **Real-time Reports**:
+   - In GA4, go to "Reports" > "Realtime" to verify data is flowing
+   - Check that events are being recorded properly
+   - Look for any issues with missing parameters or incorrect values
 
 ## Google Analytics 4 Setup
 
