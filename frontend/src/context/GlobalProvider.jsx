@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "../lib/apiService";
 import { trackAddToCart, trackPurchase, trackEvent } from "../lib/analytics";
-import themes from '../theme/theme';
 
 const GlobalContext = createContext();
 export const useGlobalProvider = () => useContext(GlobalContext);
@@ -13,10 +12,6 @@ const GlobalProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState({});
   const [openCart, setOpenCart] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
 
   // Ensure apiService always has the latest token
   useEffect(() => {
@@ -42,18 +37,6 @@ const GlobalProvider = ({ children }) => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
-  // Theme management
-  const toggleTheme = () => {
-    setIsDarkMode(prev => !prev);
-  };
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove(isDarkMode ? 'light' : 'dark');
-    root.classList.add(isDarkMode ? 'dark' : 'light');
-    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
 
   const logout = async () => {
     // Track logout event for analytics
@@ -260,10 +243,7 @@ const GlobalProvider = ({ children }) => {
     notify,
     showError,
     showSuccess,
-    notification,
-    isDarkMode,
-    toggleTheme,
-    theme: themes[isDarkMode ? 'dark' : 'light']
+    notification
   };
 
   return (

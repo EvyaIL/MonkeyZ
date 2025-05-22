@@ -7,11 +7,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: 'var(--color-primary)',
-        secondary: 'var(--color-secondary)',
-        accent: 'var(--color-accent)',
-        'accent-dark': 'var(--color-accent-dark)',
-        'accent-light': 'var(--color-accent-light)',
+        primary: '#222831',       // Dark blue/black
+        secondary: '#393E46',     // Dark grey
+        accent: '#3182CE',        // Professional blue accent (replacing brown/gold)
+        'accent-dark': '#2C5282', // Darker variant of accent
+        'accent-light': '#4299E1', // Lighter variant of accent
         'base-100': '#ffffff',    // Main background (white)
         'base-200': '#f8f9fa',    // Secondary background (light grey)
         'base-300': '#e9ecef',    // Border color (lighter grey)
