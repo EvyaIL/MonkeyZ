@@ -107,8 +107,7 @@ const ProductShowcase = ({ products, title }) => {
   const handleTouchMove = (e) => {
     setTouchEnd(e.targetTouches[0].clientX);
   };
-  
-  const handleTouchEnd = () => {
+    const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
     
     const distance = touchStart - touchEnd;
@@ -116,11 +115,11 @@ const ProductShowcase = ({ products, title }) => {
     const isRightSwipe = distance < -50;
     
     if (isLeftSwipe) {
-      nextProduct();
+      lang === "he" ? prevProduct() : nextProduct();
     }
     
     if (isRightSwipe) {
-      prevProduct();
+      lang === "he" ? nextProduct() : prevProduct();
     }
     
     // Reset states
@@ -129,9 +128,7 @@ const ProductShowcase = ({ products, title }) => {
     
     // Resume auto-rotation after a short delay
     setTimeout(() => setIsPaused(false), 1000);
-  };
-
-  // Keyboard navigation
+  };  // Keyboard navigation
   const handleKeyDown = (e) => {
     if (e.key === "ArrowLeft") {
       lang === "he" ? nextProduct() : prevProduct();
@@ -188,9 +185,7 @@ const ProductShowcase = ({ products, title }) => {
         </div>
       </div>
     );
-  }
-
-  const getSlideTransform = () => {
+  }  const getSlideTransform = () => {
     if (lang === "he") {
       return `translateX(${currentIndex * 100}%)`;
     }
@@ -212,8 +207,7 @@ const ProductShowcase = ({ products, title }) => {
         {title}
       </h2>
       <>
-        {/* Product Carousel */}
-        <div 
+        {/* Product Carousel */}        <div 
           className="relative overflow-hidden h-[280px] md:h-[300px] mb-6"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -313,30 +307,27 @@ const ProductShowcase = ({ products, title }) => {
                 </div>
               );
             })}
-          </div>
-          
-          {/* Left/Right arrows for larger screens */}
+          </div>          {/* Left/Right arrows for larger screens */}
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              lang === "he" ? nextProduct() : prevProduct();
+              prevProduct();
             }}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("previous_product")}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${lang === "he" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-          </button>
-          <button 
+          </button>          <button 
             onClick={(e) => {
               e.stopPropagation();
-              lang === "he" ? prevProduct() : nextProduct();
+              nextProduct();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("next_product")}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${lang === "he" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -371,12 +362,10 @@ const ProductShowcase = ({ products, title }) => {
           })()}
         </div>
 
-        {/* Pagination dots */}
-        <div className={`flex justify-center items-center mt-6 ${lang === "he" ? "flex-row-reverse" : ""} space-x-3`}>
-          {/* Previous button (visible on mobile) */}
+        {/* Pagination dots */}        <div className={`flex justify-center items-center mt-6 ${lang === "he" ? "flex-row-reverse" : ""} space-x-3`}>          {/* Previous button (visible on mobile) */}
           <SecondaryButton
             title="‹"
-            onClick={lang === "he" ? nextProduct : prevProduct}
+            onClick={prevProduct}
             ariaLabel={t("previous_product")}
             otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
           />
@@ -410,12 +399,10 @@ const ProductShowcase = ({ products, title }) => {
                 />
               );
             })}
-          </div>
-          
-          {/* Next button (visible on mobile) */}
+          </div>          {/* Next button (visible on mobile) */}
           <SecondaryButton
             title="›"
-            onClick={lang === "he" ? prevProduct : nextProduct}
+            onClick={nextProduct}
             ariaLabel={t("next_product")}
             otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
           />
