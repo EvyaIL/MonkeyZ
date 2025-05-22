@@ -1,0 +1,100 @@
+/* Light theme variables */
+:root {
+  --color-bg-primary: #F7FAFC;
+  --color-bg-secondary: #FFFFFF;
+  --color-primary: #3182CE;
+  --color-secondary: #4299E1;
+  --color-accent: #2C5282;
+  --color-text: #2D3748;
+  --color-text-secondary: #4A5568;
+  --color-border: rgba(49, 130, 206, 0.2);
+  --color-surface: #FFFFFF;
+  --color-scroll-track: #EDF2F7;
+  --color-scroll-thumb: #3182CE;
+}
+
+/* Dark theme variables */
+.dark {
+  --color-bg-primary: #222831;
+  --color-bg-secondary: #393E46;
+  --color-primary: #3182CE;
+  --color-secondary: #4299E1;
+  --color-accent: #2C5282;
+  --color-text: #FFFFFF;
+  --color-text-secondary: #E2E8F0;
+  --color-border: rgba(49, 130, 206, 0.3);
+  --color-surface: #393E46;
+  --color-scroll-track: #222831;
+  --color-scroll-thumb: #3182CE;
+}
+
+/* Apply theme to common elements */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text);
+}
+
+.bg-surface {
+  background-color: var(--color-bg-secondary);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-scroll-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-scroll-thumb);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Common utility classes */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.bg-primary {
+  background-color: var(--color-bg-primary);
+}
+
+.bg-secondary {
+  background-color: var(--color-bg-secondary);
+}
+
+.border-theme {
+  border-color: var(--color-border);
+}
+
+/* Buttons and interactive elements */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent);
+}
+
+/* Cards and containers */
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+/* Transitions */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

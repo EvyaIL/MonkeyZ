@@ -203,7 +203,7 @@ const ProductShowcase = ({ products, title }) => {
       role="region"
       aria-label={title}
     >
-      <h2 className={`text-center text-primary dark:text-accent font-bold text-2xl mb-6 ${lang === "he" ? "text-right" : "text-left"}`}>
+      <h2 className={`text-center text-accent font-bold text-2xl mb-6 ${lang === "he" ? "text-right" : "text-left"}`}>
         {title}
       </h2>
       <>

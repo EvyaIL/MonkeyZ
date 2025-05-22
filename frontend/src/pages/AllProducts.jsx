@@ -338,17 +338,15 @@ const AllProducts = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </summary>
-              <div className="p-4 border-t border-gray-700">
+              </summary>              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 {/* Filter Content - Mobile */}
                 {renderFilters()}
               </div>
             </details>
           </div>
           
-          {/* Filters - Desktop */}
-          <section
-            className="hidden lg:block w-full lg:w-1/4 bg-gray-800 p-4 rounded-lg sticky top-4 self-start"
+          {/* Filters - Desktop */}          <section
+            className="hidden lg:block w-full lg:w-1/4 bg-white dark:bg-gray-800 p-4 rounded-lg sticky top-4 self-start border border-accent/30 dark:border-accent/30"
             aria-label={t("product_filters")}
           >
             {renderFilters()}
@@ -363,18 +361,17 @@ const AllProducts = () => {
               
               {/* Sort Dropdown */}
               <div className="flex items-center">
-                <label htmlFor="sort-products" className="mr-2 text-white text-sm hidden sm:block">
+                <label htmlFor="sort-products" className="mr-2 text-gray-800 dark:text-white text-sm hidden sm:block">
                   {t("sort_by", "Sort by:")}
                 </label>
                 <select 
                   id="sort-products"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value)}
-                  className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:ring-accent focus:border-accent text-sm"
+                  className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-gray-700 text-accent dark:text-white rounded-lg px-3 py-2 focus:ring-accent focus:border-accent text-sm"
                   aria-label={t("sort_products", "Sort products")}
                 >
-                  {getSortOptions().map(option => (
-                    <option key={option.value} value={option.value}>
+                  {getSortOptions().map(option => (              <option key={option.value} value={option.value} className="text-gray-900 dark:text-white">
                       {option.label}
                     </option>
                   ))}
@@ -399,9 +396,8 @@ const AllProducts = () => {
                   onClick={fetchAllProducts}
                 />
               </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center p-8 bg-gray-800 rounded-lg">
-                <p className="text-gray-400 text-lg mb-4" aria-live="polite">
+            ) : filteredProducts.length === 0 ? (              <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg border border-accent/30 dark:border-accent/30">
+                <p className="text-gray-600 dark:text-gray-400 text-lg mb-4" aria-live="polite">
                   {t("no_products_found")}
                 </p>
                 <PrimaryButton

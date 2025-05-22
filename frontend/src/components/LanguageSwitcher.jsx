@@ -11,7 +11,7 @@ const LanguageSwitcher = () => {
         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 
           ${i18n.language === "he" 
             ? "bg-accent text-white shadow-sm" 
-            : "bg-secondary text-white hover:bg-secondary/80"}`}
+            : "bg-white text-accent hover:bg-accent/10"}`}
         aria-pressed={i18n.language === "he"}
         aria-label="Switch to Hebrew"
       >
@@ -22,7 +22,7 @@ const LanguageSwitcher = () => {
         className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200
           ${i18n.language === "en" 
             ? "bg-accent text-white shadow-sm" 
-            : "bg-secondary text-white hover:bg-secondary/80"}`}
+            : "bg-white text-accent hover:bg-accent/10"}`}
         aria-pressed={i18n.language === "en"}
         aria-label="Switch to English"
       >

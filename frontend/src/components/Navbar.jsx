@@ -231,9 +231,8 @@ const Navbar = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <Link 
-              to="/products"
-              className="px-4 py-2 hover:bg-gray-700 rounded-md"
+            <Link              to="/products"
+              className="px-4 py-2 text-gray-800 dark:text-white hover:bg-accent/10 dark:hover:bg-gray-700 rounded-md hover:text-accent dark:hover:text-accent transition-colors"
               onClick={() => setMobileMenuOpen(false)}
             >
               {t("all_products")}

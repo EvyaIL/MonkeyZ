@@ -223,8 +223,7 @@ const Home = () => {
         <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <h1 className="text-primary dark:text-accent font-bold text-3xl mb-8" tabIndex={0}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
           {t("home")}
         </h1>
 

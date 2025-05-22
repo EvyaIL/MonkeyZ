@@ -22,20 +22,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
   /* Remove hardcoded colors to use Tailwind classes in components */
   min-height: 100vh;
-  background-color: #f8f9fa; /* Light mode background from contact page */
+  background-color: var(--color-bg-light);
 }
 
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: #111827; /* Dark mode background from contact page */
+    background-color: var(--color-bg-dark);
   }
 }
 
 /* Custom variables */
 :root {
-  --color-accent: #A27B5C;
-  --color-accent-dark: #886548;
-  --color-accent-light: #BF9776;
+  --color-accent: #3182CE;
+  --color-accent-dark: #2C5282;
+  --color-accent-light: #4299E1;
+  --color-bg-light: #F7FAFC;
+  --color-bg-dark: #222831;
 }
 
 /* Code blocks */
@@ -188,11 +190,11 @@ html[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--color-bg-light);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #a27b5c;
+  background: var(--color-accent);
   border-radius: 4px;
 }
 

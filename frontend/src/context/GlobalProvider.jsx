@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "../lib/apiService";
-import { trackAddToCart, trackPurchase, trackEvent } from "../lib/analytics";
+import { trackAddToCart, trackEvent } from "../lib/analytics";
 
 const GlobalContext = createContext();
 export const useGlobalProvider = () => useContext(GlobalContext);
@@ -12,6 +12,34 @@ const GlobalProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState({});
   const [openCart, setOpenCart] = useState(false);
   const [notification, setNotification] = useState(null);
+  
+  // Theme state
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') || 
+             (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    return 'light';
+  });
+
+  // Theme toggle function
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.classList.remove(theme);
+    document.documentElement.classList.add(newTheme);
+  };
+
+  // Initialize theme on mount
+  useEffect(() => {
+    // Remove any existing theme classes first
+    document.documentElement.classList.remove('light', 'dark');
+    // Add the current theme
+    document.documentElement.classList.add(theme);
+    // Store the theme in localStorage
+    localStorage.setItem('theme', theme);
+  }, [theme]); // Re-run when theme changes
 
   // Ensure apiService always has the latest token
   useEffect(() => {
@@ -243,11 +271,33 @@ const GlobalProvider = ({ children }) => {
     notify,
     showError,
     showSuccess,
-    notification
+    notification,
+    theme,
+    toggleTheme
   };
 
   return (
-    <GlobalContext.Provider value={value}>
+    <GlobalContext.Provider
+      value={{
+        token,
+        setToken,
+        user,
+        setUser,
+        isLoading,
+        setIsLoading,
+        cartItems,
+        setCartItems,
+        openCart,
+        setOpenCart,
+        notification,
+        setNotification,
+        theme,
+        toggleTheme,
+        notify,
+        showError,
+        showSuccess
+      }}
+    >
       {children}
       
       {/* Notification Component */}

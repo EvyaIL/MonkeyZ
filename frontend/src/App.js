@@ -5,6 +5,9 @@ import Footer from "./components/Footer";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 import { pageView, initAnalytics } from "./lib/analytics";
+import ErrorBoundary from './components/ErrorBoundary';
+// Import ThemeToggle with require to troubleshoot potential import issues
+const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
@@ -33,8 +36,7 @@ const AppContent = () => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
   }, [i18n.language]);
-  
-  return (
+    return (
     <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white flex flex-col">
       <div className="flex-1">
         <AppRouter />
@@ -54,12 +56,17 @@ const App = () => {
         <p className="mt-4 text-sm text-gray-500">Please check your environment variables or .env file.</p>
       </div>
     );
-  }
-
-  return (
+  }  return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <GlobalProvider>
-        <AppContent />
+        <ErrorBoundary>
+          <div className="min-h-screen bg-base-200 dark:bg-gray-900 transition-colors duration-300">
+            <AppContent />
+            <React.Suspense fallback={<div>Loading...</div>}>
+              <ThemeToggle />
+            </React.Suspense>
+          </div>
+        </ErrorBoundary>
       </GlobalProvider>
     </GoogleOAuthProvider>
   );

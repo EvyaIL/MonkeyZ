@@ -1,6 +1,6 @@
 import React from "react";
 
-const Spinner = ({ size = 48, color = "#A27B5C" }) => (
+const Spinner = ({ size = 48, color = "#3182CE" }) => (
   <div className="flex items-center justify-center w-full py-8">
     <svg
       className="animate-spin"
@@ -16,7 +16,7 @@ const Spinner = ({ size = 48, color = "#A27B5C" }) => (
         cx="25"
         cy="25"
         r="20"
-        stroke="#393E46"
+        stroke="#E2E8F0"
         strokeWidth="6"
         fill="none"
       />

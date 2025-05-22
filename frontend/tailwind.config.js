@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './src/**/*.{js,jsx,ts,tsx}',
     './public/index.html'
@@ -9,18 +10,19 @@ module.exports = {
       colors: {
         primary: '#222831',       // Dark blue/black
         secondary: '#393E46',     // Dark grey
-        accent: '#3182CE',        // Professional blue accent (replacing brown/gold)
+        accent: '#3182CE',        // Professional blue accent
         'accent-dark': '#2C5282', // Darker variant of accent
         'accent-light': '#4299E1', // Lighter variant of accent
-        'base-100': '#ffffff',    // Main background (white)
-        'base-200': '#f8f9fa',    // Secondary background (light grey)
-        'base-300': '#e9ecef',    // Border color (lighter grey)
-        'base-content': '#212529', // Main text color
+        'base-100': '#FFFFFF',    // White
+        'base-200': '#F7FAFC',    // Light gray-blue
+        'base-300': '#EDF2F7',    // Lighter gray-blue
+        'base-content': '#2D3748', // Dark gray-blue for text
         error: '#DC2626',         // Error red
         success: '#16A34A',       // Success green
-        info: '#12c2e9',
-        warning: '#ffd803',
-      },      fontFamily: {
+        info: '#12c2e9',         // Info blue
+        warning: '#ffd803',       // Warning yellow
+      },
+      fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['Fira Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },

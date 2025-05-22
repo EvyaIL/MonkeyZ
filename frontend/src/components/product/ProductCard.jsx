@@ -63,7 +63,7 @@ const ProductCard = ({ product, otherStyle }) => {
           }
         }}
       >
-        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-gray-100 dark:bg-gray-900 border border-accent/10 dark:border-accent/10 group-hover:border-accent/30 transition-colors duration-300">
+        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-accent/5 dark:bg-gray-900 border border-accent/10 dark:border-accent/10 group-hover:border-accent/30 transition-colors duration-300">
           {!imageLoaded && !imageError && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="animate-pulse w-8 h-8 rounded-full bg-accent/50"></div>
@@ -90,15 +90,14 @@ const ProductCard = ({ product, otherStyle }) => {
           </div>
         </div>
 
-        <h3 className={`font-semibold text-lg text-gray-900 dark:text-white text-${lang === "he" ? "right" : "left"} group-hover:text-accent transition-colors duration-300`}>{displayName}</h3>
-        <p className={`text-gray-600 dark:text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
+        <h3 className={`font-semibold text-lg text-gray-900 dark:text-white text-${lang === "he" ? "right" : "left"} group-hover:text-accent transition-colors duration-300`}>{displayName}</h3>        <p className={`text-accent/70 dark:text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
           {displayDesc?.length > 100 ? displayDesc.substring(0, 97) + "..." : displayDesc}
         </p>
       </div>
 
       <div className={`mt-4 w-full flex ${lang === "he" ? "flex-row-reverse" : ""} justify-between gap-2`}>
         <button
-          className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white border border-accent/30 py-2 px-3 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
+          className="flex-1 bg-accent/5 dark:bg-gray-700 text-accent dark:text-white border border-accent/30 py-2 px-3 rounded-md hover:bg-accent/10 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
           onClick={goToProductDetails}
           aria-label={`View details for ${displayName}`}
         >
