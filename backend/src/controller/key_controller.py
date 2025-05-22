@@ -36,6 +36,13 @@ class KeyController(ControllerInterface):
         await self.product_collection.connection()
         await self.product_collection.initialize()
 
+    async def disconnect(self):
+        """Disconnect from all collections."""
+        # Explicitly call disconnect on all collections
+        await self.keys_collection.disconnect()
+        await self.user_collection.disconnect()
+        await self.product_collection.disconnect()
+
     async def create_key(self, key_request: KeyRequest, username: str) -> str:
         """
         Creates a new key and associates it with a product.

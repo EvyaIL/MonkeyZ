@@ -1,12 +1,10 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-// import { useTranslation } from "react-i18next"; // Not used directly here
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { pageView } from "./lib/analytics";
 import Navbar from "./components/Navbar";
-// Footer is likely handled in App.jsx or a higher-level component
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
 import AllProducts from "./pages/AllProducts";
@@ -21,6 +19,9 @@ import Contact from "./pages/Contact";
 import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
+import UserDashboard from "./pages/UserDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 
@@ -36,16 +37,27 @@ const AppRouter = () => {
   
   return (
     <>
-      {/* Navbar is rendered here, Footer is likely in App.jsx or similar parent component */}
       <Navbar />
       <Routes>
-        {/* Main pages */}
+        {/* Public routes */}
         <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/account" element={<Profile />} />
-        <Route path="/sign-up" element={<SignUp />} />
         <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/sign-up" element={<SignUp />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+
+        {/* Protected user routes */}
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+
+        {/* Protected admin routes */}
+        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/products" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/coupons" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+
+        {/* Other routes */}
         <Route path="/products" element={<AllProducts />} />
         <Route path="/product/:name" element={<ProductPage />} />
         <Route path="/faq" element={<FAQ />} />
@@ -55,10 +67,6 @@ const AppRouter = () => {
         {/* Blog routes */}
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
-
-        {/* Legal routes */}
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
 
         {/* Analytics test (for development) */}
         <Route path="/analytics-test" element={<AnalyticsTest />} />
@@ -71,7 +79,6 @@ const AppRouter = () => {
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      {/* Footer is typically rendered in App.jsx or a main layout component after the Routes */}
     </>
   );
 };

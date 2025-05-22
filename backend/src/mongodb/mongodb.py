@@ -12,13 +12,17 @@ class MongoDb:
         """
             Initializes the MongoDb class with no client initially connected.
         """
-        self.client = None
-        self.is_connected = False
+        self.client: AsyncIOMotorClient = None
+        self.db: AsyncIOMotorDatabase = None
+        self.is_connected: bool = False
 
     async def connection(self) -> None:
         """
-            Establishes a connection to the MongoDB server using the MONGODB_URI environment variable.
+        Establishes a connection to the MongoDB server using the MONGODB_URI environment variable.
         """
+        if self.is_connected:
+            return
+
         mongo_uri = os.getenv("MONGODB_URI")
         if not mongo_uri:
             logging.error("MONGODB_URI environment variable is not set.")
@@ -73,6 +77,20 @@ class MongoDb:
             logging.error(f"Failed to connect to MongoDB: {str(e)}")
             raise ValueError(f"Failed to connect to MongoDB: {str(e)}")
 
+    async def disconnect(self) -> None:
+        """
+        Disconnects from the MongoDB server and cleans up resources.
+        """
+        if self.client and self.is_connected:
+            try:
+                logging.info("Disconnecting from MongoDB...")
+                self.client.close()
+                self.is_connected = False
+                self.client = None
+                self.db = None
+            except Exception as e:
+                logging.error(f"Error disconnecting from MongoDB: {e}")
+
     async def get_client(self) -> AsyncIOMotorClient:
         """ Returns the MongoDB client. """
         return self.client
@@ -82,9 +100,11 @@ class MongoDb:
         db = self.client.get_database(collection_name)
         return db
 
-    async def initialize_beanie(self, db, model: any) -> None:
-        """ Initializes Beanie ODM with the provided database and document models. """
-        await init_beanie(database=db, document_models=model)
+    async def initialize_beanie(self, database: AsyncIOMotorDatabase, document_models: list) -> None:
+        """
+        Initializes Beanie with the given database and document models.
+        """
+        await init_beanie(database=database, document_models=document_models)
 
 def is_valid_mongodb_uri(uri: str) -> bool:
     """

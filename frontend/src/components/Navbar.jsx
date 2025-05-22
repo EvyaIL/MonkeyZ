@@ -153,13 +153,26 @@ const Navbar = () => {
                 <div 
                   id="user-dropdown"
                   className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 hidden z-50 transform origin-top-right transition-all duration-150 ease-in-out"
-                >
-                  <Link 
+                >                  <Link 
                     to="/account" 
                     className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
                   >
                     {t("profile")}
                   </Link>
+                  <Link 
+                    to="/dashboard" 
+                    className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
+                  >
+                    {t("dashboard")}
+                  </Link>
+                  {user.role === 0 && (
+                    <Link 
+                      to="/admin" 
+                      className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
+                    >
+                      {t("admin")}
+                    </Link>
+                  )}
                   <button 
                     onClick={logout} 
                     className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"

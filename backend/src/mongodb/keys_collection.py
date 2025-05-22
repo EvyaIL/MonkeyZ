@@ -1,3 +1,5 @@
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import PydanticObjectId
 from .mongodb import MongoDb
 from src.models.key.key import Key, KeyRequest
@@ -30,9 +32,15 @@ class KeysCollection(MongoDb, metaclass=Singleton):
         """
         Initializes the KeysDB with the 'shop' database and Key model.
         """
-        database_name = "shop"
-        self.db = await self.add_new_collection(database_name)
+        await self.connection()  # Ensure we're connected
+        mongo_uri = os.getenv("MONGODB_URI")
+        if not mongo_uri:
+            raise ValueError("MONGODB_URI environment variable is not set.")
+            
+        self.client = AsyncIOMotorClient(mongo_uri)
+        self.db = self.client.get_database("shop")
         await self.initialize_beanie(self.db, [Key])
+        self.is_connected = True
 
     async def create_key(self, key_request: KeyRequest) -> Key:
         """

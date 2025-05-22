@@ -1,17 +1,19 @@
 from beanie import PydanticObjectId
 from src.models.key.key import Key, KeyRequest
 from src.models.products.products import Product, ProductRequest
-
 from src.controller.controller_interface import ControllerInterface
 from src.mongodb.keys_collection import KeysCollection
 from src.mongodb.products_collection import ProductsCollection
 from src.mongodb.users_collection import UserCollection
+from src.mongodb.product_collection import ProductCollection
 from src.models.products.products_exception import DeleteError
+from typing import List
 
 class ProductsController(ControllerInterface):
     """Controller for managing products, including creation, editing, and deletion."""
 
-    def __init__(self, product_collection: ProductsCollection, keys_collection: KeysCollection, user_collection: UserCollection):
+    def __init__(self, product_collection: ProductsCollection, keys_collection: KeysCollection, 
+                 user_collection: UserCollection, admin_product_collection: ProductCollection):
         """
         Initializes the ProductsController with dependencies.
 
@@ -19,10 +21,12 @@ class ProductsController(ControllerInterface):
             product_collection (ProductsCollection): Collection for product-related operations.
             keys_collection (KeysCollection): Collection for key-related operations.
             user_collection (UserCollection): Collection for user-related operations.
+            admin_product_collection (ProductCollection): Collection for admin product operations.
         """
         self.product_collection = product_collection
         self.keys_collection = keys_collection
         self.user_collection = user_collection
+        self.admin_product_collection = admin_product_collection
 
     async def initialize(self):
         """Initializes database connections and collections."""
@@ -32,6 +36,15 @@ class ProductsController(ControllerInterface):
         await self.user_collection.initialize()
         await self.product_collection.connection()
         await self.product_collection.initialize()
+        await self.admin_product_collection.connection()
+        await self.admin_product_collection.initialize()
+
+    async def disconnect(self):
+        """Disconnect from all collections."""
+        await self.keys_collection.disconnect()
+        await self.user_collection.disconnect()
+        await self.product_collection.disconnect()
+        await self.admin_product_collection.disconnect()
 
     async def create_product(self, product_request: ProductRequest, username: str) -> str:
         """
@@ -131,4 +144,38 @@ class ProductsController(ControllerInterface):
                 list[Product]: A list of recently created products.
         """
         return await self.product_collection.get_recent_products(limit)
+
+    # Admin product management methods
+    async def get_admin_products(self) -> List[Product]:
+        """Get all admin products."""
+        return await self.admin_product_collection.get_all_products()
+
+    async def create_admin_product(self, product_data: dict) -> Product:
+        """Create a new admin product."""
+        return await self.admin_product_collection.create_product(product_data)
+
+    async def update_admin_product(self, product_id: str, product_data: dict) -> Product:
+        """Update an admin product."""
+        return await self.admin_product_collection.update_product(product_id, product_data)
+
+    async def delete_admin_product(self, product_id: str) -> None:
+        """Delete an admin product."""
+        await self.admin_product_collection.delete_product(product_id)
+
+    # Coupon management methods
+    async def get_all_coupons(self) -> List[Product]:
+        """Get all coupons."""
+        return await self.admin_product_collection.get_all_coupons()
+
+    async def create_coupon(self, coupon_data: dict) -> Product:
+        """Create a new coupon."""
+        return await self.admin_product_collection.create_coupon(coupon_data)
+
+    async def update_coupon(self, coupon_id: str, coupon_data: dict) -> Product:
+        """Update a coupon."""
+        return await self.admin_product_collection.update_coupon(coupon_id, coupon_data)
+
+    async def delete_coupon(self, coupon_id: str) -> None:
+        """Delete a coupon."""
+        await self.admin_product_collection.delete_coupon(coupon_id)
 

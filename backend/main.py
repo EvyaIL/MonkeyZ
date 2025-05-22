@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.routers.users_router import users_router
 from src.routers.products_router import product_router
+from src.routers.admin_router import admin_router
 from src.base_exception.base_exception import BaseException
 from src.routers.keys_router import key_router
 from src.models.contact.contact import ContactForm, ContactResponse
@@ -66,6 +67,7 @@ def health_check():
 app.include_router(users_router)
 app.include_router(product_router)
 app.include_router(key_router)
+app.include_router(admin_router)  # Add admin router
 
 @app.exception_handler(BaseException)
 async def custom_exception_handler(request: Request, exc: BaseException):
