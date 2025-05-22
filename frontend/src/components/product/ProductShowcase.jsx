@@ -232,11 +232,10 @@ const ProductShowcase = ({ products, title }) => {
               const productId = p.id;
               const isActive = index === currentIndex;
 
-              return (
-                <div
+              return (                <div
                   key={productId || `product-slide-${index}`}
                   className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/20 rounded-lg transition-colors`}
-                  onClick={() => productId && navigate(`/product/${encodeURIComponent(productId)}`)}
+                  onClick={() => productId && navigate(`/product/${encodeURIComponent(typeof nameToDisplay === 'object' ? (nameToDisplay.en || Object.values(nameToDisplay)[0]) : nameToDisplay)}`)}
                   tabIndex={isActive ? 0 : -1} // Only allow focus on current slide
                   role="group"
                   aria-label={`${t("showcase_for", "Showcase for")} ${nameToDisplay}`}

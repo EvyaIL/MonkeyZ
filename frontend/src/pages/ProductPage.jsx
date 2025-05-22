@@ -103,7 +103,6 @@ const ProductPage = () => {
       }
     }
   }, [product.id, product.category, product.name, lang, mounted]);
-
   // Fetch product data
   const fetchProduct = useCallback(async () => {
     if (!name) return;
@@ -113,7 +112,12 @@ const ProductPage = () => {
     setErrorMsg("");
     
     try {
-      const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/products/${decodedName}`);
+      // Make sure we're sending a string value for the product name
+      const nameParam = typeof decodedName === 'object' ? 
+        (decodedName.en || Object.values(decodedName)[0]) : 
+        decodedName;
+      
+      const response = await axios.get(`${process.env.REACT_APP_PATH_BACKEND}/api/products/${nameParam}`);
       if (mounted) {
         setProduct(response.data);
         // Track product view
@@ -266,19 +270,18 @@ const ProductPage = () => {
   ];
 
   return (
-    <>
-      <Helmet>
+    <>      <Helmet>
         <title>{displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")}</title>
         <meta name="description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
         <meta name="keywords" content={`MonkeyZ, ${displayName}, ${displayCategory}, digital products, software, premium`} />
-        <link rel="canonical" href={`https://monkeyz.co.il/product/${encodeURIComponent(name)}`} />
+        <link rel="canonical" href={`https://monkeyz.co.il/product/${encodeURIComponent(displayName)}`} />
         
         {/* Open Graph / Facebook */}
         <meta property="og:title" content={displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")} />
         <meta property="og:description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
         {product.image && <meta property="og:image" content={product.image} />}
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://monkeyz.co.il/product/${encodeURIComponent(name)}`} />
+        <meta property="og:url" content={`https://monkeyz.co.il/product/${encodeURIComponent(displayName)}`} />
         {product.price && <meta property="product:price:amount" content={formattedPrice} />}
         <meta property="product:price:currency" content="ILS" />
         {displayCategory && <meta property="product:category" content={displayCategory} />}
@@ -439,12 +442,10 @@ const ProductPage = () => {
                     {relatedProducts.map(relatedProduct => {
                       const relName = typeof relatedProduct.name === "object" 
                         ? (relatedProduct.name[lang] || relatedProduct.name.en) 
-                        : relatedProduct.name;
-                        
-                      return (
+                        : relatedProduct.name;                      return (
                         <Link 
                           key={relatedProduct.id} 
-                          to={`/product/${encodeURIComponent(relatedProduct.id)}`}
+                          to={`/product/${encodeURIComponent(typeof relName === 'object' ? (relName.en || Object.values(relName)[0]) : relName)}`}
                           className="group"
                         >
                           <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg p-4 shadow-lg transition-all duration-300 hover:shadow-xl backdrop-blur-sm h-full flex flex-col">

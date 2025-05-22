@@ -221,6 +221,16 @@ const Navbar = () => {
           className="md:hidden bg-white dark:bg-gray-800 text-gray-800 dark:text-white border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg"
         >
           <div className="flex flex-col gap-4">
+            {/* Close button at the top of mobile menu */}
+            <button
+              className="self-end p-2 rounded-full hover:bg-gray-700 transition-colors"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6 text-white">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
             <Link 
               to="/products"
               className="px-4 py-2 hover:bg-gray-700 rounded-md"

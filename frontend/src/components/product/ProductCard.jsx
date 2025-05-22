@@ -36,7 +36,11 @@ const ProductCard = ({ product, otherStyle }) => {
 
   // Navigate to product details
   const goToProductDetails = () => {
-    navigate(`/product/${encodeURIComponent(product.id)}`);
+    // Ensure we're using a string version of the name
+    const nameToUse = typeof product.name === "object" 
+      ? (product.name[lang] || product.name.en || "") 
+      : product.name || "";
+    navigate(`/product/${encodeURIComponent(nameToUse)}`);
   };
 
   return (
