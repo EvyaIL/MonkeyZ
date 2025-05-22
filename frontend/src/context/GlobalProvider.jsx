@@ -252,6 +252,7 @@ const GlobalProvider = ({ children }) => {
     }
   }, []);
 
+  // eslint-disable-next-line no-unused-vars
   const value = {
     token,
     setToken,
