@@ -22,6 +22,59 @@ const GlobalProvider = ({ children }) => {
     return 'light';
   });
 
+  // For auto-logout on token expiry
+  useEffect(() => {
+    if (!token) {
+      setUser(null);
+    }
+  }, [token]);
+
+  const logout = async () => {
+    if (user && user.id) {
+      trackEvent('logout', {
+        user_properties: {
+          user_id: user.id,
+          user_role: user.role
+        }
+      });
+    }
+    
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_data");
+    setToken(null);
+    setUser(null);
+  };
+
+  const setUserAndToken = (data) => {
+    if (!data || !data.access_token) {
+      console.error('Invalid data passed to setUserAndToken:', data);
+      return;
+    }
+    
+    const { access_token, user } = data;
+    localStorage.setItem("token", access_token);
+    setToken(access_token);
+    setUser(user);
+    
+    if (user) {
+      const userData = {
+        id: user.id,
+        created_at: user.created_at,
+        role: user.role,
+        language: user.language || localStorage.getItem('i18nextLng')
+      };
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      
+      trackEvent('login', {
+        method: 'credentials',
+        user_properties: {
+          user_id: user.id,
+          user_role: user.role
+        }
+      });
+    }
+  };
+
   // Theme toggle function
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -33,13 +86,10 @@ const GlobalProvider = ({ children }) => {
 
   // Initialize theme on mount
   useEffect(() => {
-    // Remove any existing theme classes first
     document.documentElement.classList.remove('light', 'dark');
-    // Add the current theme
     document.documentElement.classList.add(theme);
-    // Store the theme in localStorage
     localStorage.setItem('theme', theme);
-  }, [theme]); // Re-run when theme changes
+  }, [theme]);
 
   // Ensure apiService always has the latest token
   useEffect(() => {
@@ -65,50 +115,6 @@ const GlobalProvider = ({ children }) => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
-  const logout = async () => {
-    // Track logout event for analytics
-    if (user && user.id) {
-      trackEvent('logout', {
-        user_properties: {
-          user_id: user.id,
-          user_role: user.role
-        }
-      });
-    }
-    
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_data");
-    setToken(null);
-    setUser(null);
-  };
-
-  const setUserAndToken = (data) => {
-    const { access_token, user } = data;
-    localStorage.setItem("token", access_token);
-    setToken(access_token);
-    setUser(user);
-    
-    // Store user data for analytics segmentation (excluding sensitive info)
-    if (user) {
-      const userData = {
-        id: user.id,
-        created_at: user.created_at,
-        role: user.role,
-        language: user.language || localStorage.getItem('i18nextLng')
-      };
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      
-      // Track user login for segmentation
-      trackEvent('login', {
-        method: 'credentials',
-        user_properties: {
-          user_id: user.id,
-          user_role: user.role
-        }
-      });
-    }
-  };
 
   const checkToken = async (token) => {
     if (token) {
@@ -276,7 +282,6 @@ const GlobalProvider = ({ children }) => {
     theme,
     toggleTheme
   };
-
   return (
     <GlobalContext.Provider
       value={{
@@ -296,7 +301,9 @@ const GlobalProvider = ({ children }) => {
         toggleTheme,
         notify,
         showError,
-        showSuccess
+        showSuccess,
+        setUserAndToken,
+        logout
       }}
     >
       {children}
@@ -319,7 +326,7 @@ const GlobalProvider = ({ children }) => {
           <div className="flex items-center">
             {notification.type === 'error' && (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zm-1 4a1 1 0 00-1 1v3a1 1 0 102 0V11a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             )}
             {notification.type === 'success' && (
