@@ -17,7 +17,7 @@ const TermsOfService = () => {
         <meta property="og:title" content={`MonkeyZ - ${t("terms_of_service")}`} />
         <meta property="og:description" content={t("terms_meta_description") || "Terms of Service for MonkeyZ - Please read these terms carefully before using our services."} />
       </Helmet>
-      <div className="bg-primary min-h-screen flex flex-col items-center p-6">
+      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center p-6">
         <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
           {t("terms_of_service")}
         </h1>

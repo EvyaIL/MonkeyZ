@@ -17,7 +17,7 @@ const PrivacyPolicy = () => {
         <meta property="og:title" content={`MonkeyZ - ${t("privacy_policy")}`} />
         <meta property="og:description" content={t("privacy_policy_meta_description") || "Privacy Policy for MonkeyZ - Learn how we collect, use and protect your personal information."} />
       </Helmet>
-      <div className="bg-primary min-h-screen flex flex-col items-center p-6">
+      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center p-6">
         <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
           {t("privacy_policy")}
         </h1>

@@ -32,7 +32,8 @@
   "devDependencies": {
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
-    "prettier": "^3.2.5"
+    "prettier": "^3.2.5",
+    "react-app-rewired": "^2.2.1"
   },
   "scripts": {
     "start": "set PORT=3000 && react-scripts start",

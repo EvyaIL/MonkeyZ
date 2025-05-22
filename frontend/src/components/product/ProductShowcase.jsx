@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import Spinner from "../Spinner";
+import placeholderImage from '../../assets/placeholder-product.svg';
 
 const ProductShowcase = ({ products, title }) => {
   // Filter out invalid products
@@ -133,10 +134,10 @@ const ProductShowcase = ({ products, title }) => {
   // Keyboard navigation
   const handleKeyDown = (e) => {
     if (e.key === "ArrowLeft") {
-      prevProduct();
+      lang === "he" ? nextProduct() : prevProduct();
       e.preventDefault();
     } else if (e.key === "ArrowRight") {
-      nextProduct();
+      lang === "he" ? prevProduct() : nextProduct();
       e.preventDefault();
     }
   };
@@ -189,6 +190,13 @@ const ProductShowcase = ({ products, title }) => {
     );
   }
 
+  const getSlideTransform = () => {
+    if (lang === "he") {
+      return `translateX(${currentIndex * 100}%)`;
+    }
+    return `translateX(-${currentIndex * 100}%)`;
+  };
+
   return (
     <div 
       className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl overflow-hidden backdrop-blur-sm"
@@ -200,7 +208,7 @@ const ProductShowcase = ({ products, title }) => {
       role="region"
       aria-label={title}
     >
-      <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
+      <h2 className={`text-center text-primary dark:text-accent font-bold text-2xl mb-6 ${lang === "he" ? "text-right" : "text-left"}`}>
         {title}
       </h2>
       <>
@@ -210,10 +218,11 @@ const ProductShowcase = ({ products, title }) => {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          dir={lang === "he" ? "rtl" : "ltr"}
         >
           <div
             className="flex transition-transform duration-700 ease-in-out h-full"
-            style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+            style={{ transform: getSlideTransform() }}
             aria-live="polite"
           >
             {validProducts.map((product, index) => { 
@@ -238,6 +247,7 @@ const ProductShowcase = ({ products, title }) => {
                   role="group"
                   aria-label={`${t("showcase_for", "Showcase for")} ${nameToDisplay}`}
                   aria-hidden={!isActive}
+                  dir={lang === "he" ? "rtl" : "ltr"}
                 >
                   <div className="w-full md:w-1/2 h-[140px] md:h-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shadow-sm transition-transform hover:scale-[1.02] duration-200">
                     {imageUrl ? (
@@ -248,27 +258,22 @@ const ProductShowcase = ({ products, title }) => {
                         loading="lazy"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = "https://via.placeholder.com/300x200?text=MonkeyZ";
+                          e.target.src = placeholderImage;
                         }}
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-4 text-center">
-                        <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <span className="text-gray-500 dark:text-white text-sm">{t("no_image_available", "No image available")}</span>
-                      </div>
+                      <img src={placeholderImage} alt={nameToDisplay} className="object-contain w-full h-full p-2" />
                     )}
                   </div>
 
-                  <div className="flex-1 text-gray-800 dark:text-white p-2 md:p-0">
+                  <div className={`flex-1 text-gray-800 dark:text-white p-2 md:p-0 ${lang === "he" ? "text-right" : "text-left"}`}>
                     <h3 className="text-start text-accent font-bold text-lg md:text-xl mb-2">
                       {nameToDisplay}
                     </h3>
                     <p className="break-words text-sm md:text-base leading-relaxed line-clamp-3 md:line-clamp-4">
                       {descToDisplay}
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <div className={`flex flex-wrap items-center gap-2 mt-3 ${lang === "he" ? "justify-end" : "justify-start"}`}>
                       <p className="text-lg font-semibold text-accent">
                         ₪{priceToDisplay}
                       </p>
@@ -314,24 +319,24 @@ const ProductShowcase = ({ products, title }) => {
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              prevProduct();
+              lang === "he" ? nextProduct() : prevProduct();
             }}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("previous_product")}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${lang === "he" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <button 
             onClick={(e) => {
               e.stopPropagation();
-              nextProduct();
+              lang === "he" ? prevProduct() : nextProduct();
             }}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
             aria-label={t("next_product")}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${lang === "he" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -348,11 +353,11 @@ const ProductShowcase = ({ products, title }) => {
               return (
                   <PrimaryButton
                     title={isOutOfStock 
-                      ? lang === "he" ? "אזל מהמלאי" : t("out_of_stock") 
-                      : lang === "he" ? "הוסף לעגלה" : t("add_to_cart")}
+                      ? t("out_of_stock")
+                      : t("add_to_cart")}
                     ariaLabel={isOutOfStock
-                      ? lang === "he" ? "אזל מהמלאי" : t("out_of_stock")
-                      : `${lang === "he" ? "הוסף" : t("add") } ${nameForButton} ${lang === "he" ? "לעגלה" : t("to_cart")}`}
+                      ? t("out_of_stock")
+                      : `${t("add")} ${nameForButton} ${t("to_cart")}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (cp.id && !isOutOfStock) {
@@ -371,8 +376,8 @@ const ProductShowcase = ({ products, title }) => {
           {/* Previous button (visible on mobile) */}
           <SecondaryButton
             title="‹"
-            onClick={prevProduct}
-            ariaLabel={lang === "he" ? "מוצר קודם" : t("previous_product")}
+            onClick={lang === "he" ? nextProduct : prevProduct}
+            ariaLabel={t("previous_product")}
             otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
           />
           
@@ -396,8 +401,8 @@ const ProductShowcase = ({ products, title }) => {
                   current={isCurrent}
                   ariaLabel={
                     isCurrent
-                      ? (lang === "he" ? "שקופית נוכחית" : t("current_slide"))
-                      : (lang === "he" ? `עבור לשקופית ${index + 1} (${productNameForDot})` : `Go to slide ${index + 1} (${productNameForDot})`)
+                      ? t("current_slide")
+                      : `${t("go_to_slide")} ${index + 1} (${productNameForDot})`
                   }
                   slideNumber={index + 1}
                   productName={productNameForDot}
@@ -410,8 +415,8 @@ const ProductShowcase = ({ products, title }) => {
           {/* Next button (visible on mobile) */}
           <SecondaryButton
             title="›"
-            onClick={nextProduct}
-            ariaLabel={lang === "he" ? "מוצר הבא" : t("next_product")}
+            onClick={lang === "he" ? prevProduct : nextProduct}
+            ariaLabel={t("next_product")}
             otherStyle="px-3 py-1 text-lg md:hidden hover:bg-accent hover:text-white transition-colors duration-200"
           />
         </div>

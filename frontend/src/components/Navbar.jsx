@@ -129,7 +129,7 @@ const Navbar = () => {
           </div>
 
           {/* Language + Auth + Cart Controls */}
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-4 md:gap-6">
             <div className="hidden md:block">
               <LanguageSwitcher />
             </div>

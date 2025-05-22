@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom";
-// import PrimaryButton from "../buttons/PrimaryButton";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
+import placeholderImage from '../../assets/placeholder-product.svg';
 
 const ProductCard = ({ product, otherStyle }) => {
   const navigate = useNavigate();
-  const { addItemToCart } = useGlobalProvider();
+  const { addItemToCart, notify } = useGlobalProvider();
   const { t, i18n } = useTranslation();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -27,6 +27,11 @@ const ProductCard = ({ product, otherStyle }) => {
     setTimeout(() => {
       button.classList.remove("scale-110");
     }, 200);
+
+    notify({
+      message: `${displayName} ${t("added_to_cart_suffix", "added to cart")}`,
+      type: "success"
+    });
   };
 
   // Navigate to product details
@@ -41,7 +46,6 @@ const ProductCard = ({ product, otherStyle }) => {
       role="region"
       aria-label={`Product card for ${displayName}`}
     >
-      {/* Clickable area for navigation */}
       <div
         className="w-full cursor-pointer flex flex-col flex-grow"
         onClick={goToProductDetails}
@@ -49,10 +53,12 @@ const ProductCard = ({ product, otherStyle }) => {
         role="button"
         aria-label={`View details for ${displayName}`}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") goToProductDetails();
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            goToProductDetails();
+          }
         }}
       >
-        {/* Image container with aspect ratio & loading states */}
         <div className="w-full aspect-[4/3] relative rounded-md overflow-hidden mb-4 bg-gray-800">
           {!imageLoaded && !imageError && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -61,35 +67,32 @@ const ProductCard = ({ product, otherStyle }) => {
           )}
           
           <img
-            src={product.image}
+            src={product.image || placeholderImage}
             alt={displayName}
             loading="lazy"
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
+            className={`w-full h-full object-contain transition-opacity duration-300 ${
               imageLoaded && !imageError ? "opacity-100" : "opacity-0"
             }`}
             onLoad={() => setImageLoaded(true)}
             onError={(e) => {
               setImageError(true);
-              e.target.src = "https://via.placeholder.com/300x200?text=MonkeyZ+Product";
+              e.target.src = placeholderImage;
               setImageLoaded(true);
             }}
           />
           
-          {/* Price tag */}
-          <div className="absolute top-2 right-2 bg-accent text-white px-2 py-1 rounded-md font-semibold shadow-md">
+          <div className="absolute top-2 right-2 bg-accent text-white px-2 py-1 rounded-md font-semibold shadow-md" dir={lang === "he" ? "rtl" : "ltr"}>
             ₪{product.price.toFixed(2)}
           </div>
         </div>
 
-        {/* Product info */}
-        <h3 className="font-semibold text-lg text-white">{displayName}</h3>
-        <p className="text-gray-300 text-sm mt-2 line-clamp-3 flex-grow">
+        <h3 className={`font-semibold text-lg text-white text-${lang === "he" ? "right" : "left"}`}>{displayName}</h3>
+        <p className={`text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
           {displayDesc?.length > 100 ? displayDesc.substring(0, 97) + "..." : displayDesc}
         </p>
       </div>
 
-      {/* Action buttons */}
-      <div className="mt-4 w-full flex justify-between gap-2">
+      <div className={`mt-4 w-full flex ${lang === "he" ? "flex-row-reverse" : ""} justify-between gap-2`}>
         <button
           className="flex-1 bg-secondary text-white border border-accent py-2 px-3 rounded-md hover:bg-secondary/80 transition-all duration-200"
           onClick={goToProductDetails}
