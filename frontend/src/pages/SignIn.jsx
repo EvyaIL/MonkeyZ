@@ -156,50 +156,63 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      {/* Using onSubmit handler enables the Enter key to submit the form */}
       <form
-        className="p-6 md:p-10 bg-white dark:bg-secondary rounded-lg shadow-lg space-y-6 w-full max-w-md"
+        className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm space-y-6 w-full max-w-md"
         onSubmit={onClickSignIn}
         dir={isRTL ? "rtl" : "ltr"}
         aria-label="Sign in form"
       >
-        <h2 className="text-center text-accent text-2xl font-bold">{t("sign_in", "Login")}</h2>
-        <p
-          className={`text-center font-bold transition-all w-full h-5 ${message.message ? "scale-100" : "scale-0"}`}
+        <h2 className="text-center text-2xl font-bold text-accent">{t("sign_in", "Login")}</h2>
+        
+        <div
+          className={`text-center font-bold transition-all ${message.message ? "scale-100" : "scale-0"} w-full h-5`}
           style={{ color: message.color }}
           role={message.color === "#DC2626" ? "alert" : "status"}
           aria-live="polite"
         >
           {message.message}
-        </p>
+        </div>
 
-        <PrimaryInput
-          title={t("username_or_email", "Username or Email")}
-          value={form.usernameOrEmail}
-          placeholder={t("enter_username_or_email", "Enter your username or email")}
-          onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
-          autoComplete="username"
-          required
-          minLength={3}
-          maxLength={50}
-        />
-        <PrimaryInput
-          type="password"
-          title={t("password", "Password")}
-          value={form.password}
-          placeholder={t("enter_your_password", "Enter your password")}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-          autoComplete="current-password"
-          required
-          minLength={8}
-        />
+        <div className="space-y-4">
+          <PrimaryInput
+            title={t("username_or_email", "Username or Email")}
+            value={form.usernameOrEmail}
+            placeholder={t("enter_username_or_email", "Enter your username or email")}
+            onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
+            autoComplete="username"
+            required
+            minLength={3}
+            maxLength={50}
+          />
+          <PrimaryInput
+            type="password"
+            title={t("password", "Password")}
+            value={form.password}
+            placeholder={t("enter_your_password", "Enter your password")}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            autoComplete="current-password"
+            required
+            minLength={8}
+          />
+        </div>
+        
         <PrimaryButton
           title={isSubmit ? t("signing_in", "Signing in...") : t("sign_in", "Sign in")}
           onClick={onClickSignIn}
           otherStyle="w-full"
           disabled={isSubmit}
         />
-        <div className="flex flex-col items-center gap-2 mt-2">
+        
+        <div className="relative mt-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 text-gray-500 bg-white dark:bg-gray-800">{t("or", "or")}</span>
+          </div>
+        </div>
+        
+        <div className="flex justify-center">
           <GoogleLogin
             onSuccess={onGoogleSignIn}
             onError={() => { setMessage({ message: 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
@@ -210,13 +223,15 @@ const SignIn = () => {
             disabled={googleLoading}
           />
         </div>
+
         <SecondaryButton
           title={t("forgot_password", "Forgot password?")}
           onClick={() => setShowReset((v) => !v)}
           otherStyle="w-full"
         />
+
         {showReset && (
-          <div className="p-4 mt-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3" dir={isRTL ? "rtl" : "ltr"}>
+          <div className="p-4 mt-4 border border-accent/30 dark:border-accent/30 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3" dir={isRTL ? "rtl" : "ltr"}>
             <h3 className="text-lg font-medium text-center mb-3">{t("reset_password", "Reset Password")}</h3>
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
               {t("reset_password_instructions", "Enter your email address below and we'll send you a link to reset your password.")}
@@ -240,13 +255,14 @@ const SignIn = () => {
                 />
               </div>
               {resetMsg && (
-                <p className={`text-center p-2 mt-2 rounded ${resetMsg.includes("sent") ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300"}`}>
+                <p className={`text-center p-2 mt-2 rounded ${resetMsg.includes("sent") ? "bg-green-100/70 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100/70 text-red-600 dark:bg-red-900/30 dark:text-red-300"}`}>
                   {resetMsg}
                 </p>
               )}
             </form>
           </div>
         )}
+
         <SecondaryButton
           title={t("dont_have_account", "Don't have an account? Sign Up")}
           onClick={() => navigate("/sign-up")}

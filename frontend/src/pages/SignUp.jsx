@@ -130,119 +130,134 @@ const SignUp = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
       <form
-        className="p-6 bg-white dark:bg-secondary rounded-lg shadow-lg space-y-5 mt-5 w-full sm:w-[80%] md:w-[60%] lg:w-[40%] h-auto"
+        className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm space-y-5 w-full max-w-md"
         onSubmit={otpSent ? onVerifyOtp : onSubmitSignUp}
         dir={i18n.language === 'he' ? "rtl" : "ltr"}
         aria-label="Sign up form"
       >
-        <h2 className="text-center text-accent text-2xl font-bold">
+        <h2 className="text-center text-2xl font-bold text-accent">
           {t("create_account", "Create An Account")}
         </h2>
-        <p
+        
+        <div
           className={`text-center font-bold transition-all ${message.message ? "scale-100" : "scale-0"} w-full h-5`}
           style={{ color: message.color }}
           role={message.color === "#DC2626" ? "alert" : "status"}
           aria-live="polite"
         >
           {message.message}
-        </p>
-
-        <div className="space-y-5 w-full">
-          <PrimaryInput
-            title={t("username", "Username")}
-            value={form.username}
-            placeholder={t("enter_your_username", "Enter your username")}
-            onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, "") })}
-            autoComplete="username"
-            required
-            minLength={3}
-            maxLength={32}
-          />
-          <PrimaryInput
-            type="password"
-            title={t("password", "Password")}
-            value={form.password}
-            placeholder={t("enter_your_password", "Enter your password")}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            autoComplete="new-password"
-            required
-            minLength={8}
-          />
-          <PrimaryInput
-            type="email"
-            title={t("email", "Email")}
-            value={form.email}
-            placeholder={t("enter_your_email", "Enter your email")}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            autoComplete="email"
-            required
-          />
-          <PrimaryInput
-            title={t("phone_number", "Phone Number")}
-            type="tel"
-            value={form.phone_number}
-            placeholder="05XXXXXXXX"
-            onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
-            autoComplete="tel"
-            required
-            minLength={10}
-            maxLength={15}
-          />
         </div>
 
-        {otpSent && (
-          <div className="space-y-2">
+        <div className="flex flex-col gap-6">
+
+          <div className="space-y-4">
             <PrimaryInput
-              title={t("enter_otp", "Enter OTP")}
-              value={enteredOtp}
-              placeholder={t("enter_the_otp", "Enter the OTP sent to your email")}
-              onChange={(e) => setEnteredOtp(e.target.value)}
+              title={t("username", "Username")}
+              value={form.username}
+              placeholder={t("enter_your_username", "Enter your username")}
+              onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, "") })}
+              autoComplete="username"
+              required
+              minLength={3}
+              maxLength={32}
+            />
+            <PrimaryInput
+              type="password"
+              title={t("password", "Password")}
+              value={form.password}
+              placeholder={t("enter_your_password", "Enter your password")}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+            <PrimaryInput
+              type="email"
+              title={t("email", "Email")}
+              value={form.email}
+              placeholder={t("enter_your_email", "Enter your email")}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              autoComplete="email"
               required
             />
-            {otpError && <p className="text-red-500 text-center">{otpError}</p>}
-            <div className="flex flex-col gap-2 mt-2">
-              <PrimaryButton
-                title={isSubmit ? t("signing_up") : t("verify_otp")}
-                onClick={onVerifyOtp}
-                otherStyle="w-full"
-                disabled={isSubmit}
-              />
-              <SecondaryButton
-                title={t("resend_otp")}
-                onClick={onSubmitSignUp}
-                otherStyle="w-full text-xs py-1"
-                disabled={isSubmit}
-              />
+            <PrimaryInput
+              title={t("phone_number", "Phone Number")}
+              type="tel"
+              value={form.phone_number}
+              placeholder="05XXXXXXXX"
+              onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
+              autoComplete="tel"
+              required
+              minLength={10}
+              maxLength={15}
+            />
+          </div>
+
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 text-gray-500 bg-white dark:bg-gray-800">{t("or", "or")}</span>
             </div>
           </div>
-        )}
-        {!otpSent && (
-          <PrimaryButton
-            title={isSubmit ? t("signing_up") : t("sign_up")}
-            onClick={onSubmitSignUp}
-            otherStyle="w-full mt-5"
-            disabled={isSubmit}
-          />
-        )}
-        <SecondaryButton
-          title={t("already_have_account")}
-          onClick={() => navigate("/sign-in")}
-          otherStyle="w-full"
-        />
 
-        <div className="flex flex-col items-center gap-2 mt-2">
-          <GoogleLogin
-            onSuccess={onGoogleAuth}
-            onError={() => { setMessage({ message: t('google_signin_failed') || 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
-            locale={document.documentElement.lang || 'en'}
-            theme="filled_blue"
-            text="signup_with"
-            shape="pill"
-            disabled={googleLoading}
+          <div className="flex justify-center mb-4">
+            <GoogleLogin
+              onSuccess={onGoogleAuth}
+              onError={() => { setMessage({ message: t('google_signin_failed') || 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
+              locale={document.documentElement.lang || 'en'}
+              theme="filled_blue"
+              text="signup_with"
+              shape="pill"
+              disabled={googleLoading}
+            />
+          </div>
+
+          {otpSent && (
+            <div className="space-y-4">
+              <PrimaryInput
+                title={t("enter_otp", "Enter OTP")}
+                value={enteredOtp}
+                placeholder={t("enter_the_otp", "Enter the OTP sent to your email")}
+                onChange={(e) => setEnteredOtp(e.target.value)}
+                required
+              />
+              {otpError && <p className="text-red-500 text-center">{otpError}</p>}
+              <div className="flex flex-col gap-2">
+                <PrimaryButton
+                  title={isSubmit ? t("signing_up") : t("verify_otp")}
+                  onClick={onVerifyOtp}
+                  otherStyle="w-full"
+                  disabled={isSubmit}
+                />
+                <SecondaryButton
+                  title={t("resend_otp")}
+                  onClick={onSubmitSignUp}
+                  otherStyle="w-full text-xs py-1"
+                  disabled={isSubmit}
+                />
+              </div>
+            </div>
+          )}
+
+          {!otpSent && (
+            <PrimaryButton
+              title={isSubmit ? t("signing_up") : t("sign_up")}
+              onClick={onSubmitSignUp}
+              otherStyle="w-full"
+              disabled={isSubmit}
+            />
+          )}
+          
+          <SecondaryButton
+            title={t("already_have_account")}
+            onClick={() => navigate("/sign-in")}
+            otherStyle="w-full"
           />
-          {/* NOTE: Your backend must implement POST /user/google for Google sign-in to work! */}
+          
           {message.message && message.color === '#DC2626' && (
-            <p className="text-red-500 text-center mt-2">{message.message}</p>
+            <p className="text-red-500 text-center">{message.message}</p>
           )}
         </div>
       </form>

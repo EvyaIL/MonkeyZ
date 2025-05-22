@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getPostBySlug } from '../data/BlogData'; // Assuming BlogData.js is in src/data
-import NotFound from './NotFound';
 import { Helmet } from 'react-helmet';
 import { generateArticleSchema, addStructuredData, generateBreadcrumbSchema } from '../lib/seo-helper';
 
@@ -11,17 +10,14 @@ const BlogPostPage = () => {
   const { t, i18n } = useTranslation(); // Add i18n here
   const post = getPostBySlug(slug);
 
-  if (!post) {
-    return <NotFound />;
-  }
-
   // Select the correct language for title, summary, and content
   const currentLanguage = i18n.language.split('-')[0]; // Get 'en' or 'he'
-  const postTitle = post.title[currentLanguage] || post.title.en;
-  const postSummary = post.summary[currentLanguage] || post.summary.en;
-  const postContent = post.content[currentLanguage] || post.content.en;
+  const postTitle = post?.title?.[currentLanguage] || post?.title?.en;
+  const postSummary = post?.summary?.[currentLanguage] || post?.summary?.en;
+  const postContent = post?.content?.[currentLanguage] || post?.content?.en;
 
   useEffect(() => {
+    if (!post) return;
     // Create post object for schema generation
     if (post) {
       const articleData = {
@@ -97,7 +93,7 @@ const BlogPostPage = () => {
         </ol>
       </nav>
       
-      <article className="max-w-3xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 md:p-10 border border-gray-200 dark:border-gray-700">
+      <article className="max-w-3xl mx-auto bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm">
         {post.image && (
           <img src={post.image} alt={postTitle} className="w-full h-auto max-h-96 object-cover rounded-md mb-8" />
         )}

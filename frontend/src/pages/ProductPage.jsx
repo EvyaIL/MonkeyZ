@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
+import axios from "axios";
 import { apiService } from "../lib/apiService";
 import PrimaryButton from "../components/buttons/PrimaryButton";
 import PrimaryInput from "../components/inputs/PrimaryInput";
@@ -16,6 +17,8 @@ const ProductPage = () => {
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
 
+  const [mounted, setMounted] = useState(true);
+
   const [product, setProduct] = useState({
     id: null,
     name: "",
@@ -31,120 +34,20 @@ const ProductPage = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [addedToCart, setAddedToCart] = useState(false);
 
-  useEffect(() => {
-    if (name) {
-      fetchProduct();
-    }
-    // Reset state when product changes
-    return () => {
-      setQuantity(1);
-      setAddedToCart(false);
-      // Clean up structured data when component unmounts
-      const script = document.getElementById('structured-data');
-      if (script) script.remove();
-    };
-    // eslint-disable-next-line
-  }, [name]);
-  
-  // Add structured data when product data changes
-  useEffect(() => {
-    if (product && product.id) {
-      // Create structured data for product
-      const productData = {
-        ...product,
-        // Ensure properties needed for schema are present
-        name: displayName,
-        description: displayDesc,
-        imageUrl: product.image,
-        inStock: true
-      };
-      
-      const schema = generateProductSchema(productData);
-      addStructuredData(schema);
-    }
-  }, [product]);
+  // Memoize display values to prevent unnecessary recalculations
+  const displayName = useMemo(() => {
+    return typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
+  }, [product.name, lang]);
 
-  const fetchRelatedProducts = async (categoryOrName) => {
-    if (!categoryOrName) return;
-    setLoadingRelated(true);
-    try {
-      const { data } = await apiService.get("/product/all");
-      let filtered = [];
-      if (data && Array.isArray(data) && data.length > 0) {
-        // Filter out the current product and match by category or name
-        filtered = data.filter(p => {
-          if (!p || p.id === product.id) return false;
-          if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
-          const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
-          const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-          return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
-        });
-      }
-      // If not enough, fill with fallback products (excluding current and already included)
-      if (filtered.length < 4) {
-        const fallbackFiltered = getFallbackProducts().filter(p => {
-          if (!p || p.id === product.id) return false;
-          return !filtered.some(fp => fp.id === p.id);
-        });
-        filtered = [...filtered, ...fallbackFiltered];
-      }
-      setRelatedProducts(filtered.slice(0, 4));
-    } catch (err) {
-      // On error, fallback only
-      const fallbackFiltered = getFallbackProducts().filter(p => p.id !== product.id).slice(0, 4);
-      setRelatedProducts(fallbackFiltered);
-    }
-    setLoadingRelated(false);
-  };
+  const displayDesc = useMemo(() => {
+    return typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
+  }, [product.description, lang]);
 
-  const fetchProduct = async () => {
-    setLoading(true);
-    setErrorMsg("");
-    // Try API first
-    try {
-      const { data } = await apiService.get(`/product/${name}`);
-      if (data) {
-        setProduct(data);
-        // Track product view for analytics
-        trackProductView(data);
-        // Fetch related products after we have the main product
-        fetchRelatedProducts(data.category || extractSearchTerm(data.name));
-        setLoading(false);
-        return;
-      }
-      
-      // If not found in API, try fallback
-      const fallbackProducts = getFallbackProducts();
-      
-      // Try to find by ID first (assuming name in the URL might be an ID number)
-      const productId = !isNaN(name) ? parseInt(name) : null;
-      let fallback = productId ? fallbackProducts.find(p => p.id === productId) : null;
-      
-      // If not found by ID, try by name
-      if (!fallback) {
-        fallback = fallbackProducts.find(p => {
-          const n = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
-          return n.toLowerCase() === name.toLowerCase();
-        });
-      }
-      
-      if (fallback) {
-        setProduct(fallback);
-        // Track product view for analytics (fallback)
-        trackProductView(fallback);
-        fetchRelatedProducts(fallback.category || extractSearchTerm(fallback.name));
-      } else {
-        setErrorMsg(t("product_not_found", "Product not found."));
-      }
-    } catch (err) {
-      setErrorMsg(t("unexpected_error", "Unexpected error occurred."));
-      console.error("Error fetching product:", err);
-    }
-    setLoading(false);
-  };
+  const displayCategory = product.category || "";
+  const formattedPrice = product.price ? product.price.toFixed(2) : "0.00";
 
   // Extract search terms from product name for related products
-  const extractSearchTerm = (productName) => {
+  const extractSearchTerm = useCallback((productName) => {
     if (!productName) return "";
     
     const name = typeof productName === "object" 
@@ -159,9 +62,106 @@ const ProductPage = () => {
       }
     }
     return name.split(/\s+/)[0] || "";
-  };
+  }, [lang]);
 
-  const handleAddToCart = () => {
+  // Fetch related products
+  const fetchRelatedProducts = useCallback(async (categoryOrName) => {
+    if (!categoryOrName || !mounted) return;
+    setLoadingRelated(true);
+    try {
+      const { data } = await apiService.get("/product/all");
+      if (!mounted) return;
+      
+      let filtered = [];
+      if (data && Array.isArray(data) && data.length > 0) {
+        filtered = data.filter(p => {
+          if (!p || p.id === product.id) return false;
+          if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
+          const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
+          const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
+          return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
+        });
+      }
+      if (filtered.length < 4) {
+        const fallbackFiltered = getFallbackProducts().filter(p => {
+          if (!p || p.id === product.id) return false;
+          return !filtered.some(fp => fp.id === p.id);
+        });
+        filtered = [...filtered, ...fallbackFiltered];
+      }
+      if (mounted) {
+        setRelatedProducts(filtered.slice(0, 4));
+      }
+    } catch (err) {
+      if (!mounted) return;
+      console.error("Error fetching related products:", err);
+      const fallbackFiltered = getFallbackProducts().filter(p => p.id !== product.id).slice(0, 4);
+      setRelatedProducts(fallbackFiltered);
+    } finally {
+      if (mounted) {
+        setLoadingRelated(false);
+      }
+    }
+  }, [product.id, product.category, product.name, lang, mounted]);
+
+  // Fetch product data
+  const fetchProduct = useCallback(async () => {
+    if (!name) return;
+    
+    const decodedName = decodeURIComponent(name);
+    setLoading(true);
+    setErrorMsg("");
+    
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/products/${decodedName}`);
+      if (mounted) {
+        setProduct(response.data);
+        // Track product view
+        trackProductView(response.data);
+        // Fetch related products if we have a product
+        if (response.data) {
+          fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
+        }
+      }
+    } catch (error) {
+      if (mounted) {
+        console.error("Error fetching product:", error);
+        setErrorMsg(t("errors.productNotFound"));
+        notify("error", t("errors.productNotFound"));
+      }
+    } finally {
+      if (mounted) {
+        setLoading(false);
+      }
+    }
+  }, [name, notify, t, mounted, fetchRelatedProducts, extractSearchTerm]);
+
+  useEffect(() => {
+    setMounted(true);
+    fetchProduct();
+    
+    return () => {
+      setMounted(false);
+    };
+  }, [fetchProduct]);
+
+  // Add structured data when product data changes
+  useEffect(() => {
+    if (product && product.id) {
+      const productData = {
+        ...product,
+        name: displayName,
+        description: displayDesc,
+        imageUrl: product.image,
+        inStock: true
+      };
+      
+      const schema = generateProductSchema(productData);
+      addStructuredData(schema);
+    }
+  }, [product, displayName, displayDesc]);
+
+  const handleAddToCart = useCallback(() => {
     if (!product.id) return;
     addItemToCart(product.id, quantity, product);
     setAddedToCart(true);
@@ -170,9 +170,8 @@ const ProductPage = () => {
       type: "success"
     });
     
-    // Reset added state after 2 seconds
     setTimeout(() => setAddedToCart(false), 2000);
-  };
+  }, [product, quantity, displayName, t, addItemToCart, notify]);
 
   const getFallbackProducts = () => [
     // ...existing fallback products array...
@@ -266,12 +265,6 @@ const ProductPage = () => {
     },
   ];
 
-  // Support both {en, he} object and plain string
-  const displayName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-  const displayDesc = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
-  const formattedPrice = product.price ? product.price.toFixed(2) : "0.00";
-  const displayCategory = product.category || "";
-
   return (
     <>
       <Helmet>
@@ -297,7 +290,7 @@ const ProductPage = () => {
         {product.image && <meta name="twitter:image" content={product.image} />}
       </Helmet>
       <div className="p-4 md:p-9 flex flex-col items-center justify-center min-h-screen">
-        <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5">
+        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5 backdrop-blur-sm">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-8" aria-live="polite">
               <Spinner />
@@ -341,16 +334,16 @@ const ProductPage = () => {
               </nav>
 
               <div className="flex flex-col md:flex-row gap-6 items-start p-4">
-                <div className="w-full md:w-1/2 h-[300px] md:h-[350px] rounded-lg border border-gray-600 bg-gray-800 flex items-center justify-center overflow-hidden">
+                <div className="w-full md:w-1/2 h-[300px] md:h-[350px] rounded-lg border border-accent/10 dark:border-accent/10 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300 hover:border-accent/30 group">
                   {product.image ? (
                     <img
                       src={product.image}
                       alt={displayName || t("product_image")}
-                      className="object-contain w-full h-full"
+                      className="object-contain w-full h-full p-4 transition-all duration-500 group-hover:scale-105"
                       loading="lazy"
                     />
                   ) : (
-                    <span className="text-white text-lg">{t("no_image_available", "No Image Available")}</span>
+                    <span className="text-gray-400 dark:text-gray-500 text-lg">{t("no_image_available", "No Image Available")}</span>
                   )}
                 </div>
 
@@ -432,8 +425,8 @@ const ProductPage = () => {
               </div>
               
               {/* Related Products Section */}
-              <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-8">
-                <h2 className="text-primary dark:text-accent font-bold text-xl mb-6">
+              <div className="mt-12 border-t border-accent/30 pt-8">
+                <h2 className="text-center text-accent font-bold text-2xl mb-8">
                   {t("related_products", "Related Products")}
                 </h2>
                 
@@ -454,20 +447,20 @@ const ProductPage = () => {
                           to={`/product/${encodeURIComponent(relatedProduct.id)}`}
                           className="group"
                         >
-                          <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 transition-all duration-300 hover:shadow-lg hover:border-accent h-full flex flex-col">
-                            <div className="h-40 mb-4 bg-gray-100 dark:bg-gray-900 rounded-md flex items-center justify-center overflow-hidden">
+                          <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg p-4 shadow-lg transition-all duration-300 hover:shadow-xl backdrop-blur-sm h-full flex flex-col">
+                            <div className="h-40 mb-4 bg-gray-100 dark:bg-gray-900 rounded-lg border border-accent/10 dark:border-accent/10 flex items-center justify-center overflow-hidden group-hover:border-accent/30 transition-colors">
                               {relatedProduct.image ? (
                                 <img 
                                   src={relatedProduct.image} 
                                   alt={relName} 
-                                  className="object-contain h-full w-full group-hover:scale-105 transition-transform duration-300"
+                                  className="object-contain h-full w-full p-2 group-hover:scale-105 transition-all duration-500"
                                   loading="lazy"
                                 />
                               ) : (
-                                <span className="text-gray-400 dark:text-gray-400 text-sm">{t("no_image", "No image")}</span>
+                                <span className="text-gray-400 dark:text-gray-500 text-sm">{t("no_image", "No image")}</span>
                               )}
                             </div>
-                            <h3 className="font-medium text-gray-800 dark:text-white text-lg mb-2 group-hover:text-accent transition-colors">
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-2 group-hover:text-accent transition-colors line-clamp-2">
                               {relName}
                             </h3>
                             <p className="text-primary dark:text-accent mt-auto font-semibold">₪{relatedProduct.price?.toFixed(2)}</p>

@@ -93,7 +93,7 @@ const Contact = () => {
             </ol>
           </nav>
           
-          <section className="bg-white dark:bg-secondary p-8 md:p-12 rounded-lg shadow-lg w-full max-w-2xl mx-auto border border-base-300 dark:border-gray-700">
+          <section className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-2xl mx-auto backdrop-blur-sm">
             <div className="text-center mb-10">
               <h1 className="text-4xl md:text-5xl font-bold text-primary dark:text-accent mb-3">
                 {t("contact")}

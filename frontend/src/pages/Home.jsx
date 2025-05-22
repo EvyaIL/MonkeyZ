@@ -230,7 +230,7 @@ const Home = () => {
 
         <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
           {loadingBest ? (
-            <div className="flex justify-center py-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex justify-center py-8 bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm">
               <Spinner />
             </div>
           ) : errorBest ? (
@@ -245,20 +245,22 @@ const Home = () => {
         </section>
 
         <section
-          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-6xl mt-5"
+          className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-12 backdrop-blur-sm"
           aria-label={t("new_products")}
         >
-          <h2 className="text-center text-primary font-bold text-2xl mb-4">
+          <h2 className="text-center text-accent font-bold text-3xl mb-8">
             {t("new_products")}
           </h2>
           {loadingRecent ? (
-            <Spinner />
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
           ) : errorRecent ? (
-            <p className="text-error text-center" role="alert">
+            <p className="text-error text-center text-lg p-4" role="alert">
               {errorRecent}
             </p>
           ) : (
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
               {recent.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}

@@ -74,7 +74,7 @@ const AboutUs = () => {
             <li className="text-accent font-medium">{t('about_us')}</li>
           </ol>
         </nav>
-        <section className="bg-white dark:bg-secondary p-8 rounded-lg shadow-lg w-full max-w-2xl">
+        <section className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-2xl backdrop-blur-sm">
           <h1
             className="text-4xl font-bold text-accent mb-4 flex items-center gap-2"
             tabIndex={0}

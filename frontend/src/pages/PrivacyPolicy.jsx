@@ -21,7 +21,7 @@ const PrivacyPolicy = () => {
         <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
           {t("privacy_policy")}
         </h1>
-        <div className="bg-secondary border border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-4xl">
+        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-4xl backdrop-blur-sm">
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">1. {t("information_collection")}</h2>
             <p className="text-white mb-4">

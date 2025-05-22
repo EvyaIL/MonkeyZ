@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 import { addStructuredData, generateFAQSchema, generateBreadcrumbSchema } from "../lib/seo-helper";
@@ -6,13 +6,13 @@ import { addStructuredData, generateFAQSchema, generateBreadcrumbSchema } from "
 const FAQ = () => {
   const { t } = useTranslation();
 
-  const faqs = [
+  const faqs = useMemo(() => [
     { question: t("faq_q1"), answer: t("faq_a1") },
     { question: t("faq_q2"), answer: t("faq_a2") },
     { question: t("faq_q3"), answer: t("faq_a3") },
     { question: t("faq_q4"), answer: t("faq_a4") },
     { question: t("faq_q5"), answer: t("faq_a5") },
-  ];
+  ], [t]);
 
   useEffect(() => {
     // Generate FAQ Schema
@@ -62,7 +62,7 @@ const FAQ = () => {
         <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
           {t("faq")}
         </h1>
-        <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-6 w-full max-w-3xl">
+        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-3xl backdrop-blur-sm">
           {faqs.map((faq, idx) => (
             <div key={idx} className="mb-6">
               <h2 className="text-lg font-semibold text-accent mb-2">{faq.question}</h2>

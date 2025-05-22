@@ -329,7 +329,7 @@ const AllProducts = () => {
           {t("all_products")}
         </h1>
 
-        <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-7xl flex flex-col lg:flex-row gap-6">
+        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-7xl flex flex-col lg:flex-row gap-6 backdrop-blur-sm">
           {/* Filters - Mobile Toggle */}
           <div className="lg:hidden w-full mb-4">
             <details className="bg-gray-800 rounded-lg">

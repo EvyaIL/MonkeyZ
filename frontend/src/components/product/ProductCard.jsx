@@ -41,7 +41,7 @@ const ProductCard = ({ product, otherStyle }) => {
 
   return (
     <div
-      className={`bg-secondary border rounded-lg border-gray-700 shadow-lg p-4 w-full flex flex-col transition-all duration-300 hover:shadow-xl ${otherStyle}`}
+      className={`bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 w-full flex flex-col transition-all duration-300 hover:shadow-xl backdrop-blur-sm group ${otherStyle}`}
       tabIndex={0}
       role="region"
       aria-label={`Product card for ${displayName}`}
@@ -59,7 +59,7 @@ const ProductCard = ({ product, otherStyle }) => {
           }
         }}
       >
-        <div className="w-full aspect-[4/3] relative rounded-md overflow-hidden mb-4 bg-gray-800">
+        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-gray-100 dark:bg-gray-900 border border-accent/10 dark:border-accent/10 group-hover:border-accent/30 transition-colors duration-300">
           {!imageLoaded && !imageError && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="animate-pulse w-8 h-8 rounded-full bg-accent/50"></div>
@@ -70,9 +70,9 @@ const ProductCard = ({ product, otherStyle }) => {
             src={product.image || placeholderImage}
             alt={displayName}
             loading="lazy"
-            className={`w-full h-full object-contain transition-opacity duration-300 ${
-              imageLoaded && !imageError ? "opacity-100" : "opacity-0"
-            }`}
+            className={`w-full h-full object-contain transition-all duration-300 ${
+              imageLoaded && !imageError ? "opacity-100 scale-100" : "opacity-0 scale-95"
+            } group-hover:scale-105`}
             onLoad={() => setImageLoaded(true)}
             onError={(e) => {
               setImageError(true);
@@ -86,22 +86,22 @@ const ProductCard = ({ product, otherStyle }) => {
           </div>
         </div>
 
-        <h3 className={`font-semibold text-lg text-white text-${lang === "he" ? "right" : "left"}`}>{displayName}</h3>
-        <p className={`text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
+        <h3 className={`font-semibold text-lg text-gray-900 dark:text-white text-${lang === "he" ? "right" : "left"} group-hover:text-accent transition-colors duration-300`}>{displayName}</h3>
+        <p className={`text-gray-600 dark:text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
           {displayDesc?.length > 100 ? displayDesc.substring(0, 97) + "..." : displayDesc}
         </p>
       </div>
 
       <div className={`mt-4 w-full flex ${lang === "he" ? "flex-row-reverse" : ""} justify-between gap-2`}>
         <button
-          className="flex-1 bg-secondary text-white border border-accent py-2 px-3 rounded-md hover:bg-secondary/80 transition-all duration-200"
+          className="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white border border-accent/30 py-2 px-3 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
           onClick={goToProductDetails}
           aria-label={`View details for ${displayName}`}
         >
           {t("details")}
         </button>
         <button
-          className="flex-1 bg-accent text-white py-2 px-3 rounded-md hover:bg-accent/80 transition-all duration-200"
+          className="flex-1 bg-accent text-white py-2 px-3 rounded-md hover:bg-accent/80 transition-all duration-200 font-medium shadow-sm"
           onClick={handleAddToCart}
           aria-label={`Add ${displayName} to cart`}
         >
