@@ -7,6 +7,7 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 import Spinner from "../components/Spinner";
+import { trackProductView } from "../lib/analytics";
 
 const ProductPage = () => {
   const { name } = useParams(); // This can be either a name or ID depending on the URL
@@ -82,6 +83,8 @@ const ProductPage = () => {
       const { data } = await apiService.get(`/product/${name}`);
       if (data) {
         setProduct(data);
+        // Track product view for analytics
+        trackProductView(data);
         // Fetch related products after we have the main product
         fetchRelatedProducts(data.category || extractSearchTerm(data.name));
         setLoading(false);
@@ -105,6 +108,8 @@ const ProductPage = () => {
       
       if (fallback) {
         setProduct(fallback);
+        // Track product view for analytics (fallback)
+        trackProductView(fallback);
         fetchRelatedProducts(fallback.category || extractSearchTerm(fallback.name));
       } else {
         setErrorMsg(t("product_not_found", "Product not found."));
@@ -259,7 +264,7 @@ const ProductPage = () => {
         {displayCategory && <meta property="product:category" content={displayCategory} />}
       </Helmet>
       <div className="p-4 md:p-9 flex flex-col items-center justify-center min-h-screen">
-        <div className="content-container w-full max-w-6xl mt-5">
+        <div className="bg-white dark:bg-secondary border border-base-300 dark:border-gray-700 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5">
           {loading ? (
             <div className="flex flex-col items-center justify-center p-8" aria-live="polite">
               <Spinner />

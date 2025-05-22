@@ -1,8 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 // import { useTranslation } from "react-i18next"; // Not used directly here
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import { pageView } from "./lib/analytics";
 import Navbar from "./components/Navbar";
 // Footer is likely handled in App.jsx or a higher-level component
 import SignUp from "./pages/SignUp";
@@ -10,6 +12,9 @@ import SignIn from "./pages/SignIn";
 import AllProducts from "./pages/AllProducts";
 import ProductPage from "./pages/ProductPage";
 import Checkout from "./pages/Checkout";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailed from "./pages/PaymentFailed";
+import AnalyticsTest from "./pages/AnalyticsTest";
 import FAQ from "./pages/FAQ";
 import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
@@ -20,6 +25,15 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 
 const AppRouter = () => {
+  const location = useLocation();
+
+  // Track page views when the route changes
+  useEffect(() => {
+    const path = location.pathname;
+    const title = document.title || `MonkeyZ - ${path.slice(1) || 'Home'}`;
+    pageView(path, title);
+  }, [location]);
+  
   return (
     <>
       {/* Navbar is rendered here, Footer is likely in App.jsx or similar parent component */}
@@ -46,32 +60,13 @@ const AppRouter = () => {
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
 
+        {/* Analytics test (for development) */}
+        <Route path="/analytics-test" element={<AnalyticsTest />} />
+
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />
-        <Route
-          path="/success"
-          element={
-            <div
-              className="p-4 text-green-600 dark:text-green-400 text-center text-xl flex items-center justify-center h-full"
-              aria-live="polite"
-              role="status"
-            >
-              Payment Successful!
-            </div>
-          }
-        />
-        <Route
-          path="/fail"
-          element={
-            <div
-              className="p-4 text-red-600 dark:text-red-400 text-center text-xl flex items-center justify-center h-full"
-              aria-live="polite"
-              role="status"
-            >
-              Payment Failed. Please try again.
-            </div>
-          }
-        />
+        <Route path="/success" element={<PaymentSuccess />} />
+        <Route path="/fail" element={<PaymentFailed />} />
 
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />

@@ -1,11 +1,45 @@
 import React, { useState } from "react";
 import { createPayment } from "../lib/paymentService";
+import { trackEvent } from "../lib/analytics";
+import { useGlobalProvider } from "../context/GlobalProvider";
 
 const Checkout = () => {
   const [amount, setAmount] = useState("");
   const [email, setEmail] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { cartItems } = useGlobalProvider();
+
+  // Track begin_checkout event when component mounts
+  React.useEffect(() => {
+    const items = Object.values(cartItems).map(item => ({
+      item_id: item.id,
+      item_name: typeof item.name === 'object' ? item.name.en : item.name,
+      price: item.price,
+      quantity: item.count,
+      currency: 'ILS'
+    }));
+
+    // Calculate total from cart items
+    let calculatedAmount = 0;
+    items.forEach(item => {
+      calculatedAmount += item.price * item.quantity;
+    });
+
+    // Set initial amount if cart has items
+    if (calculatedAmount > 0) {
+      setAmount((calculatedAmount * 100).toString()); // Convert to agorot
+    }
+
+    // Track checkout initiation
+    trackEvent('begin_checkout', {
+      ecommerce: {
+        items: items,
+        value: calculatedAmount,
+        currency: 'ILS'
+      }
+    });
+  }, [cartItems]);
 
   const handlePay = async (e) => {
     e.preventDefault();
@@ -31,6 +65,21 @@ const Checkout = () => {
         description: "CDMonkey Payment",
       };
 
+      // Track payment initiation
+      trackEvent('initiate_payment', {
+        ecommerce: {
+          value: parseInt(amount) / 100, // Convert from agorot to NIS
+          currency: 'ILS',
+          payment_type: 'credit_card',
+          items: Object.values(cartItems).map(item => ({
+            item_id: item.id,
+            item_name: typeof item.name === 'object' ? item.name.en : item.name,
+            price: item.price,
+            quantity: item.count
+          }))
+        }
+      });
+
       const res = await createPayment(payload);
 
       if (res?.url) {
@@ -40,6 +89,11 @@ const Checkout = () => {
       }
     } catch (err) {
       setErrorMsg("Payment error. Please try again.");
+      
+      // Track payment error
+      trackEvent('payment_error', {
+        error_message: err.message || "Payment processing error"
+      });
     }
     setIsSubmitting(false);
   };

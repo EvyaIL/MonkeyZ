@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "../lib/apiService";
+import { trackAddToCart, trackPurchase, trackEvent } from "../lib/analytics";
 
 const GlobalContext = createContext();
 export const useGlobalProvider = () => useContext(GlobalContext);
@@ -38,7 +39,18 @@ const GlobalProvider = ({ children }) => {
   }, [notification]);
 
   const logout = async () => {
+    // Track logout event for analytics
+    if (user && user.id) {
+      trackEvent('logout', {
+        user_properties: {
+          user_id: user.id,
+          user_role: user.role
+        }
+      });
+    }
+    
     localStorage.removeItem("token");
+    localStorage.removeItem("user_data");
     setToken(null);
     setUser(null);
   };
@@ -48,6 +60,26 @@ const GlobalProvider = ({ children }) => {
     localStorage.setItem("token", access_token);
     setToken(access_token);
     setUser(user);
+    
+    // Store user data for analytics segmentation (excluding sensitive info)
+    if (user) {
+      const userData = {
+        id: user.id,
+        created_at: user.created_at,
+        role: user.role,
+        language: user.language || localStorage.getItem('i18nextLng')
+      };
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      
+      // Track user login for segmentation
+      trackEvent('login', {
+        method: 'credentials',
+        user_properties: {
+          user_id: user.id,
+          user_role: user.role
+        }
+      });
+    }
   };
 
   const checkToken = async (token) => {
@@ -116,6 +148,12 @@ const GlobalProvider = ({ children }) => {
       
       return newCart;
     });
+    
+    // Track the add to cart event for analytics
+    if (item) {
+      trackAddToCart(item, count);
+    }
+    
     setOpenCart(true);
   };
 

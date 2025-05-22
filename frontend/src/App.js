@@ -4,11 +4,26 @@ import GlobalProvider from "./context/GlobalProvider";
 import Footer from "./components/Footer";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
+import { pageView, initAnalytics } from "./lib/analytics";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const AppContent = () => {
   const { i18n } = useTranslation();
+  
+  // Initialize analytics service
+  useEffect(() => {
+    initAnalytics();
+    
+    // Track visit count for segmentation
+    const visitCount = parseInt(localStorage.getItem('visit_count') || '0');
+    localStorage.setItem('visit_count', (visitCount + 1).toString());
+    
+    // Record first visit timestamp if not set
+    if (!localStorage.getItem('first_visit')) {
+      localStorage.setItem('first_visit', Date.now().toString());
+    }
+  }, []);
   
   // Update document language and direction based on i18n
   useEffect(() => {

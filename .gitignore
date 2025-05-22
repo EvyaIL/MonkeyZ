@@ -39,3 +39,4 @@ var/
 *.swp
 *.swo
 .DS_Store
+frontend/ANALYTICS_IMPLEMENTATION.md
