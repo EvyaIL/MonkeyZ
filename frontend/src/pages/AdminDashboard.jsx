@@ -2,26 +2,84 @@ import { useState, useEffect } from 'react';
 import { useGlobalProvider } from '../context/GlobalProvider';
 import { apiService } from '../lib/apiService';
 import { useTranslation } from 'react-i18next';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const AdminDashboard = () => {
   const { user } = useGlobalProvider();
   const { t } = useTranslation();
   const [products, setProducts] = useState([]);
   const [coupons, setCoupons] = useState([]);
-  const [activeTab, setActiveTab] = useState('products');
+  const [orders, setOrders] = useState([]);
+  const [analytics, setAnalytics] = useState({
+    totalSales: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+    dailySales: [],
+  });
+  const [activeTab, setActiveTab] = useState('overview');
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingCoupon, setEditingCoupon] = useState(null);
-
-  useEffect(() => {
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');  useEffect(() => {
     const loadAdminData = async () => {
       try {
         // Load all products for admin
-        const { data: productData } = await apiService.get('/admin/products');
-        if (productData) setProducts(productData);
+        const { data: productsResponse } = await apiService.get('/admin/products');
+        if (productsResponse) setProducts(productsResponse);
 
         // Load all coupons
-        const { data: couponData } = await apiService.get('/admin/coupons');
-        if (couponData) setCoupons(couponData);
+        const { data: couponsResponse } = await apiService.get('/admin/coupons');
+        if (couponsResponse) setCoupons(couponsResponse);
+        
+        // Load all orders
+        const { data: ordersResponse } = await apiService.get('/admin/orders');
+        if (ordersResponse) setOrders(ordersResponse);
+
+        // Load analytics data
+        const { data: analyticsResponse } = await apiService.get('/admin/analytics');
+        if (analyticsResponse) {
+          setAnalytics({
+            totalSales: analyticsResponse.totalSales || 0,
+            totalOrders: analyticsResponse.totalOrders || 0,
+            averageOrderValue: analyticsResponse.averageOrderValue || 0,
+            dailySales: analyticsResponse.dailySales || [],
+          });
+        }
+
+        // Load all orders
+        const { data: orderData } = await apiService.get('/admin/orders');
+        if (orderData) setOrders(orderData);
+
+        // Load analytics data
+        const { data: analyticsData } = await apiService.get('/admin/analytics');
+        if (analyticsData) {
+          setAnalytics({
+            totalSales: analyticsData.totalSales || 0,
+            totalOrders: analyticsData.totalOrders || 0,
+            averageOrderValue: analyticsData.averageOrderValue || 0,
+            dailySales: analyticsData.dailySales || [],
+          });
+        }
       } catch (error) {
         console.error('Error loading admin data:', error);
       }
@@ -72,6 +130,33 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleOrderStatusUpdate = async (orderId, newStatus) => {
+    try {
+      await apiService.put(`/admin/orders/${orderId}/status`, { status: newStatus });
+      const { data } = await apiService.get('/admin/orders');
+      if (data) setOrders(data);
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+    }
+  };
+
+  const filteredOrders = orders.filter(order => 
+    orderStatusFilter === 'all' ? true : order.status === orderStatusFilter
+  );
+
+  const chartData = {
+    labels: analytics.dailySales.map(sale => sale.date),
+    datasets: [
+      {
+        label: t('admin.dailySales'),
+        data: analytics.dailySales.map(sale => sale.amount),
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1
+      }
+    ]
+  };
+
   return (
     <div className="min-h-screen p-6 bg-base-200 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto">
@@ -83,6 +168,16 @@ const AdminDashboard = () => {
           {/* Admin Navigation */}
           <div className="flex space-x-4 mb-6 border-b border-gray-200 dark:border-gray-700">
             <button
+              onClick={() => setActiveTab('overview')}
+              className={`pb-2 font-medium transition-colors ${
+                activeTab === 'overview'
+                  ? 'border-b-2 border-accent text-accent'
+                  : 'text-gray-500 hover:text-accent'
+              }`}
+            >
+              {t('admin.overview')}
+            </button>
+            <button
               onClick={() => setActiveTab('products')}
               className={`pb-2 font-medium transition-colors ${
                 activeTab === 'products'
@@ -91,6 +186,16 @@ const AdminDashboard = () => {
               }`}
             >
               {t('admin.products')}
+            </button>
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`pb-2 font-medium transition-colors ${
+                activeTab === 'orders'
+                  ? 'border-b-2 border-accent text-accent'
+                  : 'text-gray-500 hover:text-accent'
+              }`}
+            >
+              {t('admin.orders')}
             </button>
             <button
               onClick={() => setActiveTab('coupons')}
@@ -103,6 +208,156 @@ const AdminDashboard = () => {
               {t('admin.coupons')}
             </button>
           </div>
+
+          {/* Overview/Analytics Section */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Analytics Cards */}
+                <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('admin.totalSales')}</h3>
+                  <p className="text-2xl font-bold text-accent">₪{analytics.totalSales.toFixed(2)}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('admin.totalOrders')}</h3>
+                  <p className="text-2xl font-bold text-accent">{analytics.totalOrders}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('admin.averageOrder')}</h3>
+                  <p className="text-2xl font-bold text-accent">₪{analytics.averageOrderValue.toFixed(2)}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('admin.activeProducts')}</h3>
+                  <p className="text-2xl font-bold text-accent">{products.length}</p>
+                </div>
+              </div>
+
+              {/* Sales Chart */}
+              <div className="bg-white dark:bg-gray-700 rounded-lg shadow p-4">
+                <h3 className="text-lg font-medium mb-4">{t('admin.salesTrends')}</h3>
+                <div className="h-64">                  <Line
+                    data={chartData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          grid: {
+                            color: 'rgba(156, 163, 175, 0.1)',
+                          },
+                        },
+                        x: {
+                          grid: {
+                            display: false,
+                          },
+                        },
+                      },
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Orders Management */}
+          {activeTab === 'orders' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-4">
+                  <select
+                    value={orderStatusFilter}
+                    onChange={(e) => setOrderStatusFilter(e.target.value)}
+                    className="border rounded p-2 focus:ring-2 focus:ring-accent focus:border-transparent"
+                  >
+                    <option value="all">{t('admin.allOrders')}</option>
+                    <option value="pending">{t('admin.pendingOrders')}</option>
+                    <option value="processing">{t('admin.processingOrders')}</option>
+                    <option value="completed">{t('admin.completedOrders')}</option>
+                    <option value="cancelled">{t('admin.cancelledOrders')}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">                {filteredOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="bg-white dark:bg-gray-700 rounded-lg shadow p-4"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium">
+                            {t('admin.orderNumber')}: #{order.id}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {new Date(order.date).toLocaleDateString()}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {t('admin.customer')}: {order.customerName}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            order.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                            order.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                            order.status === 'processing' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          }`}>
+                            {order.status}
+                          </span>
+                          <select
+                            value={order.status}                            onChange={(e) => handleOrderStatusUpdate(order.id, e.target.value)}
+                            className="border rounded p-1 text-sm focus:ring-2 focus:ring-accent focus:border-transparent"
+                          >
+                            <option value="pending">{t('admin.pending')}</option>
+                            <option value="processing">{t('admin.processing')}</option>
+                            <option value="completed">{t('admin.completed')}</option>
+                            <option value="cancelled">{t('admin.cancelled')}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <button
+                          onClick={() => setSelectedOrder(selectedOrder?.id === order.id ? null : order)}
+                          className="text-accent hover:text-accent/80"
+                        >
+                          {selectedOrder?.id === order.id ? t('admin.hideDetails') : t('admin.showDetails')}
+                        </button>
+                      </div>
+                      {selectedOrder?.id === order.id && (
+                        <div className="mt-4 space-y-4">
+                          <div className="border-t pt-4">
+                            <h4 className="font-medium mb-2">{t('admin.orderItems')}</h4>
+                            <div className="space-y-2">
+                              {order.items.map((item) => (
+                                <div key={item.id} className="flex justify-between">
+                                  <span>{item.name} x{item.quantity}</span>
+                                  <span>₪{item.price}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="border-t pt-4">
+                            <h4 className="font-medium mb-2">{t('admin.shippingDetails')}</h4>
+                            <p>{order.shippingAddress}</p>
+                            <p>{order.shippingMethod}</p>
+                          </div>
+                          <div className="border-t pt-4 flex justify-between">
+                            <span className="font-medium">{t('admin.total')}:</span>
+                            <span className="font-medium">₪{order.total}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {/* Products Management */}
           {activeTab === 'products' && (
