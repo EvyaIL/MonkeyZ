@@ -186,12 +186,6 @@ const GlobalProvider = ({ children }) => {
     }
   }, []);
 
-  // Calculate cart total
-  const cartTotal = Object.values(cartItems).reduce(
-    (total, item) => total + (item.price * item.count),
-    0
-  );
-
   return (
     <GlobalContext.Provider
       value={{
@@ -213,8 +207,7 @@ const GlobalProvider = ({ children }) => {
         notify,
         showError,
         showSuccess,
-        notification,
-        cartTotal
+        notification
       }}
     >
       {children}

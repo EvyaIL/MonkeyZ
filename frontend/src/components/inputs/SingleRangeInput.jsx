@@ -1,8 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const SingleRangeInput = ({ value, onChange, min, max }) => {
-  // The useTranslation import can be removed since we don't use it
-  // const { t } = useTranslation();
+  const { i18n } = useTranslation();
+  const lang = i18n.language || "he";
+  const isRTL = lang === "he";
 
   return (
     <div className="w-full flex flex-col gap-4">
