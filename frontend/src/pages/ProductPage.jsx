@@ -12,7 +12,7 @@ import { trackProductView } from "../lib/analytics";
 import { generateProductSchema, addStructuredData } from "../lib/seo-helper";
 
 const ProductPage = () => {
-  const { name } = useParams(); // This can be either a name or ID depending on the URL
+  const { name } = useParams();
   const { addItemToCart, notify } = useGlobalProvider();
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
@@ -103,35 +103,61 @@ const ProductPage = () => {
       }
     }
   }, [product.id, product.category, product.name, lang, mounted]);
+
   // Fetch product data
   const fetchProduct = useCallback(async () => {
     if (!name) return;
     
-    const decodedName = decodeURIComponent(name);
-    setLoading(true);
-    setErrorMsg("");
-    
     try {
-      // Make sure we're sending a string value for the product name
+      // First try to find product by the raw name
+      const decodedName = decodeURIComponent(name);
+      console.log("Initial decoded name:", decodedName);
+      
+      setLoading(true);
+      setErrorMsg("");
+      
+      // For Hebrew names, we need special handling
+      const isHebrew = /[\u0590-\u05FF]/.test(decodedName);
       const nameParam = typeof decodedName === 'object' ? 
         (decodedName.en || Object.values(decodedName)[0]) : 
         decodedName;
+
+      // Use encodeURI instead of encodeURIComponent for Hebrew text
+      const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
       
-      const response = await axios.get(`${process.env.REACT_APP_PATH_BACKEND}/api/products/${nameParam}`);
+      console.log("API request URL:", `${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
+      const response = await axios.get(`${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
+      
+      console.log("API response:", response.data);
       if (mounted) {
+        if (!response.data) {
+          throw new Error("Product data is empty");
+        }
+        
         setProduct(response.data);
         // Track product view
         trackProductView(response.data);
-        // Fetch related products if we have a product
+        // Fetch related products
         if (response.data) {
           fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
         }
       }
     } catch (error) {
       if (mounted) {
-        console.error("Error fetching product:", error);
+        console.error("Error fetching product:", {
+          message: error.message,
+          statusCode: error.response?.status,
+          responseData: error.response?.data,
+          name,
+          decodedName: decodeURIComponent(name)
+        });
         setErrorMsg(t("errors.productNotFound"));
-        notify("error", t("errors.productNotFound"));
+        notify({
+          type: "error",
+          message: error.response?.status === 404 ? 
+            t("errors.productNotFound") : 
+            t("errors.generalError", "An error occurred while fetching the product")
+        });
       }
     } finally {
       if (mounted) {
@@ -141,13 +167,15 @@ const ProductPage = () => {
   }, [name, notify, t, mounted, fetchRelatedProducts, extractSearchTerm]);
 
   useEffect(() => {
-    setMounted(true);
-    fetchProduct();
-    
+    if (name) {
+      fetchProduct();
+    }
+    // Reset state when product changes
     return () => {
-      setMounted(false);
+      setQuantity(1);
+      setAddedToCart(false);
     };
-  }, [fetchProduct]);
+  }, [name]);
 
   // Add structured data when product data changes
   useEffect(() => {
@@ -177,6 +205,7 @@ const ProductPage = () => {
     setTimeout(() => setAddedToCart(false), 2000);
   }, [product, quantity, displayName, t, addItemToCart, notify]);
 
+  // Fallback products data
   const getFallbackProducts = () => [
     // ...existing fallback products array...
     {
@@ -270,7 +299,8 @@ const ProductPage = () => {
   ];
 
   return (
-    <>      <Helmet>
+    <>
+      <Helmet>
         <title>{displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")}</title>
         <meta name="description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
         <meta name="keywords" content={`MonkeyZ, ${displayName}, ${displayCategory}, digital products, software, premium`} />
@@ -442,10 +472,18 @@ const ProductPage = () => {
                     {relatedProducts.map(relatedProduct => {
                       const relName = typeof relatedProduct.name === "object" 
                         ? (relatedProduct.name[lang] || relatedProduct.name.en) 
-                        : relatedProduct.name;                      return (
+                        : relatedProduct.name;
+                      
+                      // Check if name contains Hebrew characters
+                      const isHebrew = /[\u0590-\u05FF]/.test(relName);
+                      const encodedName = isHebrew ? 
+                        encodeURI(relName) : 
+                        encodeURIComponent(relName);
+                      
+                      return (
                         <Link 
                           key={relatedProduct.id} 
-                          to={`/product/${encodeURIComponent(typeof relName === 'object' ? (relName.en || Object.values(relName)[0]) : relName)}`}
+                          to={`/product/${encodedName}`}
                           className="group"
                         >
                           <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg p-4 shadow-lg transition-all duration-300 hover:shadow-xl backdrop-blur-sm h-full flex flex-col">
