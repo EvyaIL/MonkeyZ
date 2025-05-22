@@ -109,7 +109,6 @@ const ProductPage = () => {
     if (!name) return;
     
     try {
-      // First try to find product by the raw name
       const decodedName = decodeURIComponent(name);
       console.log("Initial decoded name:", decodedName);
       
@@ -118,39 +117,69 @@ const ProductPage = () => {
       
       // For Hebrew names, we need special handling
       const isHebrew = /[\u0590-\u05FF]/.test(decodedName);
+      
+      // Handle object names and extract the correct language version
       const nameParam = typeof decodedName === 'object' ? 
-        (decodedName.en || Object.values(decodedName)[0]) : 
+        (decodedName[lang] || decodedName.en || Object.values(decodedName)[0]) : 
         decodedName;
 
-      // Use encodeURI instead of encodeURIComponent for Hebrew text
-      const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
-      
-      console.log("API request URL:", `${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
-      const response = await axios.get(`${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
-      
-      console.log("API response:", response.data);
-      if (mounted) {
-        if (!response.data) {
-          throw new Error("Product data is empty");
-        }
-        
-        setProduct(response.data);
-        // Track product view
-        trackProductView(response.data);
-        // Fetch related products
-        if (response.data) {
-          fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
+      // Try to find in fallback first if it's a Hebrew name
+      if (isHebrew) {
+        const fallbackProducts = getFallbackProducts();
+        const fallback = fallbackProducts.find(p => {
+          if (typeof p.name === "object") {
+            return (p.name.he && p.name.he === decodedName) || 
+                   (p.name.en && p.name.en === decodedName);
+          }
+          return p.name === decodedName;
+        });
+
+        if (fallback) {
+          setProduct(fallback);
+          fetchRelatedProducts(fallback.category || extractSearchTerm(fallback.name));
+          setLoading(false);
+          return;
         }
       }
+
+      // Try API with proper encoding
+      const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
+      console.log("API request URL:", `${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
+      
+      const response = await apiService.get(`/product/${encodedName}`);
+      
+      if (response.data) {
+        console.log("API response:", response.data);
+        setProduct(response.data);
+        // Track product view and fetch related products
+        fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
+      } else {
+        throw new Error("Product data is empty");
+      }
     } catch (error) {
-      if (mounted) {
-        console.error("Error fetching product:", {
-          message: error.message,
-          statusCode: error.response?.status,
-          responseData: error.response?.data,
-          name,
-          decodedName: decodeURIComponent(name)
-        });
+      console.error("Error fetching product:", {
+        message: error.message,
+        statusCode: error.response?.status,
+        responseData: error.response?.data,
+        name,
+        decodedName: decodeURIComponent(name)
+      });
+
+      // Try fallback products if API fails
+      const fallbackProducts = getFallbackProducts();
+      const fallback = fallbackProducts.find(p => {
+        if (typeof p.name === "object") {
+          const hebrewMatch = p.name.he === decodeURIComponent(name);
+          const englishMatch = p.name.en === decodeURIComponent(name);
+          return hebrewMatch || englishMatch;
+        }
+        return p.name === decodeURIComponent(name);
+      });
+
+      if (fallback) {
+        setProduct(fallback);
+        fetchRelatedProducts(fallback.category || extractSearchTerm(fallback.name));
+      } else {
         setErrorMsg(t("errors.productNotFound"));
         notify({
           type: "error",
@@ -164,7 +193,7 @@ const ProductPage = () => {
         setLoading(false);
       }
     }
-  }, [name, notify, t, mounted, fetchRelatedProducts, extractSearchTerm]);
+  }, [name, notify, t, mounted, fetchRelatedProducts, extractSearchTerm, lang]);
 
   useEffect(() => {
     if (name) {
