@@ -16,7 +16,6 @@ const Navbar = () => {
     openCart,
     setOpenCart,
     logout,
-    isAuthenticated
   } = useGlobalProvider();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
@@ -136,7 +135,7 @@ const Navbar = () => {
             </div>
 
             {/* Auth / User Menu */}
-            {isAuthenticated ? (
+            {user ? (
               <div className="relative">
                 <button 
                   id="user-menu-button"
@@ -146,43 +145,36 @@ const Navbar = () => {
                   onClick={() => document.getElementById('user-dropdown').classList.toggle('hidden')}
                 >
                   <span className="font-medium text-primary dark:text-accent text-sm truncate max-w-24 md:max-w-none">
-                    {`${t("welcome_prefix", "Welcome")}${user?.username ? `, ${user.username}` : ""}!`}
+                    {`${t("welcome_prefix", "Welcome")}${user.username ? `, ${user.username}` : ""}!`}
                   </span>
                 </button>
 
-                {/* User Dropdown Menu */}
+                {/* User Dropdown Menu - Using click toggle instead of hover */}
                 <div 
                   id="user-dropdown"
                   className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 hidden z-50 transform origin-top-right transition-all duration-150 ease-in-out"
-                >
-                  <Link 
-                    to="/dashboard" 
+                >                  <Link 
+                    to="/account" 
                     className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
-                    onClick={() => document.getElementById('user-dropdown').classList.add('hidden')}
-                  >
-                    {t("dashboard")}
-                  </Link>
-                  <Link 
-                    to="/profile" 
-                    className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
-                    onClick={() => document.getElementById('user-dropdown').classList.add('hidden')}
                   >
                     {t("profile")}
                   </Link>
-                  {user?.role === 0 && (
+                  <Link 
+                    to="/dashboard" 
+                    className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
+                  >
+                    {t("dashboard")}
+                  </Link>
+                  {user.role === 0 && (
                     <Link 
-                      to="/dashboard/admin" 
+                      to="/admin" 
                       className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
-                      onClick={() => document.getElementById('user-dropdown').classList.add('hidden')}
                     >
                       {t("admin")}
                     </Link>
                   )}
                   <button 
-                    onClick={() => {
-                      logout();
-                      document.getElementById('user-dropdown').classList.add('hidden');
-                    }}
+                    onClick={logout} 
                     className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
                   >
                     {t("logout")}
@@ -291,7 +283,7 @@ const Navbar = () => {
               <LanguageSwitcher />
             </div>
             
-            {!isAuthenticated ? (
+            {!user && (
               <div className="flex flex-col gap-2 pt-2">
                 <PrimaryButton
                   title={t("sign_in")}
@@ -307,32 +299,6 @@ const Navbar = () => {
                     setMobileMenuOpen(false);
                   }}
                 />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 pt-2">
-                <Link
-                  to="/dashboard"
-                  className="px-4 py-2 text-accent hover:bg-gray-700 rounded-md"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t("dashboard")}
-                </Link>
-                <Link
-                  to="/profile"
-                  className="px-4 py-2 text-accent hover:bg-gray-700 rounded-md"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {t("profile")}
-                </Link>
-                <button
-                  onClick={() => {
-                    logout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="px-4 py-2 text-red-500 hover:bg-gray-700 rounded-md text-left"
-                >
-                  {t("logout")}
-                </button>
               </div>
             )}
           </div>
