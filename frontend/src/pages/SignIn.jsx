@@ -27,27 +27,36 @@ const SignIn = () => {
     if (token) navigate("/");
     // eslint-disable-next-line
   }, [token, navigate]);
-
   const onClickSignIn = async (e) => {
     e?.preventDefault();
     if (isSubmit) return;
     setIsSubmit(true);
     setMessage({ message: "", color: "" });
     
-    // Determine if input is email or username
-    const isEmail = form.usernameOrEmail.includes("@") && validateEmail(form.usernameOrEmail);
+    // Add email validation
+    const isEmail = validateEmail(form.usernameOrEmail);
     
-    // Log the input type for debugging
-    console.log("Login attempt with:", isEmail ? "Email" : "Username", form.usernameOrEmail);
-    
-    // Validate input
-    if (!form.usernameOrEmail) {
-      setMessage({ message: t("signin_error_empty_field", "Email or username is required"), color: "#DC2626" });
+    try {
+      const { data } = await apiService.post('/auth/login', {
+        email: form.usernameOrEmail,
+        password: form.password
+      });
+      
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        apiService.setToken(data.token);
+        setUserAndToken({ token: data.token, user: data.user });
+        navigate(data.user.role === 'manager' ? '/dashboard/admin' : '/dashboard/user');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setMessage({ 
+        message: error.response?.data?.message || t('signin_error_invalid'),
+        color: "#DC2626" 
+      });
+    } finally {
       setIsSubmit(false);
-      return;
     }
-    
-    // Username validation (if not an email)
     if (!isEmail) {
       if (form.usernameOrEmail.length < 3) {
         setMessage({ message: t("signin_error_invalid_username", "Username must be at least 3 characters"), color: "#DC2626" });

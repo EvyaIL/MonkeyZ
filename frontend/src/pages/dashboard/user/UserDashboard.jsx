@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from '../../../components/dashboard/DashboardLayout';
 import UserFavorites from '../../../components/dashboard/UserFavorites';
 import UserOrders from '../../../components/dashboard/UserOrders';
@@ -12,16 +12,15 @@ export default function UserDashboard() {  const { user } = useAuth();
   if (!user) {
     return <Navigate to="/sign-in" replace />;
   }
-  
-  return (
+    return (
     <DashboardLayout isAdmin={false}>
       <Routes>
-        <Route index element={<UserProfile />} />
+        <Route index element={<Navigate to="profile" replace />} />
         <Route path="profile" element={<UserProfile />} />
         <Route path="favorites" element={<UserFavorites />} />
         <Route path="orders" element={<UserOrders />} />
         <Route path="comments" element={<UserComments />} />
-        <Route path="*" element={<Navigate to="." replace />} />
+        <Route path="*" element={<Navigate to="profile" replace />} />
       </Routes>
     </DashboardLayout>
   );

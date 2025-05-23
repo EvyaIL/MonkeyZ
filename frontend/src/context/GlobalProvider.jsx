@@ -8,7 +8,8 @@ export const useGlobalProvider = () => useContext(GlobalContext);
 const GlobalProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [cartItems, setCartItems] = useState({});
   const [openCart, setOpenCart] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -44,12 +45,17 @@ const GlobalProvider = ({ children }) => {
     setToken(null);
     setUser(null);
   };
-
   const setUserAndToken = (data) => {
-    if (!data || !data.access_token) {
+    if (!data || (!data.token && !data.access_token)) {
       console.error('Invalid data passed to setUserAndToken:', data);
       return;
     }
+    
+    const token = data.token || data.access_token;
+    localStorage.setItem('token', token);
+    setToken(token);
+    setUser(data.user);
+    setIsAuthenticated(true);
     
     const { access_token, user } = data;
     localStorage.setItem("token", access_token);
@@ -258,6 +264,32 @@ const GlobalProvider = ({ children }) => {
     }
   }, []);
 
+  // Check auth status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (token) {
+        try {
+          const { data: userData } = await apiService.get('/auth/me');
+          setUser(userData);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+          setIsAuthenticated(false);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuth();
+  }, [token]);
+
   // eslint-disable-next-line no-unused-vars
   const value = {
     token,
@@ -266,6 +298,8 @@ const GlobalProvider = ({ children }) => {
     setUser,
     isLoading,
     setIsLoading,
+    isAuthenticated,
+    setIsAuthenticated,
     logout,
     setUserAndToken,
     addItemToCart,
@@ -285,12 +319,16 @@ const GlobalProvider = ({ children }) => {
   return (
     <GlobalContext.Provider
       value={{
-        token,
-        setToken,
         user,
-        setUser,
+        token,
         isLoading,
-        setIsLoading,
+        isAuthenticated,
+        isAdmin: user?.role === 'manager',
+        setUser,
+        setToken,
+        setUserAndToken,
+        logout,
+        setIsAuthenticated,
         cartItems,
         setCartItems,
         openCart,
@@ -301,9 +339,7 @@ const GlobalProvider = ({ children }) => {
         toggleTheme,
         notify,
         showError,
-        showSuccess,
-        setUserAndToken,
-        logout
+        showSuccess
       }}
     >
       {children}
