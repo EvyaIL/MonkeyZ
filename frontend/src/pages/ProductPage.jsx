@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import axios from "axios";
 import { apiService } from "../lib/apiService";
 import PrimaryButton from "../components/buttons/PrimaryButton";
 import PrimaryInput from "../components/inputs/PrimaryInput";
@@ -8,7 +7,6 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 import Spinner from "../components/Spinner";
-import { trackProductView } from "../lib/analytics";
 import { generateProductSchema, addStructuredData } from "../lib/seo-helper";
 
 const ProductPage = () => {
@@ -16,8 +14,6 @@ const ProductPage = () => {
   const { addItemToCart, notify } = useGlobalProvider();
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
-
-  const [mounted, setMounted] = useState(true);
 
   const [product, setProduct] = useState({
     id: null,
@@ -66,11 +62,10 @@ const ProductPage = () => {
 
   // Fetch related products
   const fetchRelatedProducts = useCallback(async (categoryOrName) => {
-    if (!categoryOrName || !mounted) return;
+    if (!categoryOrName) return;
     setLoadingRelated(true);
     try {
       const { data } = await apiService.get("/product/all");
-      if (!mounted) return;
       
       let filtered = [];
       if (data && Array.isArray(data) && data.length > 0) {
@@ -89,20 +84,15 @@ const ProductPage = () => {
         });
         filtered = [...filtered, ...fallbackFiltered];
       }
-      if (mounted) {
-        setRelatedProducts(filtered.slice(0, 4));
-      }
+      setRelatedProducts(filtered.slice(0, 4));
     } catch (err) {
-      if (!mounted) return;
       console.error("Error fetching related products:", err);
       const fallbackFiltered = getFallbackProducts().filter(p => p.id !== product.id).slice(0, 4);
       setRelatedProducts(fallbackFiltered);
     } finally {
-      if (mounted) {
-        setLoadingRelated(false);
-      }
+      setLoadingRelated(false);
     }
-  }, [product.id, product.category, product.name, lang, mounted]);
+  }, [product.id, product.category, product.name, lang]);
 
   // Fetch product data
   const fetchProduct = useCallback(async () => {
@@ -189,22 +179,18 @@ const ProductPage = () => {
         });
       }
     } finally {
-      if (mounted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [name, notify, t, mounted, fetchRelatedProducts, extractSearchTerm, lang]);
+  }, [name, notify, t, fetchRelatedProducts, extractSearchTerm, lang]);
 
   useEffect(() => {
-    if (name) {
-      fetchProduct();
-    }
+    fetchProduct();
     // Reset state when product changes
     return () => {
       setQuantity(1);
       setAddedToCart(false);
     };
-  }, [name]);
+  }, [fetchProduct]);
 
   // Add structured data when product data changes
   useEffect(() => {

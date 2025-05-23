@@ -4,7 +4,7 @@ import GlobalProvider from "./context/GlobalProvider";
 import Footer from "./components/Footer";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
-import { pageView, initAnalytics } from "./lib/analytics";
+import { initAnalytics } from "./lib/analytics";
 import ErrorBoundary from './components/ErrorBoundary';
 // Import ThemeToggle with require to troubleshoot potential import issues
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));

@@ -371,10 +371,12 @@ export const trackPurchase = (orderData) => {
   });
 };
 
-export default {
+const analytics = {
   pageView,
   trackEvent,
   trackProductView,
   trackAddToCart,
   trackPurchase
 };
+
+export default analytics;
