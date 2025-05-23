@@ -71,16 +71,20 @@ class ApiService {
       return (
         error.response.data?.error ||
         error.response.data?.message ||
-        `Error: ${error.response.status}`
+        `Server Error: ${error.response.status} - ${error.response.statusText}`
       );
     } else if (error.request) {
       // No response from server
-      console.error("No Response from Server:", error.request);
-      return "No response from the server.";
+      console.error("No Response from Server:", {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL
+      });
+      return `No response from server (${error.config?.baseURL || 'Unknown URL'}). Please check your connection and try again.`;
     } else {
       // Error setting up the request
       console.error("Request Setup Error:", error.message);
-      return `Error: ${error.message}`;
+      return `Error setting up request: ${error.message}`;
     }
   }
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "../lib/apiService";
 import { trackAddToCart, trackEvent } from "../lib/analytics";
+import { Role } from "../models/user.ts";// Add this line
 
 const GlobalContext = createContext();
 export const useGlobalProvider = () => useContext(GlobalContext);
@@ -56,11 +57,10 @@ const GlobalProvider = ({ children }) => {
     setToken(access_token);
     setUser(user);
     
-    if (user) {
-      const userData = {
+    if (user) {      const userData = {
         id: user.id,
         created_at: user.created_at,
-        role: user.role,
+        role: user.role === 0 ? Role.manager : Role.default, // Ensure role is converted to enum
         language: user.language || localStorage.getItem('i18nextLng')
       };
       localStorage.setItem('user_data', JSON.stringify(userData));
@@ -117,15 +117,18 @@ const GlobalProvider = ({ children }) => {
   }, [notification]);
 
   const checkToken = async (token) => {
-    if (token) {
-      apiService.setToken(token); // Ensure apiService has the token
-      const { data, error } = await apiService.get("/user/me");
-      if (!error && data && data.user) { // Check if data.user is present
-        setUser(data.user); // Set user from LoginResponse
+    if (token) {      apiService.setToken(token); // Ensure apiService has the token
+      const response = await apiService.get("/user/me");
+      if (!response.error && response.data && response.data.user) {
+        // Convert role to enum
+        setUser({
+          ...response.data.user,
+          role: response.data.user.role === 0 ? Role.manager : Role.default
+        });
         return;
       }
-      if (error) { // It's good practice to show error if the call fails
-        showError(error.message || "Failed to fetch user details.");
+      if (response.error) { // It's good practice to show error if the call fails
+        showError(response.error.message || "Failed to fetch user details.");
       }
     }
     // If no token, or if /user/me failed and didn't set user, then logout.
