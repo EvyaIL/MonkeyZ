@@ -20,7 +20,11 @@ import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import UserDashboard from "./pages/UserDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminOverview from "./pages/dashboard/admin/AdminOverview";
+import AdminProducts from "./pages/dashboard/admin/AdminProducts";
+import AdminOrders from "./pages/dashboard/admin/AdminOrders";
+import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
+import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -50,12 +54,18 @@ const AppRouter = () => {
         {/* Protected user routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-
-        {/* Protected admin routes */}
-        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/products" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/coupons" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />        {/* Protected admin routes */}        <Route path="/dashboard/admin/*" element={
+          <ProtectedRoute requireAdmin={true}>
+            <DashboardLayout isAdmin={true}>              <Routes>
+                <Route path="" element={<AdminOverview />} />
+                <Route path="products" element={<AdminProducts />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="coupons" element={<AdminCoupons />} />
+                <Route path="*" element={<AdminOverview />} />
+              </Routes>
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
 
         {/* Other routes */}
         <Route path="/products" element={<AllProducts />} />

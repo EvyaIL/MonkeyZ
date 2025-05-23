@@ -182,15 +182,30 @@ const ProductPage = () => {
       setLoading(false);
     }
   }, [name, notify, t, fetchRelatedProducts, extractSearchTerm, lang]);
-
   useEffect(() => {
-    fetchProduct();
-    // Reset state when product changes
+    const loadProductData = async () => {
+      await fetchProduct();
+      // Keep products data fresh by fetching in background
+      const { data } = await apiService.get("/product/all");
+      if (data && data.length > 0) {
+        // silently update any latest changes
+        const currentProduct = data.find(p => {
+          if (typeof p.name === "object") {
+            return (p.name.en === name || p.name.he === name);
+          }
+          return p.name === name;
+        });
+        if (currentProduct) {
+          setProduct(currentProduct);
+        }
+      }
+    };
+    loadProductData();
     return () => {
       setQuantity(1);
       setAddedToCart(false);
     };
-  }, [fetchProduct]);
+  }, [fetchProduct, name]);
 
   // Add structured data when product data changes
   useEffect(() => {

@@ -145,22 +145,43 @@ class ProductsController(ControllerInterface):
         """
         return await self.product_collection.get_recent_products(limit)
 
-    # Admin product management methods
-    async def get_admin_products(self) -> List[Product]:
-        """Get all admin products."""
-        return await self.admin_product_collection.get_all_products()
+    async def sync_products(self):
+        """
+        Synchronize products between admin_product_collection and product_collection.
+        """
+        admin_products = await self.admin_product_collection.get_all_products()
+        for product in admin_products:
+            # Convert admin product to main product format if needed
+            try:
+                await self.product_collection.update_product(product.id, product.dict())
+            except ValueError:  # Product doesn't exist in main collection
+                await self.product_collection.create_product(product.dict())
+                
+    async def get_admin_products(self) -> list[Product]:
+        """Get all admin products and sync with main collection."""
+        products = await self.admin_product_collection.get_all_products()
+        await self.sync_products()  # Keep collections in sync
+        return products
 
     async def create_admin_product(self, product_data: dict) -> Product:
-        """Create a new admin product."""
-        return await self.admin_product_collection.create_product(product_data)
+        """Create a new admin product and sync it to main collection."""
+        product = await self.admin_product_collection.create_product(product_data)
+        await self.sync_products()
+        return product
 
     async def update_admin_product(self, product_id: str, product_data: dict) -> Product:
-        """Update an admin product."""
-        return await self.admin_product_collection.update_product(product_id, product_data)
+        """Update an admin product and sync changes to main collection."""
+        product = await self.admin_product_collection.update_product(product_id, product_data)
+        await self.sync_products()
+        return product
 
     async def delete_admin_product(self, product_id: str) -> None:
-        """Delete an admin product."""
+        """Delete an admin product and its corresponding main product."""
         await self.admin_product_collection.delete_product(product_id)
+        try:
+            await self.product_collection.delete_product(product_id)
+        except ValueError:
+            pass  # Product may not exist in main collection
 
     # Coupon management methods
     async def get_all_coupons(self) -> List[Product]:

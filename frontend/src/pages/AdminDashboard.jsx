@@ -43,9 +43,13 @@ const AdminDashboard = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');  useEffect(() => {
     const loadAdminData = async () => {
       try {
+        setLoadingProducts(true);
         // Load all products for admin
-        const { data: productsResponse } = await apiService.get('/admin/products');
-        if (productsResponse) setProducts(productsResponse);
+        const [adminProducts, publicProducts] = await Promise.all([
+          apiService.get('/admin/products'),
+          apiService.get('/product/all')
+        ]);
+        if (adminProducts.data) setProducts(adminProducts.data);
 
         // Load all coupons
         const { data: couponsResponse } = await apiService.get('/admin/coupons');
@@ -55,58 +59,110 @@ const AdminDashboard = () => {
         const { data: ordersResponse } = await apiService.get('/admin/orders');
         if (ordersResponse) setOrders(ordersResponse);
 
-        // Load analytics data
-        const { data: analyticsResponse } = await apiService.get('/admin/analytics');
-        if (analyticsResponse) {
-          setAnalytics({
-            totalSales: analyticsResponse.totalSales || 0,
-            totalOrders: analyticsResponse.totalOrders || 0,
-            averageOrderValue: analyticsResponse.averageOrderValue || 0,
-            dailySales: analyticsResponse.dailySales || [],
-          });
-        }
+        // Load analytics data        const { data: analyticsResponse } = await apiService.get('/admin/analytics');
+        setAnalytics({
+          totalSales: analyticsResponse?.totalSales || 0,
+          totalOrders: analyticsResponse?.totalOrders || 0,
+          averageOrderValue: analyticsResponse?.averageOrderValue || 0,
+          dailySales: analyticsResponse?.dailySales || [],
+        });
 
         // Load all orders
         const { data: orderData } = await apiService.get('/admin/orders');
-        if (orderData) setOrders(orderData);
-
-        // Load analytics data
+        if (orderData) setOrders(orderData);        // Load analytics data
         const { data: analyticsData } = await apiService.get('/admin/analytics');
-        if (analyticsData) {
-          setAnalytics({
-            totalSales: analyticsData.totalSales || 0,
-            totalOrders: analyticsData.totalOrders || 0,
-            averageOrderValue: analyticsData.averageOrderValue || 0,
-            dailySales: analyticsData.dailySales || [],
-          });
-        }
+        setAnalytics({
+          totalSales: analyticsData?.totalSales || 0,
+          totalOrders: analyticsData?.totalOrders || 0,
+          averageOrderValue: analyticsData?.averageOrderValue || 0,
+          dailySales: analyticsData?.dailySales || [],
+        });
       } catch (error) {
         console.error('Error loading admin data:', error);
       }
     };
 
     loadAdminData();
-  }, []);
+  }, []);  const [loadingProducts, setLoadingProducts] = useState(false);  const [productError, setProductError] = useState("");
+  const { notify } = useGlobalProvider();
+  
+  const refreshProducts = async () => {
+    setLoadingProducts(true);
+    setProductError("");
+    try {
+      // Refresh both admin and public products lists
+      const [adminProducts, publicProducts] = await Promise.all([
+        apiService.get('/admin/products'),
+        apiService.get('/product/all')
+      ]);
+      
+      if (adminProducts.data) setProducts(adminProducts.data);
+    } catch (err) {
+      console.error('Error refreshing products:', err);
+      setProductError(t('admin.loadError'));
+    }
+    setLoadingProducts(false);
+  };
 
   const handleProductSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
     
-    try {
-      if (editingProduct) {
-        await apiService.put(`/admin/products/${editingProduct.id}`, formData);
-      } else {
-        await apiService.post('/admin/products', formData);
+    // Convert form data to a proper product object
+    const productData = {
+      name: {
+        en: formData.get('name_en'),
+        he: formData.get('name_he')
+      },
+      description: {
+        en: formData.get('description_en'),
+        he: formData.get('description_he')
+      },
+      price: parseFloat(formData.get('price')),
+      category: formData.get('category'),
+      image: formData.get('imageUrl') || formData.get('image'),
+      isNew: formData.get('isNew') === 'on',
+      isBestSeller: formData.get('isBestSeller') === 'on',
+      discountPercentage: parseInt(formData.get('discountPercentage') || '0'),
+      tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : [],
+      inStock: formData.get('inStock') !== 'off',
+      active: true
+    };      try {
+        setLoadingProducts(true);
+        setProductError("");
+
+        if (!productData.name.en && !productData.name.he) {
+          setProductError(t('admin.nameRequired'));
+          return;
+        }
+
+        let result;
+        if (editingProduct?.id) {
+          result = await apiService.put(`/admin/products/${editingProduct.id}`, productData);
+          notify({ 
+            message: t('admin.productUpdated'),
+            type: 'success'
+          });
+        } else {
+          result = await apiService.post('/admin/products', productData);
+          notify({
+            message: t('admin.productCreated'),
+            type: 'success'
+          });
+        }
+        
+        await refreshProducts();
+        setEditingProduct(null);
+      } catch (error) {
+        console.error('Error saving product:', error);
+        setProductError(t('admin.saveError'));
+        notify({
+          message: t('admin.saveFailed'),
+          type: 'error'
+        });
+      } finally {
+        setLoadingProducts(false);
       }
-      
-      // Refresh products list
-      const { data } = await apiService.get('/admin/products');
-      if (data) setProducts(data);
-      
-      setEditingProduct(null);
-    } catch (error) {
-      console.error('Error saving product:', error);
-    }
   };
 
   const handleCouponSubmit = async (event) => {
@@ -144,13 +200,12 @@ const AdminDashboard = () => {
   const filteredOrders = orders.filter(order => 
     orderStatusFilter === 'all' ? true : order.status === orderStatusFilter
   );
-
   const chartData = {
-    labels: analytics.dailySales.map(sale => sale.date),
+    labels: analytics.dailySales?.map(sale => sale.date) || [],
     datasets: [
       {
         label: t('admin.dailySales'),
-        data: analytics.dailySales.map(sale => sale.amount),
+        data: analytics.dailySales?.map(sale => sale.amount) || [],
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1
       }
@@ -369,22 +424,90 @@ const AdminDashboard = () => {
                 >
                   {t('admin.addNewProduct')}
                 </button>
-              </div>
+              </div>              {editingProduct && (
+                <form onSubmit={handleProductSubmit} className="mb-8 space-y-4 bg-white dark:bg-gray-700 p-6 rounded-lg shadow">
+                  <h3 className="text-lg font-semibold mb-4">
+                    {editingProduct.id ? t('admin.editProduct') : t('admin.addNewProduct')}
+                  </h3>
 
-              {editingProduct && (
-                <form onSubmit={handleProductSubmit} className="mb-8 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">
-                        {t('admin.productName')}
+                        {t('admin.productNameEn')}
                       </label>
                       <input
                         type="text"
-                        name="name"
-                        defaultValue={editingProduct.name}
+                        name="name_en"
+                        defaultValue={editingProduct.name?.en || editingProduct.name}
                         className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
                         required
+                        dir="ltr"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {t('admin.productNameHe')}
+                      </label>
+                      <input
+                        type="text"
+                        name="name_he"
+                        defaultValue={editingProduct.name?.he}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        required
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {t('admin.descriptionEn')}
+                      </label>
+                      <textarea
+                        name="description_en"
+                        defaultValue={editingProduct.description?.en || editingProduct.description}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        rows="4"
+                        required
+                        dir="ltr"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {t('admin.descriptionHe')}
+                      </label>
+                      <textarea
+                        name="description_he"
+                        defaultValue={editingProduct.description?.he}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        rows="4"
+                        required
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {t('admin.category')}
+                      </label>
+                      <select
+                        name="category"
+                        defaultValue={editingProduct.category}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        required
+                      >
+                        <option value="">{t('admin.selectCategory')}</option>
+                        <option value="Microsoft">Microsoft</option>
+                        <option value="VPN">VPN</option>
+                        <option value="Security">Security</option>
+                        <option value="Office">Office</option>
+                        <option value="Cloud">Cloud</option>
+                        <option value="Utility">Utility</option>
+                        <option value="Multimedia">Multimedia</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">
@@ -395,82 +518,85 @@ const AdminDashboard = () => {
                         name="price"
                         defaultValue={editingProduct.price}
                         step="0.01"
+                        min="0"
                         className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
                         required
                       />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      {t('admin.description')}
-                    </label>
-                    <textarea
-                      name="description"
-                      defaultValue={editingProduct.description}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                      rows="3"
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">
-                        {t('admin.discount')}
+                        {t('admin.imageUrl')}
+                      </label>
+                      <input
+                        type="text"
+                        name="imageUrl"
+                        defaultValue={editingProduct.image}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        placeholder="https://example.com/image.jpg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {t('admin.discountPercentage')}
                       </label>
                       <input
                         type="number"
                         name="discountPercentage"
-                        defaultValue={editingProduct.discountPercentage}
+                        defaultValue={editingProduct.discountPercentage || 0}
                         min="0"
                         max="100"
                         className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        {t('admin.tags')}
-                      </label>
-                      <input
-                        type="text"
-                        name="tags"
-                        defaultValue={editingProduct.tags?.join(', ')}
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                        placeholder="tag1, tag2, tag3"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        {t('admin.image')}
-                      </label>
-                      <input
-                        type="file"
-                        name="image"
-                        accept="image/*"
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                      />
-                    </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {t('admin.tags')}
+                    </label>
+                    <input
+                      type="text"
+                      name="tags"
+                      defaultValue={editingProduct.tags?.join(', ')}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                      placeholder={t('admin.tagsPlaceholder')}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-4 py-4">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="inStock"
+                        defaultChecked={editingProduct.inStock !== false}
+                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+                      />
+                      <span>{t('admin.inStock')}</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         name="isNew"
                         defaultChecked={editingProduct.isNew}
-                        className="mr-2"
+                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
                       />
-                      {t('admin.markAsNew')}
+                      <span>{t('admin.isNew')}</span>
                     </label>
-                    <label className="flex items-center">
+                    <label className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         name="isBestSeller"
                         defaultChecked={editingProduct.isBestSeller}
-                        className="mr-2"
+                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
                       />
-                      {t('admin.markAsBestSeller')}
+                      <span>{t('admin.isBestSeller')}</span>
                     </label>
                   </div>
-                  <div className="flex justify-end space-x-4">
+
+                  <div className="flex justify-end space-x-4 pt-4 border-t">
                     <button
                       type="button"
                       onClick={() => setEditingProduct(null)}
@@ -495,22 +621,58 @@ const AdminDashboard = () => {
                     className="bg-white dark:bg-gray-700 rounded-lg shadow p-4 flex items-center justify-between"
                   >
                     <div className="flex items-center space-x-4">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
+                      <div className="relative w-16 h-16">
+                        <img
+                          src={product.image || 'https://via.placeholder.com/100?text=Product'}
+                          alt=""
+                          className="w-16 h-16 object-cover rounded"
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/100?text=Product';
+                          }}
+                        />
+                        {product.inStock === false && (
+                          <div className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1 rounded-bl">
+                            {t('admin.outOfStock')}
+                          </div>
+                        )}
+                      </div>
                       <div>
-                        <h3 className="font-medium">{product.name}</h3>
+                        <div className="font-medium">
+                          <span dir="ltr" className="inline-block mr-2">
+                            {typeof product.name === 'object' ? product.name.en : product.name}
+                          </span>
+                          <span dir="rtl" className="inline-block">
+                            {typeof product.name === 'object' ? product.name.he : ''}
+                          </span>
+                        </div>
                         <p className="text-sm text-gray-500 dark:text-gray-300">
                           ₪{product.price}
+                          {product.discountPercentage > 0 && (
+                            <span className="ml-2 text-green-500">
+                              -{product.discountPercentage}%
+                            </span>
+                          )}
                         </p>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {product.category}
+                          {product.isNew && (
+                            <span className="ml-2 text-accent">
+                              {t('admin.new')}
+                            </span>
+                          )}
+                          {product.isBestSeller && (
+                            <span className="ml-2 text-yellow-500">
+                              {t('admin.bestSeller')}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setEditingProduct(product)}
                         className="p-2 text-accent hover:text-accent/80"
+                        title={t('admin.edit')}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -525,6 +687,7 @@ const AdminDashboard = () => {
                           }
                         }}
                         className="p-2 text-red-500 hover:text-red-600"
+                        title={t('admin.delete')}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />

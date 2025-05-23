@@ -51,12 +51,11 @@ const AllProducts = () => {
     
     navigate({ search: params.toString() }, { replace: true });
   }, [navigate, searchQuery, selectedCategories, filterPriceRange, sortOrder]);
-
   useEffect(() => {
     // Set initial price range to 0-200 and fetch products
     setPriceRange({ min: 0, max: 200 });
     fetchAllProducts();
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update URL when filters change (debounced)
@@ -68,7 +67,7 @@ const AllProducts = () => {
     return () => clearTimeout(timeoutId);
   }, [filterPriceRange, searchQuery, selectedCategories, sortOrder, updateUrlParams]);
 
-  // Filter products when dependencies change
+  // Filter products when dependencies change 
   useEffect(() => {
     filterProducts();
     // eslint-disable-next-line
