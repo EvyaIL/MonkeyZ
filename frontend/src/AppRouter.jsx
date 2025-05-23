@@ -19,8 +19,8 @@ import Contact from "./pages/Contact";
 import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
-import UserDashboard from "./pages/dashboard/user/UserDashboard";
-import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
+import UserDashboard from "./pages/UserDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -45,23 +45,17 @@ const AppRouter = () => {
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />        {/* Protected user routes */}
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+
+        {/* Protected user routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        
-        {/* User Dashboard Routes */}
-        <Route path="/dashboard/user" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/user/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/dashboard/user/favorites" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/user/orders" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/user/comments" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
 
         {/* Protected admin routes */}
-        <Route path="/dashboard/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/admin/products" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/admin/stock" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/admin/coupons" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/dashboard/admin/orders" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/products" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/coupons" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
 
         {/* Other routes */}
         <Route path="/products" element={<AllProducts />} />

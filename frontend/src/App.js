@@ -1,35 +1,11 @@
 import React, { useEffect } from "react";
+import AppRouter from "./AppRouter";
 import GlobalProvider from "./context/GlobalProvider";
 import Footer from "./components/Footer";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
-import { initAnalytics, pageView } from "./lib/analytics";
+import { initAnalytics } from "./lib/analytics";
 import ErrorBoundary from './components/ErrorBoundary';
-import { Routes, Route, useLocation } from "react-router-dom";
-import Home from "./pages/Home";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
-import Navbar from "./components/Navbar";
-import SignUp from "./pages/SignUp";
-import SignIn from "./pages/SignIn";
-import AllProducts from "./pages/AllProducts";
-import ProductPage from "./pages/ProductPage";
-import Checkout from "./pages/Checkout";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import PaymentFailed from "./pages/PaymentFailed";
-import AnalyticsTest from "./pages/AnalyticsTest";
-import FAQ from "./pages/FAQ";
-import AboutUs from "./pages/AboutUs";
-import Contact from "./pages/Contact";
-import ResetPassword from "./pages/ResetPassword";
-import BlogPage from "./pages/BlogPage";
-import BlogPostPage from "./pages/BlogPostPage";
-import UserDashboard from "./pages/dashboard/user/UserDashboard";
-import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-
 // Import ThemeToggle with require to troubleshoot potential import issues
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
@@ -37,7 +13,6 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const AppContent = () => {
   const { i18n } = useTranslation();
-  const location = useLocation();
   
   // Initialize analytics service
   useEffect(() => {
@@ -52,13 +27,6 @@ const AppContent = () => {
       localStorage.setItem('first_visit', Date.now().toString());
     }
   }, []);
-
-  // Track page views when the route changes
-  useEffect(() => {
-    const path = location.pathname;
-    const title = document.title || `MonkeyZ - ${path.slice(1) || 'Home'}`;
-    pageView(path, title);
-  }, [location]);
   
   // Update document language and direction based on i18n
   useEffect(() => {
@@ -68,60 +36,10 @@ const AppContent = () => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
   }, [i18n.language]);
-
-  return (
+    return (
     <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white flex flex-col">
       <div className="flex-1">
-        <Navbar />
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/sign-in" element={<SignIn />} />
-          <Route path="/sign-up" element={<SignUp />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms-of-service" element={<TermsOfService />} />
-          
-          {/* Protected user routes */}
-          <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-          
-          {/* User Dashboard Routes */}
-          <Route path="/dashboard/user/*" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/user/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/dashboard/user/favorites" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/user/orders" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/user/comments" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-
-          {/* Protected admin routes */}
-          <Route path="/dashboard/admin/*" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/admin/products" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/admin/stock" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/admin/coupons" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/dashboard/admin/orders" element={<ProtectedRoute requireAdmin={true}><AdminDashboard /></ProtectedRoute>} />
-
-          {/* Other routes */}
-          <Route path="/products" element={<AllProducts />} />
-          <Route path="/product/:name" element={<ProductPage />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="/contact" element={<Contact />} />
-
-          {/* Blog routes */}
-          <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:slug" element={<BlogPostPage />} />
-
-          {/* Analytics test (for development) */}
-          <Route path="/analytics-test" element={<AnalyticsTest />} />
-
-          {/* Payment routes */}
-          <Route path="/success" element={<PaymentSuccess />} />
-          <Route path="/fail" element={<PaymentFailed />} />
-
-          {/* 404 Not Found */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppRouter />
       </div>
       <Footer />
     </div>
@@ -138,9 +56,7 @@ const App = () => {
         <p className="mt-4 text-sm text-gray-500">Please check your environment variables or .env file.</p>
       </div>
     );
-  }
-
-  return (
+  }  return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <GlobalProvider>
         <ErrorBoundary>
