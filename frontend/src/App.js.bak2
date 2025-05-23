@@ -29,6 +29,26 @@ import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import Navbar from "./components/Navbar";
+import SignUp from "./pages/SignUp";
+import SignIn from "./pages/SignIn";
+import AllProducts from "./pages/AllProducts";
+import ProductPage from "./pages/ProductPage";
+import Checkout from "./pages/Checkout";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentFailed from "./pages/PaymentFailed";
+import AnalyticsTest from "./pages/AnalyticsTest";
+import FAQ from "./pages/FAQ";
+import AboutUs from "./pages/AboutUs";
+import Contact from "./pages/Contact";
+import ResetPassword from "./pages/ResetPassword";
+import BlogPage from "./pages/BlogPage";
+import BlogPostPage from "./pages/BlogPostPage";
+import UserDashboard from "./pages/dashboard/user/UserDashboard";
+import AdminDashboard from "./pages/dashboard/admin/AdminDashboard";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 // Import ThemeToggle with require to troubleshoot potential import issues
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));

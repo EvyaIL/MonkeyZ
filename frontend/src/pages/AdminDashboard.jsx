@@ -93,19 +93,72 @@ const AdminDashboard = () => {
     const formData = new FormData(event.target);
     
     try {
-      if (editingProduct) {
-        await apiService.put(`/admin/products/${editingProduct.id}`, formData);
-      } else {
-        await apiService.post('/admin/products', formData);
+      const productData = {
+        name: {
+          en: formData.get('nameEn'),
+          he: formData.get('nameHe')
+        },
+        description: {
+          en: formData.get('descriptionEn'),
+          he: formData.get('descriptionHe')
+        },
+        price: parseFloat(formData.get('price')),
+        category: formData.get('category'),
+        discountPercentage: parseInt(formData.get('discountPercentage')) || 0,
+        tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : [],
+        isNew: formData.get('isNew') === 'on',
+        isBestSeller: formData.get('isBestSeller') === 'on'
+      };
+
+      // Handle image upload
+      const imageFile = event.target.image.files[0];
+      if (imageFile) {
+        const imageFormData = new FormData();
+        imageFormData.append('image', imageFile);
+        
+        // First upload the image
+        const { data: uploadData, error: uploadError } = await apiService.post(
+          '/admin/upload-image',
+          imageFormData,
+          'multipart/form-data'
+        );
+
+        if (uploadError) {
+          notify({ type: 'error', message: t('admin.imageUploadError') });
+          return;
+        }
+
+        productData.image = uploadData.imageUrl;
       }
-      
+
+      if (editingProduct?.id) {
+        // Update existing product
+        const { error } = await apiService.put(`/admin/products/${editingProduct.id}`, productData);
+        if (error) {
+          notify({ type: 'error', message: t('admin.updateError') });
+          return;
+        }
+        notify({ type: 'success', message: t('admin.productUpdated') });
+      } else {
+        // Create new product
+        const { error } = await apiService.post('/admin/products', productData);
+        if (error) {
+          notify({ type: 'error', message: t('admin.createError') });
+          return;
+        }
+        notify({ type: 'success', message: t('admin.productCreated') });
+      }
+
       // Refresh products list
       const { data } = await apiService.get('/admin/products');
       if (data) setProducts(data);
-      
       setEditingProduct(null);
     } catch (error) {
       console.error('Error saving product:', error);
+      notify({
+        type: 'error',
+        message: editingProduct?.id ? t('admin.updateError') : t('admin.createError')
+      });
     }
   };
 
@@ -373,19 +426,35 @@ const AdminDashboard = () => {
 
               {editingProduct && (
                 <form onSubmit={handleProductSubmit} className="mb-8 space-y-4">
+                  {/* English Product Name */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {t('admin.productNameEn')}
+                    </label>
+                    <input
+                      type="text"
+                      name="nameEn"
+                      defaultValue={editingProduct.name?.en || editingProduct.name}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
+                      required
+                    />
+                  </div>
+
+                  {/* Hebrew Product Name */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {t('admin.productNameHe')}
+                    </label>
+                    <input
+                      type="text"
+                      name="nameHe"
+                      defaultValue={editingProduct.name?.he}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
+                      required
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        {t('admin.productName')}
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        defaultValue={editingProduct.name}
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                        required
-                      />
-                    </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         {t('admin.price')}
@@ -395,24 +464,62 @@ const AdminDashboard = () => {
                         name="price"
                         defaultValue={editingProduct.price}
                         step="0.01"
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        min="0"
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
                         required
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {t('admin.category')}
+                      </label>
+                      <select
+                        name="category"
+                        defaultValue={editingProduct.category}
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
+                        required
+                      >
+                        <option value="">{t('admin.selectCategory')}</option>
+                        <option value="Utility">Utility</option>
+                        <option value="Security">Security</option>
+                        <option value="Office">Office</option>
+                        <option value="Cloud">Cloud</option>
+                        <option value="Multimedia">Multimedia</option>
+                        <option value="Microsoft">Microsoft</option>
+                        <option value="VPN">VPN</option>
+                      </select>
+                    </div>
                   </div>
+
+                  {/* English Description */}
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      {t('admin.description')}
+                      {t('admin.descriptionEn')}
                     </label>
                     <textarea
-                      name="description"
-                      defaultValue={editingProduct.description}
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                      name="descriptionEn"
+                      defaultValue={editingProduct.description?.en || editingProduct.description}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
                       rows="3"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                  {/* Hebrew Description */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {t('admin.descriptionHe')}
+                    </label>
+                    <textarea
+                      name="descriptionHe"
+                      defaultValue={editingProduct.description?.he}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
+                      rows="3"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         {t('admin.discount')}
@@ -423,7 +530,7 @@ const AdminDashboard = () => {
                         defaultValue={editingProduct.discountPercentage}
                         min="0"
                         max="100"
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
                       />
                     </div>
                     <div>
@@ -434,21 +541,45 @@ const AdminDashboard = () => {
                         type="text"
                         name="tags"
                         defaultValue={editingProduct.tags?.join(', ')}
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
                         placeholder="tag1, tag2, tag3"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        {t('admin.image')}
-                      </label>
-                      <input
-                        type="file"
-                        name="image"
-                        accept="image/*"
-                        className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      {t('admin.image')}
+                    </label>
+                    <input
+                      type="file"
+                      name="image"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          // Preview image
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            const preview = document.getElementById('imagePreview');
+                            if (preview) {
+                              preview.style.display = 'block';
+                              preview.src = e.target.result;
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent dark:bg-gray-700"
+                    />
+                    {(editingProduct.image || document.getElementById('imagePreview')?.src) && (
+                      <img
+                        id="imagePreview"
+                        src={editingProduct.image}
+                        alt="Product preview"
+                        className="mt-2 max-w-xs h-auto rounded-lg border border-gray-200"
                       />
-                    </div>
+                    )}
                   </div>
                   <div className="flex items-center space-x-4">
                     <label className="flex items-center">
@@ -497,11 +628,15 @@ const AdminDashboard = () => {
                     <div className="flex items-center space-x-4">
                       <img
                         src={product.image}
-                        alt={product.name}
+                        alt={product.name?.en || product.name}
                         className="w-16 h-16 object-cover rounded"
                       />
                       <div>
-                        <h3 className="font-medium">{product.name}</h3>
+                        <h3 className="font-medium">
+                          {typeof product.name === 'object' ? product.name.en : product.name}
+                          {' / '}
+                          {typeof product.name === 'object' ? product.name.he : ''}
+                        </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-300">
                           ₪{product.price}
                         </p>
@@ -511,6 +646,7 @@ const AdminDashboard = () => {
                       <button
                         onClick={() => setEditingProduct(product)}
                         className="p-2 text-accent hover:text-accent/80"
+                        aria-label={t('admin.editProduct')}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -525,6 +661,7 @@ const AdminDashboard = () => {
                           }
                         }}
                         className="p-2 text-red-500 hover:text-red-600"
+                        aria-label={t('admin.deleteProduct')}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
