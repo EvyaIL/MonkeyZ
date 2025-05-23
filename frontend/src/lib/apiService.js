@@ -5,41 +5,27 @@ import axios from "axios";
  */
 class ApiService {
   constructor() {
-    this.endpoint = process.env.REACT_APP_PATH_BACKEND || 'https://api.monkeyz.co.il';
-    this.token = localStorage.getItem('token');
+    this.endpoint = process.env.REACT_APP_PATH_BACKEND;
+    this.token = null;
 
     this.httpClient = axios.create({
       baseURL: this.endpoint,
       headers: {
         "Content-Type": "application/json",
       },
-      withCredentials: true, // Enable sending cookies
     });
 
     // Attach token to every request if available
     this.httpClient.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        if (this.token) {
+          config.headers.Authorization = `Bearer ${this.token}`;
+        } else {
+          delete config.headers.Authorization;
         }
         return config;
       },
-      (error) => Promise.reject(error)
-    );
-
-    // Handle response
-    this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        // Handle 401 errors by clearing auth state
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          this.token = null;
-          window.location.href = '/sign-in';
-        }
-        return Promise.reject(error);
-      }
+      (error) => Promise.reject(error),
     );
   }
 

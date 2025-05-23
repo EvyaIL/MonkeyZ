@@ -26,16 +26,9 @@ export default function AdminDashboard() {
   if (!user || !isAdmin) {
     return <Navigate to="/sign-in" replace />;
   }
+
   return (
     <DashboardLayout isAdmin={true}>
-      <Routes>
-        <Route index element={<AdminOverview />} />
-        <Route path="products" element={<ProductsTable />} />
-        <Route path="stock" element={<StockManager />} />
-        <Route path="orders" element={<OrderManager />} />
-        <Route path="coupons" element={<CouponManager />} />
-        <Route path="*" element={<Navigate to="." replace />} />
-      </Routes>
       <Routes>
         <Route index element={<AdminOverview />} />
         <Route path="products" element={<ProductsTable />} />
