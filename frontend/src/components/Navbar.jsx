@@ -1,11 +1,10 @@
-import { useTranslation } from 'react-i18next';
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { Link, useNavigate } from "react-router-dom";
 import PrimaryButton from "./buttons/PrimaryButton";
 import SecondaryButton from "./buttons/SecondaryButton";
 import { useState, useEffect, useRef } from "react";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { Role } from '../models/user.ts';
+import { useTranslation } from "react-i18next";
 
 const Navbar = () => {
   const {
@@ -166,7 +165,7 @@ const Navbar = () => {
                   >
                     {t("dashboard")}
                   </Link>
-                  {user.role === Role.manager && (
+                  {user.role === 0 && (
                     <Link 
                       to="/admin" 
                       className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"

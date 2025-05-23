@@ -10,7 +10,6 @@ from src.routers.products_router import product_router
 from src.routers.admin_router import admin_router
 from src.base_exception.base_exception import BaseException
 from src.routers.keys_router import key_router
-from src.routers.digital_codes_router import digital_codes_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
@@ -69,7 +68,6 @@ app.include_router(users_router)
 app.include_router(product_router)
 app.include_router(key_router)
 app.include_router(admin_router)  # Add admin router
-app.include_router(digital_codes_router)  # Add digital codes router
 
 @app.exception_handler(BaseException)
 async def custom_exception_handler(request: Request, exc: BaseException):
