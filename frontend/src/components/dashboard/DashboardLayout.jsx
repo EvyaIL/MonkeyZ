@@ -26,7 +26,7 @@ export default function DashboardLayout({ children, isAdmin }) {
   ];
 
   const adminMenuItems = [
-    { name: 'Overview', path: '/dashboard/admin', icon: ChartBarIcon },
+    { name: 'Dashboard', path: '/dashboard/admin', icon: ChartBarIcon },
     { name: 'Products', path: '/dashboard/admin/products', icon: CubeIcon },
     { name: 'Stock', path: '/dashboard/admin/stock', icon: ArchiveBoxIcon },
     { name: 'Coupons', path: '/dashboard/admin/coupons', icon: TicketIcon },
@@ -54,6 +54,7 @@ export default function DashboardLayout({ children, isAdmin }) {
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            title={isSidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
           >
             {isSidebarOpen ? (
               <ChevronDoubleLeftIcon className="w-6 h-6" />
@@ -65,7 +66,8 @@ export default function DashboardLayout({ children, isAdmin }) {
 
         <nav className="mt-6">
           {menuItems.map((item) => {
-            const Icon = item.icon;            const isActive = location.pathname.startsWith(item.path);
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
             
             return (
               <Link
@@ -74,12 +76,12 @@ export default function DashboardLayout({ children, isAdmin }) {
                 className={`
                   flex items-center px-6 py-4 text-gray-700 dark:text-gray-200
                   transition-colors duration-200
-                  ${isActive ? 'bg-accent/10 text-accent border-r-4 border-accent' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}
+                  ${isActive ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-r-4 border-blue-600' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}
                   ${!isSidebarOpen ? 'justify-center' : ''}
                 `}
                 title={!isSidebarOpen ? item.name : ''}
               >
-                <Icon className={`w-6 h-6 ${isActive ? 'text-accent' : ''}`} />
+                <Icon className={`w-6 h-6 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`} />
                 <span 
                   className={`
                     ml-4 font-medium
