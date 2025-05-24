@@ -28,14 +28,22 @@ class CouponBase(BaseModel):
     code: str
     discountPercent: float
     active: bool = True
-    expiresAt: datetime
+    expiresAt: Optional[datetime] = None
+    maxUses: Optional[int] = None
+    usageCount: int = 0
 
 class CouponCreate(CouponBase):
     pass
 
 class Coupon(CouponBase):
-    id: str
+    id: str  # Using str for compatibility with MongoDB ObjectId
     createdAt: datetime
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+        }
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -97,7 +105,7 @@ async def get_coupons(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    coupons = await user_controller.product_collection.get_all_coupons()
+    coupons = await user_controller.get_all_coupons()  # Using the controller method instead of accessing collection directly
     return coupons
 
 @admin_router.post("/coupons", response_model=Coupon)
@@ -107,7 +115,10 @@ async def create_coupon(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    new_coupon = await user_controller.product_collection.create_coupon(coupon)
+    # Convert ISOString to datetime if present
+    if coupon.expiresAt and isinstance(coupon.expiresAt, str):
+        coupon.expiresAt = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
+    new_coupon = await user_controller.create_coupon(coupon.dict())
     return new_coupon
 
 @admin_router.patch("/coupons/{coupon_id}", response_model=Coupon)
@@ -118,7 +129,7 @@ async def update_coupon(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    updated_coupon = await user_controller.product_collection.update_coupon(coupon_id, coupon)
+    updated_coupon = await user_controller.update_coupon(coupon_id, coupon.dict())  # Using the controller method
     return updated_coupon
 
 @admin_router.delete("/coupons/{coupon_id}")
@@ -128,7 +139,7 @@ async def delete_coupon(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    await user_controller.product_collection.delete_coupon(coupon_id)
+    await user_controller.delete_coupon(coupon_id)  # Using the controller method
     return {"message": "Coupon deleted successfully"}
 
 @admin_router.get("/analytics", response_model=AdminAnalytics)

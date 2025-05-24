@@ -30,7 +30,15 @@ export const useApi = () => {
       return handleApiError(error);
     }
   }, [handleApiError]);
-
+  const put = useCallback(async (endpoint, data) => {
+    try {
+      const response = await apiService.put(endpoint, data);
+      return { data: response.data };
+    } catch (error) {
+      return handleApiError(error);
+    }
+  }, [handleApiError]);
+  
   const patch = useCallback(async (endpoint, data) => {
     try {
       const response = await apiService.patch(endpoint, data);
@@ -48,10 +56,10 @@ export const useApi = () => {
       return handleApiError(error);
     }
   }, [handleApiError]);
-
   return {
     get,
     post,
+    put,
     patch,
     delete: del
   };

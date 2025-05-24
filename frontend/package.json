@@ -48,13 +48,12 @@
     "dotenv": "^16.4.5",
     "prettier": "^3.2.5",
     "react-app-rewired": "^2.2.1"
-  },
-  "scripts": {
+  },  "scripts": {
     "start": "set PORT=3000 && react-scripts start",
     "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "prod": "cross-env NODE_ENV=production node standalone-server.js",
     "start:debug": "cross-env NODE_DEBUG=http,fs node standalone-server.js"
-  },
+  },  "proxy": "http://localhost:8000",
   "engines": {
     "node": "20.x"
   },
@@ -63,8 +62,7 @@
       "react-app",
       "react-app/jest"
     ]
-  },
-  "browserslist": {
+  },  "browserslist": {
     "production": [
       ">0.2%",
       "not dead",

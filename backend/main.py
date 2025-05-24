@@ -17,15 +17,23 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 load_dotenv()
 
-# Get allowed origins from environment
-# Default to local + production URLs if not specified
-DEFAULT_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://monkeyz.co.il",
-    "https://monkeyz-frontend.ondigitalocean.app"
-]
-# Parse comma-separated list from env var if exists
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS)).split(",")
+# In development mode, allow all origins for easier testing
+IS_DEV = os.getenv("ENVIRONMENT", "development").lower() == "development"
+
+# Set CORS settings based on environment
+if IS_DEV:
+    # In development, use wildcard to allow all origins
+    ALLOWED_ORIGINS = ["*"]  # This will allow requests from any origin
+else:
+    # In production, use specific origins
+    DEFAULT_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8080", 
+        "https://monkeyz.co.il",
+        "https://monkeyz-frontend.ondigitalocean.app"
+    ]
+    # Parse comma-separated list from env var if exists
+    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS)).split(",")
 
 app = FastAPI(
     title="MonkeyZ API",
@@ -56,8 +64,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "Authorization"],
+    max_age=600  # Cache preflight requests for 10 minutes (600 seconds)
 )
 
 @app.get("/health", tags=["default"])
@@ -74,6 +84,12 @@ async def custom_exception_handler(request: Request, exc: BaseException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.msg, "path": exc.path},
+        headers={
+            "Access-Control-Allow-Origin": "*" if IS_DEV else request.headers.get("Origin", ""),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
     )
 
 @app.exception_handler(Exception)
@@ -81,6 +97,12 @@ async def generic_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"message": str(exc)},
+        headers={
+            "Access-Control-Allow-Origin": "*" if IS_DEV else request.headers.get("Origin", ""),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        }
     )
 
 @app.get("/", tags=["root"])
