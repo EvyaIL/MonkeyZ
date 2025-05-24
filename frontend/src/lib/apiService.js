@@ -25,9 +25,8 @@ class ApiService {  constructor() {
         "Content-Type": "application/json",
       },
       // Ensure cookies are sent with requests when needed
-      withCredentials: true,
-      // Add timeout to prevent hanging requests
-      timeout: 10000,
+      withCredentials: true,      // Add timeout to prevent hanging requests (30 seconds)
+      timeout: 30000,
     });
 
     // Attach token to every request if available

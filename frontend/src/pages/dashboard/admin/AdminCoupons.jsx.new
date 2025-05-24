@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Typography,
@@ -26,19 +26,14 @@ const AdminCoupons = () => {
     expiryDate: '',
     maxUses: '',
   });
-  // State for loading and error feedback
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   
   const api = useApi();
-  const fetchCoupons = useCallback(async () => {
-    // Prevent duplicate requests while loading
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    setError(null);
+  
+  const fetchCoupons = async () => {
     try {
       const response = await api.get('/admin/coupons');
       
@@ -73,15 +68,14 @@ const AdminCoupons = () => {
       console.error('Error fetching coupons:', error);
       setError(`Failed to load coupons: ${error.message || 'Unknown error'}`);
       setCoupons([]);
-    } finally {
-      setIsLoading(false);
     }
-  }, []);
+  };
 
+  // Load coupons when component mounts
   useEffect(() => {
     fetchCoupons();
-  }, [fetchCoupons]);
-  
+  }, []); 
+
   const handleSaveCoupon = async () => {
     if (!newCoupon.code) {
       setSubmitError('Coupon code is required');
@@ -94,10 +88,11 @@ const AdminCoupons = () => {
     
     setIsSubmitting(true);
     setSubmitError('');
-      try {      const backendCoupon = {
+    try {
+      const backendCoupon = {
         code: newCoupon.code.trim(),
         discountType: newCoupon.discountType,
-        discountPercent: parseFloat(newCoupon.discountValue),
+        discountPercent: parseFloat(newCoupon.discountValue), // Changed from discountValue to discountPercent
         active: true,
         expiresAt: newCoupon.expiryDate ? new Date(newCoupon.expiryDate).toISOString() : null,
         maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses, 10) : null
@@ -130,6 +125,7 @@ const AdminCoupons = () => {
       setIsSubmitting(false);
     }
   };
+
   const handleDeleteCoupon = async (id) => {
     if (!window.confirm('Are you sure you want to delete this coupon? This action cannot be undone.')) {
       return;

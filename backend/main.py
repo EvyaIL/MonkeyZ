@@ -4,6 +4,7 @@ import uvicorn
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
+import json
 
 from src.routers.users_router import users_router
 from src.routers.products_router import product_router
@@ -14,6 +15,8 @@ from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
 from motor.motor_asyncio import AsyncIOMotorClient
+from src.lib.mongo_json_encoder import MongoJSONEncoder
+from bson.objectid import ObjectId
 
 load_dotenv()
 

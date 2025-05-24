@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -20,14 +20,16 @@ import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
 import UserDashboard from "./pages/UserDashboard";
-import AdminOverview from "./pages/dashboard/admin/AdminOverview";
-import AdminProducts from "./pages/dashboard/admin/AdminProducts";
-import AdminOrders from "./pages/dashboard/admin/AdminOrders";
-import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+
+// Lazy load admin routes
+const AdminOverview = lazy(() => import("./pages/dashboard/admin/AdminOverview"));
+const AdminProducts = lazy(() => import("./pages/dashboard/admin/AdminProducts"));
+const AdminOrders = lazy(() => import("./pages/dashboard/admin/AdminOrders")); 
+const AdminCoupons = lazy(() => import("./pages/dashboard/admin/AdminCoupons"));
 
 const AppRouter = () => {
   const location = useLocation();
@@ -56,13 +58,20 @@ const AppRouter = () => {
         <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />        {/* Protected admin routes */}        <Route path="/dashboard/admin/*" element={
           <ProtectedRoute requireAdmin={true}>
-            <DashboardLayout isAdmin={true}>              <Routes>
-                <Route path="" element={<AdminOverview />} />
-                <Route path="products" element={<AdminProducts />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="coupons" element={<AdminCoupons />} />
-                <Route path="*" element={<AdminOverview />} />
-              </Routes>
+            <DashboardLayout isAdmin={true}>
+              <Suspense fallback={
+                <div className="flex justify-center items-center h-screen">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+                </div>
+              }>
+                <Routes>
+                  <Route path="" element={<AdminOverview />} />
+                  <Route path="products" element={<AdminProducts />} />
+                  <Route path="orders" element={<AdminOrders />} />
+                  <Route path="coupons" element={<AdminCoupons />} />
+                  <Route path="*" element={<AdminOverview />} />
+                </Routes>
+              </Suspense>
             </DashboardLayout>
           </ProtectedRoute>
         } />

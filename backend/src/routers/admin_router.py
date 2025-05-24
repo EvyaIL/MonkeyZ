@@ -4,9 +4,10 @@ from src.deps.deps import UserController, get_user_controller_dependency
 from src.lib.token_handler import get_current_user
 from src.models.token.token import TokenData
 from src.models.user.user_exception import UserException
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from datetime import datetime, timedelta
-from pydantic import BaseModel
+from pydantic import BaseModel, validator, field_serializer
+from bson.objectid import ObjectId
 from src.models.admin.analytics import AdminAnalytics, DailySale
 
 class ProductBase(BaseModel):
@@ -26,11 +27,15 @@ class Product(ProductBase):
 
 class CouponBase(BaseModel):
     code: str
-    discountPercent: float
+    discountPercent: float  # Frontend uses discountPercent but backend uses discountValue
     active: bool = True
     expiresAt: Optional[datetime] = None
     maxUses: Optional[int] = None
     usageCount: int = 0
+    
+    class Config:
+        # Allow for extra fields to handle discountValue/discountType conversion
+        extra = "allow"
 
 class CouponCreate(CouponBase):
     pass
@@ -39,11 +44,30 @@ class Coupon(CouponBase):
     id: str  # Using str for compatibility with MongoDB ObjectId
     createdAt: datetime
 
-    class Config:
-        populate_by_name = True
-        json_encoders = {
+    model_config = {
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
+            ObjectId: lambda v: str(v),
         }
+    }
+    
+    @field_serializer('id')
+    def serialize_id(self, id: Any) -> str:
+        if isinstance(id, ObjectId):
+            return str(id)
+        return id
+        
+    @validator('discountPercent', pre=True)
+    def set_discount_percent(cls, v, values):
+        # If discountPercent is not provided but discountValue and discountType are
+        if v is None and 'discountValue' in values:
+            if values.get('discountType') == 'percentage':
+                return values['discountValue']
+            # If it's a fixed discount, you might want to convert it somehow
+            # or handle it differently based on your app's needs
+        return v
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -106,7 +130,41 @@ async def get_coupons(
 ):
     await verify_admin(user_controller, current_user)
     coupons = await user_controller.get_all_coupons()  # Using the controller method instead of accessing collection directly
-    return coupons
+    
+    # Convert backend model to frontend format for each coupon
+    result = []
+    for coupon in coupons:
+        try:
+            # Handle both dict and document objects
+            coupon_dict = coupon.dict() if hasattr(coupon, 'dict') else (
+                coupon.model_dump() if hasattr(coupon, 'model_dump') else coupon
+            )
+            
+            # Ensure _id is properly converted to string id
+            if "_id" in coupon_dict and "id" not in coupon_dict:
+                coupon_dict["id"] = str(coupon_dict.pop("_id"))
+            elif "_id" in coupon_dict:
+                coupon_dict.pop("_id")
+                
+            # Convert ObjectId to string if it exists
+            if "id" in coupon_dict and isinstance(coupon_dict["id"], ObjectId):
+                coupon_dict["id"] = str(coupon_dict["id"])
+            
+            # Ensure discountPercent is set properly for frontend
+            if "discountValue" in coupon_dict and "discountType" in coupon_dict:
+                if coupon_dict["discountType"] == "percentage":
+                    coupon_dict["discountPercent"] = coupon_dict["discountValue"]
+                else:
+                    # If it's a fixed discount, you might want to handle differently
+                    coupon_dict["discountPercent"] = coupon_dict["discountValue"]
+            
+            result.append(coupon_dict)
+        except Exception as e:
+            # Log error but continue processing other coupons
+            print(f"Error processing coupon: {e}")
+            continue
+    
+    return result
 
 @admin_router.post("/coupons", response_model=Coupon)
 async def create_coupon(
@@ -115,11 +173,30 @@ async def create_coupon(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
+    
+    # Convert the model to a dict for processing
+    coupon_data = coupon.dict()
+    
+    # Convert discountPercent to discountValue for MongoDB model
+    if "discountPercent" in coupon_data:
+        coupon_data["discountValue"] = coupon_data.pop("discountPercent")
+        coupon_data["discountType"] = "percentage"
+    
     # Convert ISOString to datetime if present
     if coupon.expiresAt and isinstance(coupon.expiresAt, str):
-        coupon.expiresAt = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
-    new_coupon = await user_controller.create_coupon(coupon.dict())
-    return new_coupon
+        coupon_data["expiresAt"] = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
+    
+    new_coupon = await user_controller.create_coupon(coupon_data)
+    
+    # Convert to dict to ensure proper serialization
+    coupon_dict = new_coupon.dict() if hasattr(new_coupon, 'dict') else new_coupon
+    
+    # Ensure discountPercent is set properly for frontend
+    if "discountValue" in coupon_dict and "discountType" in coupon_dict:
+        if coupon_dict["discountType"] == "percentage":
+            coupon_dict["discountPercent"] = coupon_dict["discountValue"]
+    
+    return coupon_dict
 
 @admin_router.patch("/coupons/{coupon_id}", response_model=Coupon)
 async def update_coupon(
@@ -129,8 +206,26 @@ async def update_coupon(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    updated_coupon = await user_controller.update_coupon(coupon_id, coupon.dict())  # Using the controller method
-    return updated_coupon
+    
+    # Convert the model to a dict for processing
+    coupon_data = coupon.dict()
+    
+    # Convert discountPercent to discountValue for MongoDB model
+    if "discountPercent" in coupon_data:
+        coupon_data["discountValue"] = coupon_data.pop("discountPercent")
+        coupon_data["discountType"] = "percentage"
+        
+    updated_coupon = await user_controller.update_coupon(coupon_id, coupon_data)  # Using the controller method
+    
+    # Convert backend model to frontend format
+    coupon_dict = updated_coupon.dict() if hasattr(updated_coupon, 'dict') else updated_coupon
+    
+    # Ensure discountPercent is set properly for frontend
+    if "discountValue" in coupon_dict and "discountType" in coupon_dict:
+        if coupon_dict["discountType"] == "percentage":
+            coupon_dict["discountPercent"] = coupon_dict["discountValue"]
+    
+    return coupon_dict
 
 @admin_router.delete("/coupons/{coupon_id}")
 async def delete_coupon(

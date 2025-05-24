@@ -129,3 +129,10 @@ class UserController(ControllerInterface):
         if not self.product_collection:
             raise ValueError("Product collection not initialized")
         return await self.product_collection.delete_coupon(coupon_id)
+    
+    async def disconnect(self):
+        """Disconnect from collections."""
+        if self.user_collection:
+            await self.user_collection.disconnect()
+        if self.product_collection:
+            await self.product_collection.disconnect()

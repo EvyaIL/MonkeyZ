@@ -130,3 +130,23 @@ def is_valid_mongodb_uri(uri: str) -> bool:
     # - etc.
     
     return True
+
+class MongoDbBase:
+    """Base class for MongoDB collections."""
+    
+    _client = None
+    _db = None
+
+    async def initialize(self):
+        """Initialize the MongoDB connection."""
+        if not self._client:
+            self._client = AsyncIOMotorClient(os.getenv("MONGO_URL"))
+            self._db = self._client.get_database(os.getenv("MONGO_DB"))
+            await init_beanie(database=self._db, document_models=[Product, User, Key])
+
+    async def disconnect(self):
+        """Disconnect from MongoDB."""
+        if self._client:
+            await self._client.close()
+            self._client = None
+            self._db = None

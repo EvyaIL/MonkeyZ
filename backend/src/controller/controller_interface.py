@@ -1,12 +1,14 @@
 from abc import ABC
 
 class ControllerInterface(ABC):
-    """Abstract base class for all controllers, enforcing initialization and disconnection methods."""
+    """Base interface for all controllers."""
 
-    async def initialize(self):
-        """Initializes the controller."""
-        raise NotImplementedError
+    async def connect(self):
+        """Connect to database or other resources."""
+        pass
 
     async def disconnect(self):
-        """Disconnects the controller."""
-        raise NotImplementedError
+        """Disconnect from database or other resources."""
+        if hasattr(self, 'client') and self.client:
+            await self.client.close()
+        # Assuming MongoDB client stored in self.client
