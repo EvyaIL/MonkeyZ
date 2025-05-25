@@ -13,6 +13,23 @@ export interface KeyUsageByProduct {
   totalKeys: number;
   availableKeys: number;
   usedKeys: number;
+  keyFormat?: string;
+  keyManagement?: {
+    format: string;
+    minStockAlert?: number;
+    autoGenerateKeys?: boolean;
+    validationMethod?: 'format' | 'api' | 'custom';
+    allowReuse?: boolean;
+    keyExpiry?: boolean;
+    validityDays?: number;
+  };
+}
+
+export interface IKeyMetricsProps {
+  metrics: KeyMetrics;
+  onRefresh: () => void;
+  isLoading: boolean;
+  onManageKeys: (product: KeyUsageByProduct) => void;
 }
 
 export interface IKeyBulkManagementProps {

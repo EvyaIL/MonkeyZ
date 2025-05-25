@@ -114,4 +114,94 @@ class KeysCollection(MongoDb, metaclass=Singleton):
         for key in keys:
             await key.delete()
 
+    async def get_keys_by_product_id(self, product_id: str) -> list[Key]:
+        """
+        Retrieves all keys associated with a product ID.
+
+        Parameters
+        ----------
+        product_id : str
+            The ID of the product whose keys are to be retrieved.
+
+        Returns
+        -------
+        list[Key]
+            A list of keys for the specified product.
+        """
+        # Convert string ID to PydanticObjectId if needed
+        if isinstance(product_id, str):
+            try:
+                from beanie import PydanticObjectId
+                product_id = PydanticObjectId(product_id)
+            except Exception as e:
+                print(f"Error converting product_id to PydanticObjectId: {e}")
+                return []
+        
+        # Find keys where product field matches the product_id
+        keys = await Key.find(Key.product == product_id).to_list()
+        return keys
+
+    async def get_all_keys(self, batch_size: int = 1000) -> list[Key]:
+        """
+        Retrieves all keys efficiently using batching and cursor-based pagination.
+
+        Parameters
+        ----------
+        batch_size : int, optional
+            The number of keys to fetch in each batch, by default 1000
+
+        Returns
+        -------
+        list[Key]
+            A list of all keys in the database
+
+        Notes
+        -----
+        Uses cursor-based batching for memory efficiency when dealing with large datasets.
+        Includes basic fields projection to minimize network transfer.
+        """
+        try:
+            # Use the motor collection for more direct control
+            collection = Key.get_motor_collection()
+            
+            # Project only needed fields to reduce network transfer
+            projection = {
+                "product": 1,
+                "status": 1,
+                "issuedAt": 1,
+                "usedAt": 1,
+                "expiresAt": 1,
+                "value": 1
+            }
+            
+            # Use aggregation for better performance
+            pipeline = [
+                {"$project": projection},
+                # Add index-based sorting for consistent results
+                {"$sort": {"_id": 1}}
+            ]
+            
+            cursor = collection.aggregate(pipeline)
+            keys = []
+            
+            async for doc in cursor:
+                # Convert motor document to Beanie model
+                key = Key(**doc)
+                keys.append(key)
+                
+                # Process in batches to manage memory
+                if len(keys) >= batch_size:
+                    # Yield each key in the batch individually
+                    for k in keys:
+                        yield k
+                    keys = []
+            
+            # Yield any remaining keys
+            for k in keys:
+                yield k
+                
+        except Exception as e:
+            print(f"Error in get_all_keys: {e}")
+            # In case of error, yield nothing (the async generator will just end)
+
 

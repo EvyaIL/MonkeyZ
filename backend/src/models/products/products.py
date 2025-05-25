@@ -11,7 +11,7 @@ class Product(Document):
     best_seller:bool
     active:bool
     created_at:datetime
-    keys: dict[PydanticObjectId,PydanticObjectId]
+    keys: dict[PydanticObjectId,PydanticObjectId] = {}
 
 class ProductRequest(BaseModel):
     name: Indexed(str,unique=True) # type: ignore 

@@ -28,9 +28,10 @@ import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 // Import other admin components directly
-import AdminOrders from "./pages/dashboard/admin/AdminOrders";
+import AdminOrders from "./pages/dashboard/admin/AdminOrdersSimple";
 import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
 import AdminStock from "./pages/dashboard/admin/AdminStock";
+import AdminOrderCreate from "./pages/dashboard/admin/AdminOrderCreate";
 
 // Removed LazyComponentWrapper - now using direct imports with ErrorBoundary
 
@@ -87,12 +88,19 @@ function AppRouter() {
                         <AdminProducts />
                       </ErrorBoundary>
                     }
-                  />
-                  <Route
+                  />                  <Route
                     path="orders"
                     element={
                       <ErrorBoundary>
                         <AdminOrders />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="orders/create"
+                    element={
+                      <ErrorBoundary>
+                        <AdminOrderCreate />
                       </ErrorBoundary>
                     }
                   />

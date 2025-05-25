@@ -86,22 +86,44 @@ const AdminOverview = function AdminOverviewComponent() {
         console.error('Error loading dashboard stats:', error);
         setAnalytics(prev => ({ ...prev }));
         return;
-      }
-
-      // Load key metrics
+      }      // Load key metrics with improved error handling and caching
       let keyMetrics = { totalKeys: 0, availableKeys: 0, usedKeys: 0, expiredKeys: 0 };
       try {
-        const keyResponse = await apiService.get('/admin/key-metrics');
-        if (!keyResponse.error && keyResponse.data) {
-          keyMetrics = {
-            totalKeys: keyResponse.data.totalKeys || 0,
-            availableKeys: keyResponse.data.availableKeys || 0,
-            usedKeys: keyResponse.data.usedKeys || 0,
-            expiredKeys: keyResponse.data.expiredKeys || 0,
-          };
+        // Check if we have cached metrics that are less than 5 minutes old
+        const cachedMetrics = JSON.parse(localStorage.getItem('adminKeyMetrics') || '{}');
+        const cacheTimestamp = localStorage.getItem('adminKeyMetricsTimestamp');
+        const isCacheValid = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 300000;
+
+        if (isCacheValid && cachedMetrics.totalKeys !== undefined) {
+          console.debug('Using cached key metrics');
+          keyMetrics = cachedMetrics;
+        } else {
+          const keyResponse = await apiService.get('/admin/key-metrics');
+          if (!keyResponse.error && keyResponse.data) {
+            console.debug('Key metrics loaded successfully from API');
+            keyMetrics = {
+              totalKeys: keyResponse.data.totalKeys || 0,
+              availableKeys: keyResponse.data.availableKeys || 0,
+              usedKeys: keyResponse.data.usedKeys || 0,
+              expiredKeys: keyResponse.data.expiredKeys || 0,
+            };
+            // Cache the metrics
+            localStorage.setItem('adminKeyMetrics', JSON.stringify(keyMetrics));
+            localStorage.setItem('adminKeyMetricsTimestamp', Date.now().toString());
+          }
         }
       } catch (keyError) {
         console.warn('Key metrics not available:', keyError);
+        // Try to load from cache as fallback even if it's old
+        try {
+          const cachedMetrics = JSON.parse(localStorage.getItem('adminKeyMetrics') || '{}');
+          if (cachedMetrics.totalKeys !== undefined) {
+            console.debug('Using cached key metrics as fallback');
+            keyMetrics = cachedMetrics;
+          }
+        } catch (cacheError) {
+          console.error('Cache fallback failed:', cacheError);
+        }
       }
 
       // Load recent orders

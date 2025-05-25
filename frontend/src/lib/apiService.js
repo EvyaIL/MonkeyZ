@@ -52,8 +52,7 @@ class ApiService {  constructor() {
   }
   /**
    * Generic request method.
-   */
-  async request(
+   */  async request(
     method,
     url,
     data = null,
@@ -61,7 +60,11 @@ class ApiService {  constructor() {
     contentType = "application/json",
   ) {
     try {
-      console.log(`API Request: ${method} ${url}`, { data, params });
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log(`API Request: ${method} ${url}`, { data, params });
+      }
+      
       const response = await this.httpClient({
         method,
         url,
@@ -69,7 +72,12 @@ class ApiService {  constructor() {
         params,
         headers: { "Content-Type": contentType },
       });
-      console.log(`API Response: ${method} ${url}`, response.data);
+      
+      // Only log in development mode
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log(`API Response: ${method} ${url}`, response.data);
+      }
+      
       return { data: response.data, error: null };
     } catch (error) {
       console.error(`API Error: ${method} ${url}`, error);
@@ -78,11 +86,10 @@ class ApiService {  constructor() {
   }
   /**
    * Error handler for API responses.
-   */
-  handleError(error) {
+   */  handleError(error) {
     if (error.response) {
       // Server responded with a status other than 2xx
-      console.error("API Error:", error.response.data);
+      console.error("API Error:", error.response.status);
       
       // Extract the most meaningful error message
       const errorMessage = 
@@ -92,7 +99,7 @@ class ApiService {  constructor() {
         `Error: ${error.response.status}`;
       
       // Log more details for debugging in development
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
         console.log('Error details:', {
           status: error.response.status,
           data: error.response.data,
@@ -142,15 +149,18 @@ class ApiService {  constructor() {
   /**
    * Get all orders
    * @returns {Promise} Response from the API
-   */
-  async getOrders(params = null) {
+   */  async getOrders(params = null) {
     try {
-      console.log('API Request: GET /api/orders', params);
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log('API Request: GET /api/orders', params);
+      }
       const response = await this.httpClient.get('/api/orders', { params });
-      console.log('API Response: GET /api/orders', response.data);
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log('API Response: GET /api/orders', response.data);
+      }
       return response.data;
     } catch (error) {
-      console.error('API Error: GET /api/orders', error);
+      console.error('API Error: GET /api/orders', error.message);
       return { error: error.message };
     }
   }
@@ -159,15 +169,18 @@ class ApiService {  constructor() {
    * Create a new order
    * @param {Object} orderData Order details
    * @returns {Promise} Response from the API
-   */
-  async createOrder(orderData) {
+   */  async createOrder(orderData) {
     try {
-      console.log('API Request: POST /api/orders', orderData);
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log('API Request: POST /api/orders', orderData);
+      }
       const response = await this.httpClient.post('/api/orders', orderData);
-      console.log('API Response: POST /api/orders', response.data);
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log('API Response: POST /api/orders', response.data);
+      }
       return response.data;
     } catch (error) {
-      console.error('API Error: POST /api/orders', error);
+      console.error('API Error: POST /api/orders', error.message);
       return { error: error.message };
     }
   }
@@ -177,15 +190,18 @@ class ApiService {  constructor() {
    * @param {string} orderId Order ID
    * @param {Object} updateData Update data
    * @returns {Promise} Response from the API
-   */
-  async updateOrderStatus(orderId, updateData) {
+   */  async updateOrderStatus(orderId, updateData) {
     try {
-      console.log(`API Request: PATCH /api/orders/${orderId}`, updateData);
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log(`API Request: PATCH /api/orders/${orderId}`, updateData);
+      }
       const response = await this.httpClient.patch(`/api/orders/${orderId}`, updateData);
-      console.log(`API Response: PATCH /api/orders/${orderId}`, response.data);
+      if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
+        console.log(`API Response: PATCH /api/orders/${orderId}`, response.data);
+      }
       return response.data;
     } catch (error) {
-      console.error(`API Error: PATCH /api/orders/${orderId}`, error);
+      console.error(`API Error: PATCH /api/orders/${orderId}`, error.message);
       return { error: error.message };
     }
   }

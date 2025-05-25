@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from src.models.user.user import Role
-from src.deps.deps import UserController, get_user_controller_dependency, KeyMetricsController, get_key_metrics_controller_dependency
+from src.deps.deps import UserController, get_user_controller_dependency, KeyMetricsController, get_key_metrics_controller_dependency, get_keys_controller_dependency
+from src.controller.key_controller import KeyController
 from src.lib.token_handler import get_current_user
 from src.models.token.token import TokenData
 from src.models.user.user_exception import UserException
@@ -108,6 +109,9 @@ class Order(OrderBase):
             ObjectId: str
         }
     }
+
+class ProductKeysRequest(BaseModel):
+    keys: List[str]
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -232,6 +236,71 @@ async def delete_product(
     await verify_admin(user_controller, current_user)
     await user_controller.delete_admin_product(product_id)
     return {"message": "Product deleted successfully"}
+
+@admin_router.post("/products/{product_id}/keys")
+async def add_product_keys(
+    product_id: str,
+    keys_request: ProductKeysRequest,
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    key_controller: KeyController = Depends(get_keys_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """Add new keys to a product's inventory."""
+    await verify_admin(user_controller, current_user)
+    
+    try:
+        # Validate key format (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
+        key_format_regex = r'^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$'
+        import re
+        
+        invalid_keys = []
+        for key in keys_request.keys:
+            if not re.match(key_format_regex, key):
+                invalid_keys.append(key)
+        
+        if invalid_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid key format. Keys must match XXXXX-XXXXX-XXXXX-XXXXX-XXXXX pattern. Invalid keys: {', '.join(invalid_keys[:5])}"
+            )
+        
+        # Add keys to the product using KeyController
+        from beanie import PydanticObjectId
+        
+        # Convert product_id to ObjectId
+        try:
+            product_object_id = PydanticObjectId(product_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid product ID format")
+        
+        # Create Key objects for each key
+        added_keys_count = 0
+        for key_string in keys_request.keys:
+            try:
+                from src.models.key.key import KeyRequest
+                key_request = KeyRequest(
+                    product=product_object_id,
+                    is_active=True,
+                    key=key_string
+                )
+                await key_controller.create_key(key_request, current_user.username)
+                added_keys_count += 1
+            except Exception as e:
+                print(f"Error adding key {key_string}: {str(e)}")
+                # Continue with other keys even if one fails
+                continue        
+        
+        return {
+            "message": f"Successfully added {added_keys_count} keys to product",
+            "keysAdded": added_keys_count,
+            "productId": product_id
+        }
+        
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        print(f"Error adding keys to product {product_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to add keys to product")
 
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])
@@ -417,28 +486,19 @@ async def get_orders(
     try:
         # Using verify_admin for consistency across routes
         await verify_admin(user_controller, current_user)
-        
-        # Return mock order data
+          # Return mock order data
         mock_orders = [
             {
                 "id": "order1",
-                "userId": "user123",
+                "customerName": "John Doe",
+                "email": "john.doe@example.com",
+                "phone": "+1-555-0123",
                 "date": datetime.now() - timedelta(days=3),
                 "total": 49.99,
                 "status": "completed",
                 "items": [
                     {"productId": "1", "name": "MonkeyZ Pro Key", "quantity": 1, "price": 49.99}
                 ],
-                "shipping": {
-                    "address": "123 Main St",
-                    "city": "Anytown",
-                    "country": "US",
-                    "postalCode": "12345"
-                },
-                "payment": {
-                    "method": "credit_card",
-                    "transactionId": "txn_123456"
-                },
                 "statusHistory": [
                     {"status": "pending", "date": datetime.now() - timedelta(days=3, hours=2)},
                     {"status": "processing", "date": datetime.now() - timedelta(days=3, hours=1)},
@@ -447,23 +507,14 @@ async def get_orders(
             },
             {
                 "id": "order2",
-                "userId": "user456",
+                "customerName": "Jane Smith",
+                "email": "jane.smith@example.com",
+                "phone": "+1-555-0456",
                 "date": datetime.now() - timedelta(days=1),
-                "total": 29.99,
-                "status": "processing",
+                "total": 29.99,                "status": "processing",
                 "items": [
                     {"productId": "2", "name": "MonkeyZ Standard License", "quantity": 1, "price": 29.99}
                 ],
-                "shipping": {
-                    "address": "456 Oak St",
-                    "city": "Other City",
-                    "country": "US",
-                    "postalCode": "54321"
-                },
-                "payment": {
-                    "method": "paypal",
-                    "transactionId": "txn_789012"
-                },
                 "statusHistory": [
                     {"status": "pending", "date": datetime.now() - timedelta(days=1, hours=3)},
                     {"status": "processing", "date": datetime.now() - timedelta(days=1)}
@@ -490,6 +541,13 @@ async def create_order(
     user_controller: UserController = Depends(get_user_controller_dependency)
 ):
     try:
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        # Log the incoming order data
+        logger.info(f"Creating order: {order}")
+        
         # Verify admin role
         if not user_controller.has_role(current_user.sub, Role.ADMIN):
             raise UserException(
@@ -509,11 +567,29 @@ async def create_order(
         order_dict["createdAt"] = datetime.utcnow()
         order_dict["date"] = datetime.utcnow()
         
-        result = user_controller.db.orders.insert_one(order_dict)
-        created_order = user_controller.db.orders.find_one({"_id": result.inserted_id})
-        created_order["id"] = str(created_order["_id"])
+        # Log order_dict before insertion
+        logger.info(f"Order document to insert: {order_dict}")
         
-        return created_order
+        # Insert order into database
+        try:
+            result = user_controller.db.orders.insert_one(order_dict)
+            logger.info(f"Order inserted with ID: {result.inserted_id}")
+            
+            # Retrieve the created order
+            created_order = user_controller.db.orders.find_one({"_id": result.inserted_id})
+            if not created_order:
+                logger.error(f"Could not find created order with ID: {result.inserted_id}")
+                raise HTTPException(status_code=500, detail="Order was created but could not be retrieved")
+                
+            # Add string ID for compatibility
+            created_order["id"] = str(created_order["_id"])
+            logger.info(f"Returning created order: {created_order}")
+            
+            return created_order
+        except Exception as e:
+            logger.error(f"Database error creating order: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        
     except UserException as e:
         raise HTTPException(status_code=e.status_code, detail=e.msg)
     except Exception as e:

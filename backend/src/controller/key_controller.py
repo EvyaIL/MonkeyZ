@@ -54,10 +54,33 @@ class KeyController(ControllerInterface):
         Returns:
             str: The created key's ID.
         """
-        await self.user_collection.validate_user_role(username)
-        key = await self.keys_collection.create_key(key_request)
-        await self.product_collection.add_key_to_product(key_request.product, key.id)
-        return str(key.id)
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Log the key being created
+            logger.info(f"Creating key for product {key_request.product} with value: {key_request.key}")
+            
+            # Validate user role
+            await self.user_collection.validate_user_role(username)
+            
+            # Create key in database
+            key = await self.keys_collection.create_key(key_request)
+            logger.info(f"Key created with ID: {key.id}")
+            
+            # Associate key with product
+            logger.info(f"Associating key {key.id} with product {key_request.product}")
+            if key_request.product is not None and key.id is not None:
+                await self.product_collection.add_key_to_product(key_request.product, key.id)
+            else:
+                logger.error(f"Cannot add key to product: product_id or key_id is None")
+                
+            # Return key ID
+            return str(key.id)
+        except Exception as e:
+            logger.error(f"Error creating key: {str(e)}")
+            raise e
 
     async def update_key(self,key_id:PydanticObjectId, key_request:KeyRequest,username:str) -> str:
         """ update a key.
@@ -142,3 +165,28 @@ class KeyController(ControllerInterface):
             keys.append(key)
 
         return keys
+    
+    async def get_all_keys_batch(self, batch_size: int = 1000) -> list[Key]:
+        """
+        Retrieves all keys using the optimized batch processing generator.
+
+        Args:
+            batch_size (int, optional): Size of each batch. Defaults to 1000.
+
+        Returns:
+            list[Key]: List of all keys.
+
+        Notes:
+        -----
+        Uses the optimized get_all_keys generator from KeysCollection and
+        collects all keys into a list. For very large datasets, consider
+        using the generator directly instead.
+        """
+        keys = []
+        try:
+            async for key in self.keys_collection.get_all_keys(batch_size):
+                keys.append(key)
+            return keys
+        except Exception as e:
+            print(f"Error collecting keys: {e}")
+            return []

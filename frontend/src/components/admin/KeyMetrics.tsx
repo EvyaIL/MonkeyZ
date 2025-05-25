@@ -3,61 +3,54 @@ import {
   Box,
   Card,
   CardContent,
-  Typography,
   Grid,
-  LinearProgress,
+  Typography,
   IconButton,
   Tooltip,
+  Button,
+  LinearProgress,
+  Chip,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import InfoIcon from '@mui/icons-material/Info';
-import WarningIcon from '@mui/icons-material/Warning';
 import { useTranslation } from 'react-i18next';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import WarningIcon from '@mui/icons-material/Warning';
+import KeyIcon from '@mui/icons-material/VpnKey';
+import ErrorIcon from '@mui/icons-material/Error';
+import { KeyMetrics as IKeyMetrics, KeyUsageByProduct } from './types';
 
 interface IKeyMetricsProps {
-  metrics: {
-    totalKeys: number;
-    availableKeys: number;
-    usedKeys: number;
-    expiredKeys: number;
-    lowStockProducts: number;
-    averageKeyUsageTime?: number;
-    keyUsageByProduct: Array<{
-      productId: string;
-      productName: string;
-      totalKeys: number;
-      availableKeys: number;
-    }>;
-  };
+  metrics: IKeyMetrics;
   onRefresh: () => void;
   isLoading: boolean;
+  onManageKeys: (product: KeyUsageByProduct) => void;
 }
 
-export default function KeyMetrics({ metrics, onRefresh, isLoading }: IKeyMetricsProps) {
+function calculateUsagePercentage(used: number, total: number): number {
+  if (total === 0) return 0;
+  return (used / total) * 100;
+}
+
+function getStatusColor(percentage: number): 'success' | 'warning' | 'error' {
+  if (percentage >= 90) return 'error';
+  if (percentage >= 70) return 'warning';
+  return 'success';
+}
+
+export default function KeyMetrics({ metrics, onRefresh, isLoading, onManageKeys }: IKeyMetricsProps) {
   const { t } = useTranslation();
 
-  const calculateUsagePercentage = (used: number, total: number) => {
-    return total > 0 ? (used / total) * 100 : 0;
-  };
-
-  const getStatusColor = (percentage: number) => {
-    if (percentage >= 90) return 'error';
-    if (percentage >= 70) return 'warning';
-    return 'success';
-  };
-
   return (
-    <Box sx={{ mb: 4 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6" component="h2">
-          Key Metrics Overview
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h5" component="h2">
+          {t('admin.keyMetrics')}
         </Typography>
         <IconButton onClick={onRefresh} disabled={isLoading}>
           <RefreshIcon />
         </IconButton>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} mb={4}>
         {/* Total Keys Card */}
         <Grid item xs={12} sm={6} md={3}>
           <Card>
@@ -94,7 +87,7 @@ export default function KeyMetrics({ metrics, onRefresh, isLoading }: IKeyMetric
                   {((metrics.availableKeys / metrics.totalKeys) * 100).toFixed(1)}% available
                 </Typography>
                 {metrics.availableKeys < metrics.totalKeys * 0.2 && (
-                  <Tooltip title="Low key inventory">
+                  <Tooltip title={t('admin.lowKeyInventory')}>
                     <WarningIcon color="warning" sx={{ ml: 1 }} />
                   </Tooltip>
                 )}
@@ -122,43 +115,48 @@ export default function KeyMetrics({ metrics, onRefresh, isLoading }: IKeyMetric
           </Card>
         </Grid>
 
-        {/* Low Stock Alert Card */}
+        {/* Low Stock Products Card */}
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: metrics.lowStockProducts > 0 ? 'warning.light' : 'inherit' }}>
+          <Card>
             <CardContent>
               <Typography color="textSecondary" gutterBottom>
-                {t('admin.lowStockAlert')}
+                {t('admin.lowStockProducts')}
               </Typography>
               <Typography variant="h4">
                 {metrics.lowStockProducts}
               </Typography>
               <Box mt={1} display="flex" alignItems="center">
-                <Typography variant="body2" color={metrics.lowStockProducts > 0 ? 'error' : 'textSecondary'}>
+                <Typography variant="body2" color="textSecondary">
                   {t('admin.productsNeedKeys')}
                 </Typography>
                 {metrics.lowStockProducts > 0 && (
                   <Tooltip title={t('admin.lowStockWarning')}>
-                    <InfoIcon color="warning" sx={{ ml: 1 }} />
+                    <ErrorIcon color="error" sx={{ ml: 1 }} />
                   </Tooltip>
                 )}
               </Box>
             </CardContent>
           </Card>
         </Grid>
+      </Grid>
 
-        {/* Product-specific key usage */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                {t('admin.keysByProduct')}
-              </Typography>
-              <Grid container spacing={2}>
-                {metrics.keyUsageByProduct.map((product) => (
-                  <Grid item xs={12} sm={6} md={4} key={product.productId}>
-                    <Box>
-                      <Typography variant="subtitle2" noWrap>
+      {/* Product-specific key usage */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            {t('admin.keysByProduct')}
+          </Typography>
+          <Grid container spacing={3}>
+            {metrics.keyUsageByProduct.map((product) => (
+              <Grid item xs={12} sm={6} md={4} key={product.productId}>
+                <Box sx={{ border: 1, borderColor: 'divider', p: 2, borderRadius: 1 }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                    <Box flex={1}>
+                      <Typography variant="subtitle1" noWrap>
                         {product.productName}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {t('admin.available')}: {product.availableKeys}/{product.totalKeys}
                       </Typography>
                       <Box display="flex" alignItems="center" mt={1}>
                         <Box flex={1} mr={2}>
@@ -174,18 +172,24 @@ export default function KeyMetrics({ metrics, onRefresh, isLoading }: IKeyMetric
                             ))}
                           />
                         </Box>
-                        <Typography variant="body2" color="textSecondary">
-                          {product.availableKeys}/{product.totalKeys}
-                        </Typography>
                       </Box>
                     </Box>
-                  </Grid>
-                ))}
+                    <Button
+                      size="small"
+                      startIcon={<KeyIcon />}
+                      onClick={() => onManageKeys(product)}
+                      variant={product.availableKeys <= (product.totalKeys * 0.2) ? 'contained' : 'text'}
+                      color={product.availableKeys <= (product.totalKeys * 0.2) ? 'warning' : 'primary'}
+                    >
+                      {t('admin.manage')}
+                    </Button>
+                  </Box>
+                </Box>
               </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+            ))}
+          </Grid>
+        </CardContent>
+      </Card>
     </Box>
   );
 }

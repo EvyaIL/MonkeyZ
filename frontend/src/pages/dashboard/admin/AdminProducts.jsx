@@ -2,6 +2,7 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
+import KeyDialog from '../../../components/admin/KeyDialog';
 import {
   Box,
   Card,
@@ -20,15 +21,22 @@ import {
   Chip,
   Tooltip,
   Alert,
+  AlertTitle,
   CircularProgress,
   Select,
   MenuItem,
   InputLabel,
-  FormControl
+  FormControl,
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import KeyIcon from '@mui/icons-material/VpnKey';
+import SaveIcon from '@mui/icons-material/Save';
+import CloseIcon from '@mui/icons-material/Close';
+import CancelIcon from '@mui/icons-material/Cancel';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import KeyBulkManagement from '../../../components/admin/KeyBulkManagement';
 import KeyManagementSection from '../../../components/admin/KeyManagementSection';
 
@@ -44,11 +52,9 @@ export default function AdminProducts() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
   const [showDialog, setShowDialog] = useState(false);
-  const [categories, setCategories] = useState([]);  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);  const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [showKeyManagement, setShowKeyManagement] = useState(false);
-  const [showKeyDialog, setShowKeyDialog] = useState(false);
-  const [newKeys, setNewKeys] = useState('');
-  const [keyCount, setKeyCount] = useState(1);const loadProducts = useCallback(async () => {
+  const [categories, setCategories] = useState([]);  const loadProducts = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -86,7 +92,7 @@ export default function AdminProducts() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]); // apiService is a singleton, doesn't need to be a dependency
+  }, [t]);  // Remove apiService from dependencies as it's a singleton
 
   useEffect(() => {
     loadProducts();
@@ -97,27 +103,38 @@ export default function AdminProducts() {
     const formData = new FormData(event.target);
     
     // Format the data to match the backend model structure
-    const nameEn = formData.get('name_en');
-    const nameHe = formData.get('name_he');
-    const descEn = formData.get('description_en');
-    const descHe = formData.get('description_he');    const productData = {
-      // Use primary language (English) as the main string values
-      name: nameEn || '',  // Always use English as primary name
-      description: descEn || '',  // Always use English as primary description
+    const productData = {
+      name: {
+        en: formData.get('name_en') || '',
+        he: formData.get('name_he') || ''
+      },
+      description: {
+        en: formData.get('description_en') || '',
+        he: formData.get('description_he') || ''
+      },
       price: parseFloat(formData.get('price')) || 0,
       imageUrl: formData.get('imageUrl') || formData.get('image') || '',
       category: formData.get('category') || '',
       active: formData.get('active') === 'on',
-      // Store translations in metadata
+      inStock: true,
+      keyManagement: {
+        format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
+        minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
+        autoGenerateKeys: formData.get('autoGenerateKeys') === 'on',
+        validationMethod: formData.get('keyValidation') || 'format',
+        allowReuse: formData.get('keyReuse') === 'on',
+        keyExpiry: formData.get('keyExpiry') === 'on',
+        validityDays: parseInt(formData.get('keyValidityDays')) || 365
+      },
       metadata: {
         translations: {
           name: {
-            en: nameEn || '',
-            he: nameHe || ''
+            en: formData.get('name_en') || '',
+            he: formData.get('name_he') || ''
           },
           description: {
-            en: descEn || '',
-            he: descHe || ''
+            en: formData.get('description_en') || '',
+            he: formData.get('description_he') || ''
           }
         }
       }
@@ -125,20 +142,20 @@ export default function AdminProducts() {
 
     try {
       // Validate required fields
-      if (!productData.name) {
-        setError(t('admin.nameRequired') || 'Product name is required');
+      if (!productData.name.en && !productData.name.he) {
+        setError(t('admin.nameRequired'));
         return;
       }
       if (!productData.price || isNaN(productData.price)) {
-        setError(t('admin.priceRequired') || 'Valid price is required');
+        setError(t('admin.priceRequired'));
         return;
       }
-      if (!productData.description) {
-        setError(t('admin.descriptionRequired') || 'Product description is required');
+      if (!productData.description.en && !productData.description.he) {
+        setError(t('admin.descriptionRequired'));
         return;
       }
       if (!productData.imageUrl) {
-        setError(t('admin.imageRequired') || 'Product image URL is required');
+        setError(t('admin.imageRequired'));
         return;
       }
       
@@ -157,7 +174,6 @@ export default function AdminProducts() {
         throw new Error(response.error);
       }
       
-      // Show success message
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
       
@@ -166,7 +182,7 @@ export default function AdminProducts() {
       setEditingProduct(null);
     } catch (error) {
       console.error('Error saving product:', error);
-      setError(error.message || t('admin.saveError') || 'Failed to save product');
+      setError(error.message || t('admin.saveError'));
     } finally {
       setIsLoading(false);
     }
@@ -244,117 +260,48 @@ export default function AdminProducts() {
     } finally {
       setIsLoading(false);
     }
-  };
+  };  // Key management is now handled in KeyDialog component
+  // Key generation is now handled in KeyDialog component
 
-  const handleAddKeys = async () => {
-    if (!selectedProduct || !newKeys.trim()) return;
-
-    try {
-      setIsLoading(true);
-      setError("");
-
-      // Split keys by newlines and filter empty ones
-      const keysList = newKeys
-        .split('\n')
-        .map(key => key.trim())
-        .filter(key => key.length > 0);
-
-      if (keysList.length === 0) {
-        setError('Please enter at least one valid key');
-        return;
-      }
-
-      // Validate key format (example: W269N-WFGWX-YVC9B-4J6C9-T83GX)
-      const keyFormatRegex = /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
-      const invalidKeys = keysList.filter(key => !keyFormatRegex.test(key));
-      
-      if (invalidKeys.length > 0) {
-        setError(`Invalid key format detected. Keys should be in format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX\nFirst invalid key: ${invalidKeys[0]}`);
-        return;
-      }
-
-      const response = await apiService.post(`/admin/products/${selectedProduct.id}/keys`, {
-        keys: keysList
-      });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      setShowKeyDialog(false);
-      setNewKeys('');
-      setSelectedProduct(null);
-      await loadProducts();
-    } catch (error) {
-      console.error('Error adding keys:', error);
-      setError(error.message || 'Failed to add keys');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const generateRandomKey = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    const parts = [];
-    for (let i = 0; i < 5; i++) {
-      let part = '';
-      for (let j = 0; j < 5; j++) {
-        part += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      parts.push(part);
-    }
-    return parts.join('-');
-  };
-
-  const generateKeys = () => {
-    const keys = [];
-    for (let i = 0; i < keyCount; i++) {
-      keys.push(generateRandomKey());
-    }
-    setNewKeys(keys.join('\n'));
+  const handleKeyManagement = (product) => {
+    setSelectedProduct(product);
+    setShowKeyManagement(true);
   };
 
   return (
     <Box p={3}>
       {/* Header section with actions */}      <Box mb={3}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="h4" component="h1">
             {t('admin.products')}
           </Typography>
-          <Box>
-            <Button
-              variant="outlined"
-              color="primary"
-              sx={{ mr: 1 }}              onClick={() => {
-                // Open key management modal with the first selected product
-                const product = products.find(p => p.availableKeys <= (p.minStockAlert || 10)) || products[0];
-                if (product) {
-                  setSelectedProduct(product);
-                  setShowKeyManagement(true);
-                } else {
-                  window.alert(t('admin.noProductsForKeyManagement'));
-                }
-              }}
-            >
-              Manage Keys
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => {
-                setEditingProduct(null);
-                setShowDialog(true);
-              }}
-            >
-              {t('admin.addProduct')}
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => {
+              setEditingProduct(null);
+              setShowDialog(true);
+            }}
+          >
+            {t('admin.addProduct')}
+          </Button>
         </Box>
-        
-        {/* Quick Stats */}        {/* Key Management Section */}
+
+        {showSuccessMessage && (
+          <Alert severity="success" sx={{ mt: 2 }}>
+            {t('admin.operationSuccess')}
+          </Alert>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+      </Box>
+
+      {/* Key Management Overview */}
+      <Box mb={4}>
         <KeyManagementSection />
       </Box>
 
@@ -424,7 +371,7 @@ export default function AdminProducts() {
       ) : (
         <Grid container spacing={3}>
           {filteredProducts.map((product) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+            <Grid item xs={12} sm={6} md={4} key={product.id}>
               <Card>
                 <Box
                   sx={{
@@ -530,6 +477,14 @@ export default function AdminProducts() {
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
+                      <Tooltip title={t('admin.manageKeys')}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleKeyManagement(product)}
+                        >
+                          <KeyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </Box>
                 </CardContent>
@@ -540,111 +495,101 @@ export default function AdminProducts() {
       )}
 
       {/* Product Edit/Create Dialog */}
-      <Dialog 
-        open={showDialog} 
-        onClose={() => {
-          setShowDialog(false);
-          setEditingProduct(null);
-        }}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={showDialog} onClose={() => setShowDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           {editingProduct?.id ? t('admin.editProduct') : t('admin.newProduct')}
         </DialogTitle>
         <form onSubmit={handleProductSubmit}>
           <DialogContent>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('admin.productNameEn')}
-                  name="name_en"
-                  defaultValue={editingProduct?.name?.en || editingProduct?.name || ''}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('admin.productNameHe')}
-                  name="name_he"
-                  defaultValue={editingProduct?.name?.he || ''}
-                  dir="rtl"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('admin.descriptionEn')}
-                  name="description_en"
-                  multiline
-                  rows={4}
-                  defaultValue={editingProduct?.description?.en || editingProduct?.description || ''}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('admin.descriptionHe')}
-                  name="description_he"
-                  multiline
-                  rows={4}
-                  defaultValue={editingProduct?.description?.he || ''}
-                  dir="rtl"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t('admin.price')}
-                  name="price"
-                  type="number"
-                  inputProps={{ min: 0, step: "0.01" }}
-                  defaultValue={editingProduct?.price || 0}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>{t('admin.category')}</InputLabel>                  <Select
-                    name="category"
-                    defaultValue={editingProduct?.category || ''}
-                    label={t('admin.category')}
-                  >
-                    <MenuItem value="Windows">Windows</MenuItem>
-                    <MenuItem value="Office">Microsoft Office</MenuItem>
-                    <MenuItem value="Security">Security Software</MenuItem>
-                    <MenuItem value="VPN">VPN Services</MenuItem>
-                    <MenuItem value="Gaming">Gaming</MenuItem>
-                    <MenuItem value="Design">Design Software</MenuItem>
-                    <MenuItem value="Development">Development Tools</MenuItem>
-                    <MenuItem value="Other">Other</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+              {/* Basic Information */}
               <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={t('admin.imageUrl')}
-                  name="imageUrl"
-                  defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      name="active"
-                      defaultChecked={editingProduct?.active ?? true}
+                <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                  Basic Information
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.productNameEn')}
+                      name="name_en"
+                      defaultValue={editingProduct?.name?.en || editingProduct?.name || ''}
+                      required
                     />
-                  }
-                  label={t('admin.active')}
-                />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.productNameHe')}
+                      name="name_he"
+                      defaultValue={editingProduct?.name?.he || ''}
+                      dir="rtl"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.descriptionEn')}
+                      name="description_en"
+                      multiline
+                      rows={4}
+                      defaultValue={editingProduct?.description?.en || editingProduct?.description || ''}
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.descriptionHe')}
+                      name="description_he"
+                      multiline
+                      rows={4}
+                      defaultValue={editingProduct?.description?.he || ''}
+                      dir="rtl"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.price')}
+                      name="price"
+                      type="number"
+                      inputProps={{ min: 0, step: "0.01" }}
+                      defaultValue={editingProduct?.price || 0}
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>{t('admin.category')}</InputLabel>
+                      <Select
+                        name="category"
+                        defaultValue={editingProduct?.category || ''}
+                        label={t('admin.category')}
+                      >
+                        <MenuItem value="Windows">Windows</MenuItem>
+                        <MenuItem value="Office">Microsoft Office</MenuItem>
+                        <MenuItem value="Security">Security Software</MenuItem>
+                        <MenuItem value="VPN">VPN Services</MenuItem>
+                        <MenuItem value="Gaming">Gaming</MenuItem>
+                        <MenuItem value="Design">Design Software</MenuItem>
+                        <MenuItem value="Development">Development Tools</MenuItem>
+                        <MenuItem value="Other">Other</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.imageUrl')}
+                      name="imageUrl"
+                      defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
+                      required
+                    />
+                  </Grid>
+                </Grid>
               </Grid>
-              
+
               {/* Key Management Section */}
               <Grid item xs={12}>
                 <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
@@ -658,37 +603,6 @@ export default function AdminProducts() {
                       name="keyFormat"
                       defaultValue={editingProduct?.keyFormat || "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
                       helperText="Use X for characters, 0-9 for numbers only"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Available Keys"
-                      type="number"
-                      InputProps={{ readOnly: true }}
-                      value={editingProduct?.availableKeys || 0}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Import Keys"
-                      name="importKeys"
-                      multiline
-                      rows={4}
-                      placeholder="Enter one key per line to add to inventory"
-                      helperText="Keys will be validated against the specified format"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name="autoGenerateKeys"
-                          defaultChecked={editingProduct?.autoGenerateKeys ?? false}
-                        />
-                      }
-                      label="Auto-generate keys when stock is low"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -715,15 +629,6 @@ export default function AdminProducts() {
                       </Select>
                     </FormControl>
                   </Grid>
-                </Grid>
-              </Grid>
-
-              {/* Key Usage Settings */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                  Key Usage Settings
-                </Typography>
-                <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <FormControlLabel
                       control={
@@ -758,6 +663,17 @@ export default function AdminProducts() {
                       />
                     </Grid>
                   )}
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          name="autoGenerateKeys"
+                          defaultChecked={editingProduct?.autoGenerateKeys ?? false}
+                        />
+                      }
+                      label="Auto-generate keys when stock is low"
+                    />
+                  </Grid>
                 </Grid>
               </Grid>
             </Grid>
@@ -772,15 +688,10 @@ export default function AdminProducts() {
             <Button 
               type="submit"
               variant="contained"
+              color="primary"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <CircularProgress size={24} />
-              ) : editingProduct?.id ? (
-                t('common.save')
-              ) : (
-                t('common.create')
-              )}
+              {isLoading ? <CircularProgress size={24} /> : editingProduct?.id ? t('admin.saveChanges') : t('admin.addProduct')}
             </Button>
           </DialogActions>
         </form>
@@ -793,86 +704,24 @@ export default function AdminProducts() {
           onClose={() => {
             setShowKeyManagement(false);
             setSelectedProduct(null);
-            loadProducts(); // Refresh products after key management
+            loadProducts();
           }}
           productId={selectedProduct.id}
           productName={selectedProduct.name.en || selectedProduct.name}
           keyFormat={selectedProduct.keyFormat}
         />
       )}
-
-      {/* Simple Key Management Dialog */}
-      <Dialog 
-        open={showKeyDialog} 
+        {/* Add Keys Dialog using our new component */}
+      <KeyDialog 
+        open={showKeyDialog}
         onClose={() => {
           setShowKeyDialog(false);
           setSelectedProduct(null);
-          setNewKeys('');
         }}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Add Keys to {selectedProduct?.name?.en || selectedProduct?.name}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Key Format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX (e.g., W269N-WFGWX-YVC9B-4J6C9-T83GX)
-            </Typography>
-            
-            <Grid container spacing={2} sx={{ mb: 2 }}>
-              <Grid item xs={6}>
-                <TextField
-                  type="number"
-                  label="Number of keys to generate"
-                  value={keyCount}
-                  onChange={(e) => setKeyCount(Math.max(1, parseInt(e.target.value) || 1))}
-                  InputProps={{ inputProps: { min: 1, max: 100 } }}
-                  fullWidth
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <Button
-                  variant="outlined"
-                  onClick={generateKeys}
-                  fullWidth
-                  sx={{ height: '56px' }}
-                >
-                  Generate Random Keys
-                </Button>
-              </Grid>
-            </Grid>
-
-            <TextField
-              fullWidth
-              multiline
-              rows={8}
-              label="Product Keys (one per line)"
-              value={newKeys}
-              onChange={(e) => setNewKeys(e.target.value)}
-              placeholder="Enter keys, one per line:&#10;W269N-WFGWX-YVC9B-4J6C9-T83GX&#10;X270O-WGHWY-ZVD0C-5K7D0-U94HY"
-              helperText="Enter product keys, one per line. Use the format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setShowKeyDialog(false);
-            setSelectedProduct(null);
-            setNewKeys('');
-          }}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleAddKeys}
-            variant="contained"
-            disabled={isLoading || !newKeys.trim()}
-          >
-            {isLoading ? <CircularProgress size={24} /> : 'Add Keys'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        product={selectedProduct}
+        onSuccess={loadProducts}
+        t={t}
+      />
     </Box>
   );
 }
