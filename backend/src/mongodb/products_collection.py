@@ -78,8 +78,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
 
         Returns:
             Product: The edited product.
-            
-        Raises:
+              Raises:
             CreateError: If the new product name is already in use.
         """
         current_product = await self.get_product_by_id(product_id)
@@ -87,12 +86,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         
         if product_by_name and product_by_name.name == current_product.name:
             raise CreateError("This name is already in use")
-        
         product = self.update_or_create_product(product_request, current_product.keys)
         product.id = current_product.id
         await product.save()
         return product
-        
+
     async def add_key_to_product(self, product_id: PydanticObjectId, key_id: PydanticObjectId) -> Product:
         """
         Adds a key to a product.
@@ -109,17 +107,26 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         logger = logging.getLogger(__name__)
         
         try:
+            logger.info(f"Looking for product with ID: {product_id}")
             current_product = await self.get_product_by_id(product_id)
+            
+            if current_product is None:
+                logger.error(f"Product with ID {product_id} not found")
+                raise ValueError(f"Product with ID {product_id} not found")
+            
+            logger.info(f"Found product: {current_product.name}")
             
             # Convert key_id to string for consistent handling
             key_id_str = str(key_id)
             
             # Initialize keys dict if it's None or empty
             if current_product.keys is None:
+                logger.info("Initializing empty keys dictionary")
                 current_product.keys = {}
             
             # Add the key to the product's keys dictionary
             current_product.keys[key_id_str] = key_id
+            logger.info(f"Added key {key_id} to product keys. Total keys: {len(current_product.keys)}")
             
             # Save the product
             logger.info(f"Saving product {product_id} with key {key_id}")
@@ -127,7 +134,9 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             
             # Verify the key was added
             updated_product = await self.get_product_by_id(product_id)
-            if updated_product.keys is None or key_id_str not in updated_product.keys:
+            if updated_product is None:
+                logger.error(f"Product {product_id} not found after save")
+            elif updated_product.keys is None or key_id_str not in updated_product.keys:
                 logger.error(f"Key {key_id} not found in product {product_id} after save")
             else:
                 logger.info(f"Key {key_id} successfully added to product {product_id}")

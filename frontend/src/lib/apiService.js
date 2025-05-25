@@ -8,13 +8,9 @@ class ApiService {  constructor() {
     // In production, we use the environment variable
     const isDev = process.env.NODE_ENV === 'development';
     
-    // Always use the API URL from .env if available
-    this.endpoint = process.env.REACT_APP_PATH_BACKEND || '';
-      // In development, we prefer to use the proxy setup in package.json
-    // This helps avoid CORS issues
-    if (isDev) {
-      this.endpoint = '';
-    }
+    // For development, always use empty endpoint to leverage the proxy config in package.json
+    // For production, use the API URL from .env
+    this.endpoint = isDev ? '' : (process.env.REACT_APP_PATH_BACKEND || '');
     
     console.log('API Endpoint:', this.endpoint || 'Using proxy');
     this.token = null;

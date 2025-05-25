@@ -249,6 +249,22 @@ async def add_product_keys(
     await verify_admin(user_controller, current_user)
     
     try:
+        # First, validate that the product exists
+        from beanie import PydanticObjectId
+        try:
+            product_object_id = PydanticObjectId(product_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid product ID format")
+        
+        # Check if product exists
+        try:
+            product = await user_controller.admin_product_collection.get_product_by_id(product_object_id)
+            if product is None:
+                raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
+        except Exception as e:
+            print(f"Error checking product existence: {str(e)}")
+            raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
+        
         # Validate key format (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
         key_format_regex = r'^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$'
         import re
@@ -265,16 +281,10 @@ async def add_product_keys(
             )
         
         # Add keys to the product using KeyController
-        from beanie import PydanticObjectId
-        
-        # Convert product_id to ObjectId
-        try:
-            product_object_id = PydanticObjectId(product_id)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid product ID format")
-        
         # Create Key objects for each key
         added_keys_count = 0
+        failed_keys = []
+        
         for key_string in keys_request.keys:
             try:
                 from src.models.key.key import KeyRequest
@@ -283,24 +293,32 @@ async def add_product_keys(
                     is_active=True,
                     key=key_string
                 )
-                await key_controller.create_key(key_request, current_user.username)
+                result = await key_controller.create_key(key_request, current_user.username)
+                print(f"Successfully created key {key_string} with ID: {result}")
                 added_keys_count += 1
             except Exception as e:
                 print(f"Error adding key {key_string}: {str(e)}")
-                # Continue with other keys even if one fails
+                failed_keys.append(f"{key_string}: {str(e)}")
                 continue        
         
+        result_message = f"Successfully added {added_keys_count} keys to product {product.name}"
+        if failed_keys:
+            result_message += f". Failed keys: {len(failed_keys)}"
+        
         return {
-            "message": f"Successfully added {added_keys_count} keys to product",
+            "message": result_message,
             "keysAdded": added_keys_count,
-            "productId": product_id
+            "keysFailed": len(failed_keys),
+            "productId": product_id,
+            "productName": product.name,
+            "failedKeys": failed_keys if failed_keys else []
         }
         
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         print(f"Error adding keys to product {product_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to add keys to product")
+        raise HTTPException(status_code=500, detail=f"Failed to add keys to product: {str(e)}")
 
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])
@@ -695,39 +713,3 @@ async def get_key_metrics(
     # Get metrics from the dedicated controller
     metrics = await key_metrics_controller.get_key_metrics()
     return metrics
-    product_metrics = []
-    
-    for product in products:
-        # Get keys for this product
-        product_keys = await user_controller.get_product_keys(product.id)
-        product_total = len(product_keys)
-        product_available = len([k for k in product_keys if k.status == 'available'])
-        product_used = len([k for k in product_keys if k.status == 'used'])
-        product_expired = len([k for k in product_keys if k.status == 'expired'])
-        
-        # Update totals
-        total_keys += product_total
-        available_keys += product_available
-        used_keys += product_used
-        expired_keys += product_expired
-        
-        # Check if product is low on stock
-        if product_available <= product.minStockAlert:
-            low_stock_products += 1
-        
-        # Add product metrics
-        product_metrics.append(KeyUsageByProduct(
-            productId=str(product.id),
-            productName=product.name.en if isinstance(product.name, dict) else product.name,
-            totalKeys=product_total,
-            availableKeys=product_available
-        ))
-    
-    return KeyMetrics(
-        totalKeys=total_keys,
-        availableKeys=available_keys,
-        usedKeys=used_keys,
-        expiredKeys=expired_keys,
-        lowStockProducts=low_stock_products,
-        keyUsageByProduct=product_metrics
-    )

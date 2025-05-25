@@ -118,8 +118,7 @@ const ProductPage = () => {
       
       setLoading(true);
       setErrorMsg("");
-      
-      // For Hebrew names, we need special handling
+        // For Hebrew names, we need special handling
       const isHebrew = /[\u0590-\u05FF]/.test(decodedName);
       
       // Handle object names and extract the correct language version
@@ -129,7 +128,7 @@ const ProductPage = () => {
 
       // Try API with proper encoding
       const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
-      console.log("API request URL:", `${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
+      console.log("API request URL:", `/product/${encodedName}`);
       
       const response = await apiService.get(`/product/${encodedName}`);
       

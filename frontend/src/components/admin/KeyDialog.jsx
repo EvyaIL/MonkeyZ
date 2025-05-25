@@ -88,12 +88,26 @@ const KeyDialog = ({
       if (invalidKeys.length > 0) {
         setError(`Invalid key format detected. Keys should be in format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX\nFirst invalid key: ${invalidKeys[0]}`);
         return;
-      }
-
-      // Added debugging to track request
+      }      // Added debugging to track request
       console.log(`Sending ${keysList.length} keys to backend for product ID: ${product.id}`);
       
-      // Ensure we're sending the correct product ID and keys format
+      // First, validate that the product exists by checking with the backend
+      try {
+        const productCheck = await apiService.get(`/admin/products`);
+        if (productCheck.error) {
+          throw new Error('Unable to verify product existence. Backend may be unavailable.');
+        }
+        
+        const productExists = productCheck.data && productCheck.data.some(p => p.id === product.id);
+        if (!productExists) {
+          throw new Error(`Product with ID ${product.id} not found in database. Please refresh the page to sync with the latest data.`);
+        }
+      } catch (validationError) {
+        console.warn('Product validation failed:', validationError);
+        // Continue with the request anyway, let the backend handle the error
+      }
+        // Ensure we're sending the correct product ID and keys format
+      console.log(`Sending keys to: /admin/products/${product.id}/keys`);
       const response = await apiService.post(`/admin/products/${product.id}/keys`, {
         keys: keysList
       });
@@ -107,10 +121,32 @@ const KeyDialog = ({
         handleClose();
         if (onSuccess) onSuccess();
       }, 2000);
-      
-    } catch (error) {
+        } catch (error) {
       console.error('Error adding keys:', error);
-      setError(error.message || 'Failed to add keys');
+      
+      // Handle specific error cases
+      let errorMessage = error.message || 'Failed to add keys';
+      
+      if (error.message && error.message.includes('not found')) {
+        errorMessage = `Product not found in database. This might be a synchronization issue. Please refresh the page and try again.`;
+        
+        // Clear any cached data to force refresh
+        localStorage.removeItem('adminStockData');
+        localStorage.removeItem('adminStockDataTimestamp');
+        localStorage.removeItem('adminProducts');
+        localStorage.removeItem('adminProductsTimestamp');
+        
+        // Suggest refresh to parent component
+        if (onSuccess) {
+          setTimeout(() => {
+            onSuccess(); // This will trigger a refresh in the parent component
+          }, 3000);
+        }
+      } else if (error.message && error.message.includes('404')) {
+        errorMessage = `The backend service is not responding properly. Please check if the server is running and refresh the page.`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
