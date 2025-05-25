@@ -77,12 +77,12 @@ const AllProducts = () => {
   useEffect(() => {
     document.title = t("all_products") + " | MonkeyZ";
   }, [t, lang]);
-
   const fetchAllProducts = async () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      const { data, error } = await apiService.get("/product/all");      if (error) {
+      const { data, error } = await apiService.get("/product/all");      
+      if (error) {
         setErrorMsg(t("failed_to_load_products", "Failed to load products. Please try again later."));
         setLoading(false);
         loadFallbackProducts();
@@ -108,16 +108,32 @@ const AllProducts = () => {
       loadFallbackProducts();
     }
   };
-  const loadFallbackProducts = () => {
-    processProductData(getFallbackProducts());
+
+  const loadFallbackProducts = async () => {
+    // Try fetching again from admin products as fallback
+    try {
+      const { data } = await apiService.get("/admin/products");
+      if (data && data.length > 0) {
+        processProductData(data);
+      } else {
+        // No products available - show empty state
+        processProductData([]);
+      }
+    } catch (err) {
+      console.error("Error in fallback products fetch:", err);
+      processProductData([]);
+    }
     setLoading(false);
   };
 
   const processProductData = (productData) => {
     const uniqueCategories = [...new Set(productData.map(p => p.category).filter(Boolean))];
-    const demoCategories = getDemoCategories();
+    const systemCategories = ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
     
-    setCategories(uniqueCategories.length > 0 ? uniqueCategories : demoCategories);
+    // Combine existing categories with system categories without duplicates
+    const allCategories = [...new Set([...uniqueCategories, ...systemCategories])];
+    
+    setCategories(allCategories);
     setAllProducts(productData);
     
     // Initialize filtered products
@@ -200,119 +216,6 @@ const AllProducts = () => {
   };
 
   const getDemoCategories = () => ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
-
-  const getFallbackProducts = () => [
-    {
-      id: 1,
-      name: { en: "MonkeyZ Pro Key", he: "מפתח פרו של MonkeyZ" },
-      description: {
-        en: "Unlock premium features with the MonkeyZ Pro Key. Perfect for power users and businesses.",
-        he: "פתחו תכונות פרימיום עם מפתח הפרו של MonkeyZ. מושלם למשתמשים מתקדמים ולעסקים.",
-      },
-      image: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80",
-      price: 49.99,
-      category: "Utility"
-    },
-    {
-      id: 2,
-      name: { en: "MonkeyZ Cloud Storage", he: "אחסון ענן של MonkeyZ" },
-      description: {
-        en: "Secure, fast, and reliable cloud storage for all your important files.",
-        he: "אחסון ענן מאובטח, מהיר ואמין לכל הקבצים החשובים שלך.",
-      },
-      image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-      price: 19.99,
-      category: "Cloud"
-    },
-    {
-      id: 3,
-      name: { en: "MonkeyZ VPN", he: "VPN של MonkeyZ" },
-      description: {
-        en: "Browse safely and anonymously with our high-speed VPN service.",
-        he: "גלשו בבטחה ובאנונימיות עם שירות ה-VPN המהיר שלנו.",
-      },
-      image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-      price: 9.99,
-      category: "VPN"
-    },
-    {
-      id: 4,
-      name: { en: "MonkeyZ Antivirus", he: "אנטי וירוס של MonkeyZ" },
-      description: {
-        en: "Protect your devices from malware and viruses with real-time protection.",
-        he: "הגנו על המכשירים שלכם מתוכנות זדוניות ווירוסים עם הגנה בזמן אמת.",
-      },
-      image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
-      price: 14.99,
-      category: "Security"
-    },
-    {
-      id: 5,
-      name: { en: "MonkeyZ Office Suite", he: "חבילת אופיס של MonkeyZ" },
-      description: {
-        en: "All-in-one office suite for productivity and collaboration.",
-        he: "חבילת אופיס כוללת לכלי פרודוקטיביות ושיתוף פעולה.",
-      },
-      image: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80",
-      price: 29.99,
-      category: "Office"
-    },
-    {
-      id: 6,
-      name: { en: "MonkeyZ Password Manager", he: "מנהל סיסמאות של MonkeyZ" },
-      description: {
-        en: "Keep your passwords safe and secure with our easy-to-use manager.",
-        he: "שמרו על הסיסמאות שלכם בטוחות ומאובטחות עם מנהל הסיסמאות הידידותי שלנו.",
-      },
-      image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
-      price: 7.99,
-      category: "Security"
-    },
-    {
-      id: 7,
-      name: { en: "Microsoft Office 365", he: "Microsoft Office 365" },
-      description: {
-        en: "Subscription to Microsoft Office applications.",
-        he: "מנוי ליישומי Microsoft Office.",
-      },
-      image: "https://images.unsplash.com/photo-1600132806370-bf17e65e942f?auto=format&fit=crop&w=400&q=80",
-      price: 69.99,
-      category: "Microsoft"
-    },
-    {
-      id: 8,
-      name: { en: "Windows 11 Pro Key", he: "מפתח Windows 11 Pro" },
-      description: {
-        en: "Genuine license key for Windows 11 Professional.",
-        he: "מפתח רישיון מקורי ל-Windows 11 Professional.",
-      },
-      image: "https://images.unsplash.com/photo-1611242320536-f12d3541249b?auto=format&fit=crop&w=400&q=80",
-      price: 129.99,
-      category: "Microsoft"
-    },
-    {
-      id: 9,
-      name: { en: "Adobe Creative Cloud", he: "Adobe Creative Cloud" },
-      description: {
-        en: "Access to all Adobe Creative Cloud apps and services.",
-        he: "גישה לכל אפליקציות ושירותי Adobe Creative Cloud.",
-      },
-      image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=400&q=80",
-      price: 54.99,
-      category: "Multimedia"
-    },
-    {
-      id: 10,
-      name: { en: "MonkeyZ Premium Support", he: "תמיכה פרימיום של MonkeyZ" },
-      description: {
-        en: "Priority customer support and technical assistance.",
-        he: "תמיכת לקוחות בעדיפות גבוהה וסיוע טכני.",
-      },
-      image: "https://images.unsplash.com/photo-1560438718-eb61ede255eb?auto=format&fit=crop&w=400&q=80",
-      price: 19.99,
-      category: "Support"
-    }
-  ];
 
   return (
     <>

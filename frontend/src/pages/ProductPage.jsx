@@ -65,6 +65,7 @@ const ProductPage = () => {
     if (!categoryOrName) return;
     setLoadingRelated(true);
     try {
+      // First try to get products from product API
       const { data } = await apiService.get("/product/all");
       
       let filtered = [];
@@ -77,18 +78,31 @@ const ProductPage = () => {
           return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
         });
       }
+      
+      // If we don't have enough related products, try getting from admin products
       if (filtered.length < 4) {
-        const fallbackFiltered = getFallbackProducts().filter(p => {
-          if (!p || p.id === product.id) return false;
-          return !filtered.some(fp => fp.id === p.id);
-        });
-        filtered = [...filtered, ...fallbackFiltered];
+        try {
+          const { data: adminProducts } = await apiService.get('/admin/products');
+          if (adminProducts && adminProducts.length > 0) {
+            const adminFiltered = adminProducts.filter(p => {
+              if (!p || p.id === product.id) return false;
+              if (filtered.some(fp => fp.id === p.id)) return false; // Don't duplicate products
+              if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
+              const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
+              const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
+              return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
+            });
+            filtered = [...filtered, ...adminFiltered];
+          }
+        } catch (adminError) {
+          console.error("Error fetching related products from admin API:", adminError);
+        }
       }
+      
       setRelatedProducts(filtered.slice(0, 4));
     } catch (err) {
       console.error("Error fetching related products:", err);
-      const fallbackFiltered = getFallbackProducts().filter(p => p.id !== product.id).slice(0, 4);
-      setRelatedProducts(fallbackFiltered);
+      setRelatedProducts([]);
     } finally {
       setLoadingRelated(false);
     }
@@ -113,25 +127,6 @@ const ProductPage = () => {
         (decodedName[lang] || decodedName.en || Object.values(decodedName)[0]) : 
         decodedName;
 
-      // Try to find in fallback first if it's a Hebrew name
-      if (isHebrew) {
-        const fallbackProducts = getFallbackProducts();
-        const fallback = fallbackProducts.find(p => {
-          if (typeof p.name === "object") {
-            return (p.name.he && p.name.he === decodedName) || 
-                   (p.name.en && p.name.en === decodedName);
-          }
-          return p.name === decodedName;
-        });
-
-        if (fallback) {
-          setProduct(fallback);
-          fetchRelatedProducts(fallback.category || extractSearchTerm(fallback.name));
-          setLoading(false);
-          return;
-        }
-      }
-
       // Try API with proper encoding
       const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
       console.log("API request URL:", `${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
@@ -155,29 +150,38 @@ const ProductPage = () => {
         decodedName: decodeURIComponent(name)
       });
 
-      // Try fallback products if API fails
-      const fallbackProducts = getFallbackProducts();
-      const fallback = fallbackProducts.find(p => {
-        if (typeof p.name === "object") {
-          const hebrewMatch = p.name.he === decodeURIComponent(name);
-          const englishMatch = p.name.en === decodeURIComponent(name);
-          return hebrewMatch || englishMatch;
+      // Try admin products API as a fallback
+      try {
+        const { data: adminProducts } = await apiService.get('/admin/products');
+        if (adminProducts && adminProducts.length > 0) {
+          const decodedNameLower = decodeURIComponent(name).toLowerCase();
+          
+          const matchedProduct = adminProducts.find(p => {
+            if (typeof p.name === "object") {
+              return (p.name.he && p.name.he.toLowerCase() === decodedNameLower) || 
+                     (p.name.en && p.name.en.toLowerCase() === decodedNameLower);
+            }
+            return p.name && p.name.toLowerCase() === decodedNameLower;
+          });
+          
+          if (matchedProduct) {
+            setProduct(matchedProduct);
+            fetchRelatedProducts(matchedProduct.category || extractSearchTerm(matchedProduct.name));
+            return;
+          }
         }
-        return p.name === decodeURIComponent(name);
-      });
-
-      if (fallback) {
-        setProduct(fallback);
-        fetchRelatedProducts(fallback.category || extractSearchTerm(fallback.name));
-      } else {
-        setErrorMsg(t("errors.productNotFound"));
-        notify({
-          type: "error",
-          message: error.response?.status === 404 ? 
-            t("errors.productNotFound") : 
-            t("errors.generalError", "An error occurred while fetching the product")
-        });
+      } catch (adminError) {
+        console.error("Error fetching from admin products:", adminError);
       }
+
+      // If no product found, show error
+      setErrorMsg(t("errors.productNotFound"));
+      notify({
+        type: "error",
+        message: error.response?.status === 404 ? 
+          t("errors.productNotFound") : 
+          t("errors.generalError", "An error occurred while fetching the product")
+      });
     } finally {
       setLoading(false);
     }
@@ -234,99 +238,6 @@ const ProductPage = () => {
     
     setTimeout(() => setAddedToCart(false), 2000);
   }, [product, quantity, displayName, t, addItemToCart, notify]);
-
-  // Fallback products data
-  const getFallbackProducts = () => [
-    // ...existing fallback products array...
-    {
-      id: 1,
-      name: { en: "MonkeyZ Pro Key", he: "מפתח פרו של MonkeyZ" },
-      description: {
-        en: "Unlock premium features with the MonkeyZ Pro Key. Perfect for power users and businesses.",
-        he: "פתחו תכונות פרימיום עם מפתח הפרו של MonkeyZ. מושלם למשתמשים מתקדמים ולעסקים.",
-      },
-      image: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80",
-      price: 49.99,
-      category: "Utility"
-    },
-    {
-      id: 2,
-      name: { en: "MonkeyZ Cloud Storage", he: "אחסון ענן של MonkeyZ" },
-      description: {
-        en: "Secure, fast, and reliable cloud storage for all your important files.",
-        he: "אחסון ענן מאובטח, מהיר ואמין לכל הקבצים החשובים שלך.",
-      },
-      image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-      price: 19.99,
-      category: "Cloud"
-    },
-    {
-      id: 3,
-      name: { en: "MonkeyZ VPN", he: "VPN של MonkeyZ" },
-      description: {
-        en: "Browse safely and anonymously with our high-speed VPN service.",
-        he: "גלשו בבטחה ובאנונימיות עם שירות ה-VPN המהיר שלנו.",
-      },
-      image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-      price: 9.99,
-      category: "VPN"
-    },
-    {
-      id: 4,
-      name: { en: "MonkeyZ Antivirus", he: "אנטי וירוס של MonkeyZ" },
-      description: {
-        en: "Protect your devices from malware and viruses with real-time protection.",
-        he: "הגנו על המכשירים שלכם מתוכנות זדוניות ווירוסים עם הגנה בזמן אמת.",
-      },
-      image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
-      price: 14.99,
-      category: "Security"
-    },
-    {
-      id: 5,
-      name: { en: "MonkeyZ Office Suite", he: "חבילת אופיס של MonkeyZ" },
-      description: {
-        en: "All-in-one office suite for productivity and collaboration.",
-        he: "חבילת אופיס כוללת לכלי פרודוקטיביות ושיתוף פעולה.",
-      },
-      image: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80",
-      price: 29.99,
-      category: "Office"
-    },
-    {
-      id: 6,
-      name: { en: "MonkeyZ Password Manager", he: "מנהל סיסמאות של MonkeyZ" },
-      description: {
-        en: "Keep your passwords safe and secure with our easy-to-use manager.",
-        he: "שמרו על הסיסמאות שלכם בטוחות ומאובטחות עם מנהל הסיסמאות הידידותי שלנו.",
-      },
-      image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
-      price: 7.99,
-      category: "Security"
-    },
-    {
-      id: 7,
-      name: { en: "MonkeyZ Photo Editor", he: "עורך תמונות של MonkeyZ" },
-      description: {
-        en: "Edit your photos like a pro with advanced tools and filters.",
-        he: "ערכו את התמונות שלכם כמו מקצוענים עם כלים ופילטרים מתקדמים.",
-      },
-      image: "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?auto=format&fit=crop&w=400&q=80",
-      price: 12.99,
-      category: "Multimedia"
-    },
-    {
-      id: 8,
-      name: { en: "MonkeyZ Music Studio", he: "אולפן מוזיקה של MonkeyZ" },
-      description: {
-        en: "Create, mix, and share your music with our powerful studio suite.",
-        he: "צרו, ערכו ושתפו מוזיקה עם חבילת האולפן העוצמתית שלנו.",
-      },
-      image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-      price: 24.99,
-      category: "Multimedia"
-    },
-  ];
 
   return (
     <>

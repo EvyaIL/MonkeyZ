@@ -131,9 +131,12 @@ class ApiService {  constructor() {
   put(url, data, contentType = "application/json") {
     return this.request("PUT", url, data, null, contentType);
   }
-
   delete(url, params = null) {
     return this.request("DELETE", url, null, params);
+  }
+
+  patch(url, data, contentType = "application/json") {
+    return this.request("PATCH", url, data, null, contentType);
   }
 
   /**

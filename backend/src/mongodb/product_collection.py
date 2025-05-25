@@ -7,12 +7,25 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from .mongodb import MongoDb
 from src.singleton.singleton import Singleton
 
+class TranslationContent(BaseModel):
+    en: Optional[str] = None
+    he: Optional[str] = None
+
+class ProductTranslations(BaseModel):
+    name: Optional[TranslationContent] = None
+    description: Optional[TranslationContent] = None
+
+class ProductMetadata(BaseModel):
+    translations: Optional[ProductTranslations] = None
+
 class Product(Document):
     name: str
     description: str
     price: float
     imageUrl: str
     active: bool = True
+    category: Optional[str] = None
+    metadata: Optional[ProductMetadata] = None
     createdAt: datetime = datetime.utcnow()
     updatedAt: datetime = datetime.utcnow()
 
@@ -22,8 +35,19 @@ class Product(Document):
             "name",
             ("name", "active"),
             "createdAt",
-            "updatedAt"
+            "updatedAt",
+            "category"
         ]
+
+    def get_translated_name(self, lang: str = 'en') -> str:
+        if not self.metadata or not self.metadata.translations or not self.metadata.translations.name:
+            return self.name
+        return getattr(self.metadata.translations.name, lang) or self.name
+
+    def get_translated_description(self, lang: str = 'en') -> str:
+        if not self.metadata or not self.metadata.translations or not self.metadata.translations.description:
+            return self.description
+        return getattr(self.metadata.translations.description, lang) or self.description
 
 class Coupon(Document):
     code: Indexed(str, unique=True)  # type: ignore

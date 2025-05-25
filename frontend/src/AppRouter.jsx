@@ -14,6 +14,9 @@ import Checkout from "./pages/Checkout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFailed from "./pages/PaymentFailed";
 import AnalyticsTest from "./pages/AnalyticsTest";
+import ErrorBoundary from "./components/ErrorBoundary";
+import AdminOverview from "./pages/dashboard/admin/AdminOverview";
+import AdminProducts from "./pages/dashboard/admin/AdminProducts";
 import FAQ from "./pages/FAQ";
 import AboutUs from "./pages/AboutUs";
 import Contact from "./pages/Contact";
@@ -24,34 +27,12 @@ import UserDashboard from "./pages/UserDashboard";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
-// Import other admin components directly for now
-import AdminProducts from "./pages/dashboard/admin/AdminProducts";
+// Import other admin components directly
 import AdminOrders from "./pages/dashboard/admin/AdminOrders";
 import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
+import AdminStock from "./pages/dashboard/admin/AdminStock";
 
-// Create a wrapper component for lazy-loaded components
-const LazyComponentWrapper = ({ component: Component, fallback }) => {
-  if (!Component) {
-    console.error('Component is undefined in LazyComponentWrapper');
-    return null;
-  }
-  
-  return (
-    <Suspense fallback={fallback || <LoadingSpinner />}>
-      <Component />
-    </Suspense>
-  );
-};
-
-// Lazy load AdminOverview with a more explicit approach
-const AdminOverview = React.lazy(() => 
-  import("./pages/dashboard/admin/AdminOverview").then(module => {
-    if (!module.default) {
-      throw new Error('AdminOverview component not found in module');
-    }
-    return module;
-  })
-);
+// Removed LazyComponentWrapper - now using direct imports with ErrorBoundary
 
 // Loading spinner component
 const LoadingSpinner = () => (
@@ -92,17 +73,45 @@ function AppRouter() {
               <DashboardLayout isAdmin>
                 <Routes>
                   <Route 
-                    index 
+                    index
                     element={
-                      <LazyComponentWrapper 
-                        component={AdminOverview}
-                        fallback={<LoadingSpinner />}
-                      />
-                    } 
+                      <ErrorBoundary>
+                        <AdminOverview />
+                      </ErrorBoundary>
+                    }
                   />
-                  <Route path="products" element={<AdminProducts />} />
-                  <Route path="orders" element={<AdminOrders />} />
-                  <Route path="coupons" element={<AdminCoupons />} />
+                  <Route
+                    path="products"
+                    element={
+                      <ErrorBoundary>
+                        <AdminProducts />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="orders"
+                    element={
+                      <ErrorBoundary>
+                        <AdminOrders />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="coupons"
+                    element={
+                      <ErrorBoundary>
+                        <AdminCoupons />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="stock"
+                    element={
+                      <ErrorBoundary>
+                        <AdminStock />
+                      </ErrorBoundary>
+                    }
+                  />
                 </Routes>
               </DashboardLayout>
             </ProtectedRoute>

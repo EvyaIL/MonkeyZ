@@ -13,34 +13,35 @@ from typing import List
 class UserController(ControllerInterface):
     """Controller for managing user operations, including authentication and profile retrieval."""
     
-    def __init__(self, keys_collection: KeysCollection, user_collection: UserCollection, product_collection: ProductCollection = None):
+    def __init__(self, keys_collection: KeysCollection, user_collection: UserCollection, admin_product_collection: ProductCollection = None):
         """
         Initializes the UserController with dependencies.
 
         Args:
             keys_collection (KeysCollection): Collection for key-related operations.
             user_collection (UserCollection): Collection for user-related operations.
-            product_collection (ProductCollection): Collection for admin product operations.
+            admin_product_collection (ProductCollection): Collection for admin product operations.
         """
         self.keys_collection = keys_collection
         self.user_collection = user_collection
-        self.product_collection = product_collection
+        self.admin_product_collection = admin_product_collection
+        self.product_collection = admin_product_collection  # For backward compatibility
         
     async def initialize(self):
         """Initializes database connections and collections."""
         # Initialize all collections in parallel for better performance
         await self.keys_collection.connection()
         await self.user_collection.connection()
-        if self.product_collection:
-            await self.product_collection.connection()
+        if self.admin_product_collection:
+            await self.admin_product_collection.connection()
             
         # Initialize collections in parallel
         init_tasks = [
             self.keys_collection.initialize(),
             self.user_collection.initialize()
         ]
-        if self.product_collection:
-            init_tasks.append(self.product_collection.initialize())
+        if self.admin_product_collection:
+            init_tasks.append(self.admin_product_collection.initialize())
             
         # Wait for all initializations to complete
         await asyncio.gather(*init_tasks)

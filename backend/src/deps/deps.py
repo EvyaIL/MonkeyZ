@@ -6,6 +6,7 @@ from src.mongodb.products_collection import ProductsCollection
 from src.mongodb.keys_collection import KeysCollection
 from src.controller.product_controller import ProductsController
 from src.mongodb.product_collection import ProductCollection
+from src.controller.key_metrics_controller import KeyMetricsController
 
 def get_user_collection_dependency() -> UserCollection:
     user_collection = UserCollection()
@@ -47,3 +48,9 @@ def get_keys_controller_dependency() -> KeyController:
     product_collection = get_products_collection_dependency()
     keys_controller = KeyController(product_collection, keys_collection, user_collection)
     return keys_controller
+
+def get_key_metrics_controller_dependency() -> KeyMetricsController:
+    admin_product_collection = get_admin_product_collection_dependency()
+    keys_collection = get_keys_collection_dependency()
+    key_metrics_controller = KeyMetricsController(admin_product_collection, keys_collection)
+    return key_metrics_controller

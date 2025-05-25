@@ -2,13 +2,53 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  TextField,
+  Grid,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControlLabel,
+  Switch,
+  Chip,
+  Tooltip,
+  Alert,
+  CircularProgress,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import KeyIcon from '@mui/icons-material/VpnKey';
+import KeyBulkManagement from '../../../components/admin/KeyBulkManagement';
+import KeyManagementSection from '../../../components/admin/KeyManagementSection';
 
-function AdminProducts() {
+export default function AdminProducts() {
   const { t } = useTranslation();
   const [products, setProducts] = useState([]);
-  const [editingProduct, setEditingProduct] = useState(null);  const [isLoading, setIsLoading] = useState(false);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const loadProducts = useCallback(async () => {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
+  const [showDialog, setShowDialog] = useState(false);
+  const [categories, setCategories] = useState([]);  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showKeyManagement, setShowKeyManagement] = useState(false);
+  const [showKeyDialog, setShowKeyDialog] = useState(false);
+  const [newKeys, setNewKeys] = useState('');
+  const [keyCount, setKeyCount] = useState(1);const loadProducts = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -46,7 +86,7 @@ function AdminProducts() {
     } finally {
       setIsLoading(false);
     }
-  }, [t, apiService]);
+  }, [t]); // apiService is a singleton, doesn't need to be a dependency
 
   useEffect(() => {
     loadProducts();
@@ -56,27 +96,49 @@ function AdminProducts() {
     event.preventDefault();
     const formData = new FormData(event.target);
     
-    const productData = {
-      name: {
-        en: formData.get('name_en'),
-        he: formData.get('name_he')
-      },
-      description: {
-        en: formData.get('description_en'),
-        he: formData.get('description_he')
-      },
-      price: parseFloat(formData.get('price')),
-      category: formData.get('category'),
-      image: formData.get('imageUrl') || formData.get('image'),
-      isNew: formData.get('isNew') === 'on',
-      isBestSeller: formData.get('isBestSeller') === 'on',
-      discountPercentage: parseInt(formData.get('discountPercentage') || '0'),
-      tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : [],
-      inStock: formData.get('inStock') !== 'off',
-      active: true
-    };    try {
-      if (!productData.name.en && !productData.name.he) {
+    // Format the data to match the backend model structure
+    const nameEn = formData.get('name_en');
+    const nameHe = formData.get('name_he');
+    const descEn = formData.get('description_en');
+    const descHe = formData.get('description_he');    const productData = {
+      // Use primary language (English) as the main string values
+      name: nameEn || '',  // Always use English as primary name
+      description: descEn || '',  // Always use English as primary description
+      price: parseFloat(formData.get('price')) || 0,
+      imageUrl: formData.get('imageUrl') || formData.get('image') || '',
+      category: formData.get('category') || '',
+      active: formData.get('active') === 'on',
+      // Store translations in metadata
+      metadata: {
+        translations: {
+          name: {
+            en: nameEn || '',
+            he: nameHe || ''
+          },
+          description: {
+            en: descEn || '',
+            he: descHe || ''
+          }
+        }
+      }
+    };
+
+    try {
+      // Validate required fields
+      if (!productData.name) {
         setError(t('admin.nameRequired') || 'Product name is required');
+        return;
+      }
+      if (!productData.price || isNaN(productData.price)) {
+        setError(t('admin.priceRequired') || 'Valid price is required');
+        return;
+      }
+      if (!productData.description) {
+        setError(t('admin.descriptionRequired') || 'Product description is required');
+        return;
+      }
+      if (!productData.imageUrl) {
+        setError(t('admin.imageRequired') || 'Product image URL is required');
         return;
       }
       
@@ -85,14 +147,10 @@ function AdminProducts() {
       
       let response;
       
-      console.log('Submitting product data:', productData);
-      
       if (editingProduct?.id) {
         response = await apiService.put(`/admin/products/${editingProduct.id}`, productData);
-        console.log('Update product response:', response);
       } else {
         response = await apiService.post('/admin/products', productData);
-        console.log('Create product response:', response);
       }
       
       if (response.error) {
@@ -100,10 +158,11 @@ function AdminProducts() {
       }
       
       // Show success message
-      setError(`Product ${editingProduct?.id ? 'updated' : 'created'} successfully!`);
-      setTimeout(() => setError(""), 3000);
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
       
       await loadProducts();
+      setShowDialog(false);
       setEditingProduct(null);
     } catch (error) {
       console.error('Error saving product:', error);
@@ -113,434 +172,707 @@ function AdminProducts() {
     }
   };
 
-  return (    <div>
-      {error && (
-        <div 
-          className={`px-4 py-3 rounded relative mb-4 transition-all duration-300 ${
-            error.includes('successfully') 
-              ? 'bg-green-100 border border-green-400 text-green-700' 
-              : 'bg-red-100 border border-red-400 text-red-700'
-          }`} 
-          role="alert"
-        >
-          <span className="block sm:inline">{error}</span>
-          <span 
-            className="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer"
-            onClick={() => setError("")}
-          >
-            <svg className="fill-current h-6 w-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
-          </span>
-        </div>
-      )}
+  // Filter and sort products
+  useEffect(() => {
+    let result = [...products];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(product => 
+        (product.name?.toLowerCase().includes(term)) ||
+        (product.description?.toLowerCase().includes(term)) ||
+        (product.category?.toLowerCase().includes(term))
+      );
+    }
+    
+    // Apply category filter
+    if (filterCategory !== "all") {
+      result = result.filter(product => product.category === filterCategory);
+    }
+    
+    // Apply sorting
+    switch (sortOrder) {
+      case "newest":
+        result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        break;
+      case "oldest":
+        result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        break;
+      case "price-high":
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case "price-low":
+        result.sort((a, b) => a.price - b.price);
+        break;
+      default:
+        break;
+    }
+    
+    setFilteredProducts(result);
+  }, [products, searchTerm, filterCategory, sortOrder]);
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{t('admin.manageProducts', 'Manage Products')}</h2>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={() => loadProducts()}
-            className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Loading...
-              </span>
-            ) : (
-              <span className="flex items-center">
-                <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-              </span>
-            )}
-          </button>
-          
-          <button
-            onClick={() => setEditingProduct({})}
-            className="bg-accent text-white px-4 py-2 rounded hover:bg-accent/80 transition-colors"
-            disabled={isLoading}
-          >
-            <span className="flex items-center">
-              <svg className="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              {t('admin.addNewProduct', 'Add New Product')}
-            </span>
-          </button>
-        </div>
-      </div>
-        <div className="mb-4 flex flex-wrap justify-between items-center gap-4">
-        <div className="text-sm text-gray-500">
-          {products.length} products found
-        </div>
-        
-        <div className="flex flex-wrap gap-3">
-          {/* Search input */}
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Search products..."
-              className="pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-accent focus:border-transparent"
-              onChange={(e) => {
-                const searchTerm = e.target.value.toLowerCase();
-                if (!searchTerm) {
-                  loadProducts(); // Reset to all products
-                  return;
+  // Extract categories from products
+  useEffect(() => {
+    const uniqueCategories = [...new Set(products.map(p => p.category))].filter(Boolean);
+    setCategories(uniqueCategories);
+  }, [products]);
+
+  const onDeleteProduct = async (productId) => {
+    if (!window.confirm(t('admin.confirmDelete'))) {
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setError("");
+      
+      const response = await apiService.delete(`/admin/products/${productId}`);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      // Show success message
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      
+      await loadProducts();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setError(error.message || t('admin.deleteError') || 'Failed to delete product');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddKeys = async () => {
+    if (!selectedProduct || !newKeys.trim()) return;
+
+    try {
+      setIsLoading(true);
+      setError("");
+
+      // Split keys by newlines and filter empty ones
+      const keysList = newKeys
+        .split('\n')
+        .map(key => key.trim())
+        .filter(key => key.length > 0);
+
+      if (keysList.length === 0) {
+        setError('Please enter at least one valid key');
+        return;
+      }
+
+      // Validate key format (example: W269N-WFGWX-YVC9B-4J6C9-T83GX)
+      const keyFormatRegex = /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
+      const invalidKeys = keysList.filter(key => !keyFormatRegex.test(key));
+      
+      if (invalidKeys.length > 0) {
+        setError(`Invalid key format detected. Keys should be in format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX\nFirst invalid key: ${invalidKeys[0]}`);
+        return;
+      }
+
+      const response = await apiService.post(`/admin/products/${selectedProduct.id}/keys`, {
+        keys: keysList
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+      
+      setShowKeyDialog(false);
+      setNewKeys('');
+      setSelectedProduct(null);
+      await loadProducts();
+    } catch (error) {
+      console.error('Error adding keys:', error);
+      setError(error.message || 'Failed to add keys');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const generateRandomKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const parts = [];
+    for (let i = 0; i < 5; i++) {
+      let part = '';
+      for (let j = 0; j < 5; j++) {
+        part += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      parts.push(part);
+    }
+    return parts.join('-');
+  };
+
+  const generateKeys = () => {
+    const keys = [];
+    for (let i = 0; i < keyCount; i++) {
+      keys.push(generateRandomKey());
+    }
+    setNewKeys(keys.join('\n'));
+  };
+
+  return (
+    <Box p={3}>
+      {/* Header section with actions */}      <Box mb={3}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h4" component="h1">
+            {t('admin.products')}
+          </Typography>
+          <Box>
+            <Button
+              variant="outlined"
+              color="primary"
+              sx={{ mr: 1 }}              onClick={() => {
+                // Open key management modal with the first selected product
+                const product = products.find(p => p.availableKeys <= (p.minStockAlert || 10)) || products[0];
+                if (product) {
+                  setSelectedProduct(product);
+                  setShowKeyManagement(true);
+                } else {
+                  window.alert(t('admin.noProductsForKeyManagement'));
                 }
-                
-                // Filter products by search term
-                const filtered = products.filter(product => {
-                  const name = (product.name?.en || product.name || '').toLowerCase();
-                  const hebrewName = (product.name?.he || '').toLowerCase();
-                  const description = (product.description?.en || product.description || '').toLowerCase();
-                  return name.includes(searchTerm) || 
-                         hebrewName.includes(searchTerm) || 
-                         description.includes(searchTerm) ||
-                         (product.category && product.category.toLowerCase().includes(searchTerm));
-                });
-                setProducts(filtered);
               }}
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-              </svg>
-            </div>
-          </div>
-          
-          {/* Category filter */}
-          <select 
-            className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-accent focus:border-transparent"
-            onChange={(e) => {
-              const category = e.target.value;
-              if (category === "all") {
-                loadProducts(); // Reset to all products
-                return;
-              }
-              
-              // Filter products by category
-              const filtered = products.filter(product => 
-                product.category?.toLowerCase() === category.toLowerCase()
-              );
-              setProducts(filtered);
-            }}
-          >
-            <option value="all">All Categories</option>
-            {/* Extract unique categories from products */}
-            {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-          
-          {/* Sort options */}
-          <select 
-            className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-accent focus:border-transparent"
-            onChange={(e) => {
-              const sortMethod = e.target.value;
-              const productsCopy = [...products];
-              
-              switch(sortMethod) {
-                case "price-low":
-                  productsCopy.sort((a, b) => a.price - b.price);
-                  break;
-                case "price-high":
-                  productsCopy.sort((a, b) => b.price - a.price);
-                  break;
-                case "new":
-                  productsCopy.sort((a, b) => a.isNew ? -1 : b.isNew ? 1 : 0);
-                  break;
-                case "bestseller":
-                  productsCopy.sort((a, b) => a.isBestSeller ? -1 : b.isBestSeller ? 1 : 0);
-                  break;
-                case "name":
-                  productsCopy.sort((a, b) => {
-                    const nameA = (a.name?.en || a.name || '').toLowerCase();
-                    const nameB = (b.name?.en || b.name || '').toLowerCase();
-                    return nameA.localeCompare(nameB);
-                  });
-                  break;
-                default:
-                  // Default sort by most recently added/updated
-                  productsCopy.sort((a, b) => {
-                    const dateA = new Date(a.updatedAt || a.createdAt || 0);
-                    const dateB = new Date(b.updatedAt || b.createdAt || 0);
-                    return dateB - dateA;
-                  });
-              }
-              
-              setProducts(productsCopy);
-            }}
-          >
-            <option value="recent">Most Recent</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="name">Name: A to Z</option>
-            <option value="new">New Items First</option>
-            <option value="bestseller">Best Sellers First</option>
-          </select>
-        </div>
-      </div>{isLoading ? (
-        <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-        </div>
-      ) : (
-        <>
-          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8 ${editingProduct ? 'opacity-50' : ''}`}>
-            {products.map(product => (
-              <div 
-                key={product.id || product._id} 
-                className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-md overflow-hidden transition-transform hover:shadow-lg cursor-pointer"
-                onClick={() => setEditingProduct(product)}
-              >
-                <div className="relative h-48 bg-gray-200 dark:bg-gray-800">
-                  {product.image ? (
-                    <img 
-                      src={product.image} 
-                      alt={product.name?.en || product.name || 'Product'} 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.onerror = null; 
-                        e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
-                      }}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <span>No image</span>
-                    </div>
-                  )}
-                  
-                  {product.discountPercentage > 0 && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md">
-                      {product.discountPercentage}% OFF
-                    </div>
-                  )}
-                  
-                  {product.isNew && (
-                    <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-md">
-                      NEW
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-4">
-                  <div className="flex justify-between">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 line-clamp-1">
-                      {product.name?.en || product.name || 'Unnamed Product'}
-                    </h3>
-                    
-                    <div className="flex gap-1">
-                      {/* Edit button */}
-                      <button 
-                        className="text-blue-600 hover:text-blue-800 p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingProduct(product);
-                        }}
-                      >
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      
-                      {/* Delete button */}
-                      <button 
-                        className="text-red-600 hover:text-red-800 p-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (window.confirm(`Are you sure you want to delete "${product.name?.en || product.name}"?`)) {
-                            // Delete product
-                            (async () => {
-                              setIsLoading(true);
-                              try {
-                                const response = await apiService.delete(`/admin/products/${product.id || product._id}`);
-                                if (response.error) {
-                                  setError(response.error);
-                                } else {
-                                  setError('Product deleted successfully!');
-                                  loadProducts();
-                                  setTimeout(() => setError(''), 3000);
-                                }
-                              } catch (err) {
-                                console.error('Error deleting product:', err);
-                                setError('Failed to delete product');
-                              } finally {
-                                setIsLoading(false);
-                              }
-                            })();
-                          }
-                        }}
-                      >
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {product.name?.he && (
-                    <h4 className="text-md text-gray-600 dark:text-gray-300 font-medium line-clamp-1" dir="rtl">
-                      {product.name.he}
-                    </h4>
-                  )}
-                  
-                  <div className="flex justify-between items-center mt-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-lg ${product.discountPercentage > 0 ? 'text-accent' : 'text-gray-800 dark:text-white'}`}>
-                        ${product.price - (product.price * (product.discountPercentage || 0) / 100)}
-                      </span>
-                      
-                      {product.discountPercentage > 0 && (
-                        <span className="text-gray-500 line-through text-sm">
-                          ${product.price}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className={`text-xs px-2 py-1 rounded ${product.inStock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {product.inStock ? 'In Stock' : 'Out of Stock'}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {product.category && (
-                      <span className="bg-gray-200 dark:bg-gray-600 text-xs px-2 py-1 rounded">
-                        {product.category}
-                      </span>
-                    )}
-                    {product.isBestSeller && (
-                      <span className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 text-xs px-2 py-1 rounded">
-                        Best Seller
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Action buttons */}
-                  <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between">
-                    <button
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(`/product/${product.slug || product.id || product._id}`, '_blank');
-                      }}
-                    >
-                      <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      View
-                    </button>
-                    
-                    <button
-                      className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        
-                        // Clone product and create a duplicate
-                        const duplicate = { ...product };
-                        delete duplicate.id;
-                        delete duplicate._id;
-                        
-                        if (duplicate.name) {
-                          if (typeof duplicate.name === 'string') {
-                            duplicate.name = `${duplicate.name} (Copy)`;
-                          } else {
-                            duplicate.name = {
-                              ...duplicate.name,
-                              en: `${duplicate.name.en || ''} (Copy)`,
-                              he: duplicate.name.he ? `${duplicate.name.he} (העתק)` : ''
-                            };
-                          }
-                        }
-                        
-                        setEditingProduct(duplicate);
-                      }}
-                    >
-                      <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Duplicate
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {/* Add new product card */}
-            <div 
-              className="bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center h-full min-h-[300px] cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => setEditingProduct({})}
             >
-              <div className="text-center p-4">
-                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-white text-2xl mx-auto mb-2">
-                  +
-                </div>
-                <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Add New Product</h3>
-              </div>
-            </div>
-          </div>
+              Manage Keys
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                setEditingProduct(null);
+                setShowDialog(true);
+              }}
+            >
+              {t('admin.addProduct')}
+            </Button>
+          </Box>
+        </Box>
+        
+        {/* Quick Stats */}        {/* Key Management Section */}
+        <KeyManagementSection />
+      </Box>
 
-          {editingProduct && (
-            <form onSubmit={handleProductSubmit} className="mb-8 space-y-4 bg-white dark:bg-gray-700 p-6 rounded-lg shadow sticky top-4 z-10">
-              <h3 className="text-lg font-semibold mb-4">
-                {editingProduct.id ? t('admin.editProduct') : t('admin.addNewProduct')}
-              </h3>
+      {/* Filters and search */}
+      <Grid container spacing={2} mb={3}>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label={t('admin.search')}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            variant="outlined"
+            size="small"
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth size="small">
+            <InputLabel>{t('admin.category')}</InputLabel>
+            <Select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              label={t('admin.category')}
+            >
+              <MenuItem value="all">{t('admin.allCategories')}</MenuItem>
+              {categories.map((category) => (
+                <MenuItem key={category} value={category}>
+                  {category}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth size="small">
+            <InputLabel>{t('admin.sort')}</InputLabel>
+            <Select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              label={t('admin.sort')}
+            >
+              <MenuItem value="newest">{t('admin.newest')}</MenuItem>
+              <MenuItem value="oldest">{t('admin.oldest')}</MenuItem>
+              <MenuItem value="price-high">{t('admin.priceHigh')}</MenuItem>
+              <MenuItem value="price-low">{t('admin.priceLow')}</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+      </Grid>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {t('admin.productNameEn')}
-                  </label>
-                  <input
-                    type="text"
-                    name="name_en"
-                    defaultValue={editingProduct.name?.en || editingProduct.name}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                    required
-                    dir="ltr"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {t('admin.productNameHe')}
-                  </label>
-                  <input
-                    type="text"
-                    name="name_he"
-                    defaultValue={editingProduct.name?.he}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                    required
-                    dir="rtl"
-                  />
-                </div>
-              </div>
-
-              {/* More form fields... */}
-
-              <div className="flex justify-end space-x-4 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setEditingProduct(null)}
-                  className="px-4 py-2 border rounded hover:bg-gray-100 transition-colors"
-                >
-                  {t('admin.cancel')}
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-accent text-white rounded hover:bg-accent/80 transition-colors"
-                >
-                  {t('admin.save')}
-                </button>
-              </div>
-            </form>          )}
-        </>
+      {/* Success/Error messages */}
+      {showSuccessMessage && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {t('admin.productSaved')}
+        </Alert>
       )}
-    </div>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Products grid */}
+      {isLoading ? (
+        <Box display="flex" justifyContent="center" my={4}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredProducts.map((product) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+              <Card>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    pt: '100%', // 1:1 Aspect ratio
+                    overflow: 'hidden',
+                  }}
+                >
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                </Box>
+                <CardContent>                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                    <Box>
+                      <Typography variant="h6" noWrap gutterBottom>
+                        {product.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {product.category}
+                      </Typography>
+                    </Box>
+                    <Box textAlign="right">
+                      <Typography variant="subtitle1" color="primary" fontWeight="bold">
+                        ₪{product.price.toFixed(2)}
+                      </Typography>
+                      <Chip
+                        size="small"
+                        label={`${product.availableKeys || 0} keys`}
+                        color={product.availableKeys > (product.minStockAlert || 10) ? "success" : "error"}
+                        sx={{ mt: 0.5 }}
+                      />
+                    </Box>
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      mb: 1,
+                      mt: 1
+                    }}
+                  >
+                    {product.description}
+                  </Typography>
+                  
+                  <Box mt={1}>
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      Key Format: {product.keyFormat || "Standard"}
+                    </Typography>
+                    {product.keyExpiry && (
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        Validity: {product.keyValidityDays || 365} days
+                      </Typography>
+                    )}
+                  </Box>                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Chip
+                      size="small"
+                      label={product.category}
+                      color="default"
+                    />
+                    <Box>
+                      <Tooltip title="Add Keys">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setShowKeyDialog(true);
+                          }}
+                        >
+                          <KeyIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t('admin.edit')}>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setEditingProduct(product);
+                            setShowDialog(true);
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title={t('admin.delete')}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => onDeleteProduct(product.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
+      {/* Product Edit/Create Dialog */}
+      <Dialog 
+        open={showDialog} 
+        onClose={() => {
+          setShowDialog(false);
+          setEditingProduct(null);
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingProduct?.id ? t('admin.editProduct') : t('admin.newProduct')}
+        </DialogTitle>
+        <form onSubmit={handleProductSubmit}>
+          <DialogContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={t('admin.productNameEn')}
+                  name="name_en"
+                  defaultValue={editingProduct?.name?.en || editingProduct?.name || ''}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={t('admin.productNameHe')}
+                  name="name_he"
+                  defaultValue={editingProduct?.name?.he || ''}
+                  dir="rtl"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={t('admin.descriptionEn')}
+                  name="description_en"
+                  multiline
+                  rows={4}
+                  defaultValue={editingProduct?.description?.en || editingProduct?.description || ''}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={t('admin.descriptionHe')}
+                  name="description_he"
+                  multiline
+                  rows={4}
+                  defaultValue={editingProduct?.description?.he || ''}
+                  dir="rtl"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={t('admin.price')}
+                  name="price"
+                  type="number"
+                  inputProps={{ min: 0, step: "0.01" }}
+                  defaultValue={editingProduct?.price || 0}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>{t('admin.category')}</InputLabel>                  <Select
+                    name="category"
+                    defaultValue={editingProduct?.category || ''}
+                    label={t('admin.category')}
+                  >
+                    <MenuItem value="Windows">Windows</MenuItem>
+                    <MenuItem value="Office">Microsoft Office</MenuItem>
+                    <MenuItem value="Security">Security Software</MenuItem>
+                    <MenuItem value="VPN">VPN Services</MenuItem>
+                    <MenuItem value="Gaming">Gaming</MenuItem>
+                    <MenuItem value="Design">Design Software</MenuItem>
+                    <MenuItem value="Development">Development Tools</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label={t('admin.imageUrl')}
+                  name="imageUrl"
+                  defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      name="active"
+                      defaultChecked={editingProduct?.active ?? true}
+                    />
+                  }
+                  label={t('admin.active')}
+                />
+              </Grid>
+              
+              {/* Key Management Section */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                  Key Management
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Key Format"
+                      name="keyFormat"
+                      defaultValue={editingProduct?.keyFormat || "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
+                      helperText="Use X for characters, 0-9 for numbers only"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Available Keys"
+                      type="number"
+                      InputProps={{ readOnly: true }}
+                      value={editingProduct?.availableKeys || 0}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Import Keys"
+                      name="importKeys"
+                      multiline
+                      rows={4}
+                      placeholder="Enter one key per line to add to inventory"
+                      helperText="Keys will be validated against the specified format"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          name="autoGenerateKeys"
+                          defaultChecked={editingProduct?.autoGenerateKeys ?? false}
+                        />
+                      }
+                      label="Auto-generate keys when stock is low"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Minimum Stock Alert"
+                      name="minStockAlert"
+                      type="number"
+                      defaultValue={editingProduct?.minStockAlert || 10}
+                      InputProps={{ inputProps: { min: 0 } }}
+                      helperText="Get notified when available keys fall below this number"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Key Validation Method</InputLabel>
+                      <Select
+                        name="keyValidation"
+                        defaultValue={editingProduct?.keyValidation || "format"}
+                      >
+                        <MenuItem value="format">Format Only</MenuItem>
+                        <MenuItem value="api">External API</MenuItem>
+                        <MenuItem value="custom">Custom Validation</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* Key Usage Settings */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                  Key Usage Settings
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          name="keyReuse"
+                          defaultChecked={editingProduct?.keyReuse ?? false}
+                        />
+                      }
+                      label="Allow key reuse"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          name="keyExpiry"
+                          defaultChecked={editingProduct?.keyExpiry ?? false}
+                        />
+                      }
+                      label="Keys expire"
+                    />
+                  </Grid>
+                  {editingProduct?.keyExpiry && (
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Key Validity (days)"
+                        name="keyValidityDays"
+                        type="number"
+                        defaultValue={editingProduct?.keyValidityDays || 365}
+                        InputProps={{ inputProps: { min: 1 } }}
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setShowDialog(false);
+              setEditingProduct(null);
+            }}>
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              type="submit"
+              variant="contained"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : editingProduct?.id ? (
+                t('common.save')
+              ) : (
+                t('common.create')
+              )}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Key Management Dialog */}
+      {selectedProduct && (
+        <KeyBulkManagement
+          open={showKeyManagement}
+          onClose={() => {
+            setShowKeyManagement(false);
+            setSelectedProduct(null);
+            loadProducts(); // Refresh products after key management
+          }}
+          productId={selectedProduct.id}
+          productName={selectedProduct.name.en || selectedProduct.name}
+          keyFormat={selectedProduct.keyFormat}
+        />
+      )}
+
+      {/* Simple Key Management Dialog */}
+      <Dialog 
+        open={showKeyDialog} 
+        onClose={() => {
+          setShowKeyDialog(false);
+          setSelectedProduct(null);
+          setNewKeys('');
+        }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Add Keys to {selectedProduct?.name?.en || selectedProduct?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Key Format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX (e.g., W269N-WFGWX-YVC9B-4J6C9-T83GX)
+            </Typography>
+            
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid item xs={6}>
+                <TextField
+                  type="number"
+                  label="Number of keys to generate"
+                  value={keyCount}
+                  onChange={(e) => setKeyCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  InputProps={{ inputProps: { min: 1, max: 100 } }}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  variant="outlined"
+                  onClick={generateKeys}
+                  fullWidth
+                  sx={{ height: '56px' }}
+                >
+                  Generate Random Keys
+                </Button>
+              </Grid>
+            </Grid>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={8}
+              label="Product Keys (one per line)"
+              value={newKeys}
+              onChange={(e) => setNewKeys(e.target.value)}
+              placeholder="Enter keys, one per line:&#10;W269N-WFGWX-YVC9B-4J6C9-T83GX&#10;X270O-WGHWY-ZVD0C-5K7D0-U94HY"
+              helperText="Enter product keys, one per line. Use the format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setShowKeyDialog(false);
+            setSelectedProduct(null);
+            setNewKeys('');
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAddKeys}
+            variant="contained"
+            disabled={isLoading || !newKeys.trim()}
+          >
+            {isLoading ? <CircularProgress size={24} /> : 'Add Keys'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
-
-export default AdminProducts;
