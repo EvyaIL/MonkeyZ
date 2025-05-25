@@ -224,25 +224,13 @@ const Navbar = () => {
             </button>
           </div>
         </div>
-      </nav>
-
-      {/* Mobile Menu */}
+      </nav>          {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div 
           ref={mobileMenuRef}
           className="md:hidden bg-white dark:bg-gray-800 text-gray-800 dark:text-white border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg"
         >
           <div className="flex flex-col gap-4">
-            {/* Close button at the top of mobile menu */}
-            <button
-              className="self-end p-2 rounded-full hover:bg-gray-700 transition-colors"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-label="Close menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6 text-white">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
             <Link              to="/products"
               className="px-4 py-2 text-gray-800 dark:text-white hover:bg-accent/10 dark:hover:bg-gray-700 rounded-md hover:text-accent dark:hover:text-accent transition-colors"
               onClick={() => setMobileMenuOpen(false)}
@@ -316,10 +304,12 @@ const Navbar = () => {
       >
         {/* Cart Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-primary dark:text-white">{t("cart")}</h2>
-          <button
+          <h2 className="text-xl font-bold text-primary dark:text-white">{t("cart")}</h2>          <button
             className="text-gray-400 hover:text-white p-1"
-            onClick={() => setOpenCart(false)}
+            onClick={() => {
+              setOpenCart(false);
+              setMobileMenuOpen(false);
+            }}
             aria-label={t("close_cart")}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
