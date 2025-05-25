@@ -2,6 +2,10 @@ import os
 import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from beanie import init_beanie
+from beanie import Document, Indexed
+from pydantic import Field, condecimal
+from typing import Optional
+from datetime import datetime
 
 class MongoDb:
     """
@@ -150,3 +154,16 @@ class MongoDbBase:
             await self._client.close()
             self._client = None
             self._db = None
+
+class Coupon(Document):
+    code: Indexed(str, unique=True)  # type: ignore
+    discountType: str = "percentage"  # "percentage" or "fixed"
+    discountValue: float
+    active: bool = True
+    expiresAt: Optional[datetime] = None
+    maxUses: Optional[int] = None
+    usageCount: int = 0
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Settings:
+        name = "coupons"

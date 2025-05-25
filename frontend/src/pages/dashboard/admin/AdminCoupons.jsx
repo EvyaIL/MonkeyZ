@@ -32,9 +32,7 @@ const AdminCoupons = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   
-  const api = useApi();
-  const fetchCoupons = useCallback(async () => {
-    // Prevent duplicate requests while loading
+  const api = useApi();  const fetchCoupons = useCallback(async () => {
     if (isLoading) return;
     
     setIsLoading(true);
@@ -60,7 +58,7 @@ const AdminCoupons = () => {
         id: coupon.id || coupon._id,
         code: coupon.code,
         discountType: coupon.discountType || 'percentage',
-        discountValue: coupon.discountPercent || coupon.discountValue || 0,
+        discountValue: coupon.discountType === 'fixed' ? coupon.discountValue : (coupon.discountPercent || 0),
         expiryDate: coupon.expiresAt || coupon.expiryDate,
         maxUses: coupon.maxUses || null,
         usageCount: coupon.usageCount || 0,
@@ -94,10 +92,11 @@ const AdminCoupons = () => {
     
     setIsSubmitting(true);
     setSubmitError('');
-      try {      const backendCoupon = {
+    try {
+      const backendCoupon = {
         code: newCoupon.code.trim(),
         discountType: newCoupon.discountType,
-        discountPercent: parseFloat(newCoupon.discountValue),
+        discountValue: parseFloat(newCoupon.discountValue),
         active: true,
         expiresAt: newCoupon.expiryDate ? new Date(newCoupon.expiryDate).toISOString() : null,
         maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses, 10) : null
@@ -119,7 +118,7 @@ const AdminCoupons = () => {
           maxUses: '',
         });
         
-        setError(newCoupon.id ? 'Coupon updated successfully!' : 'Coupon created successfully!');
+        setError('Coupon created successfully!');
         await fetchCoupons();
         setTimeout(() => setError(''), 3000);
       }
@@ -178,18 +177,22 @@ const AdminCoupons = () => {
       valueFormatter: (params) => 
         params.value === 'percentage' ? 'Percentage' : 'Fixed Amount',
     },
-    { 
-      field: 'discountValue', 
+    {      field: 'discountValue', 
       headerName: 'Value', 
       width: 100,
-      renderCell: (params) => (
-        <Box sx={{ 
-          fontWeight: 'medium', 
-          color: params.row.discountType === 'percentage' ? 'success.main' : 'info.main',
-        }}>
-          {params.row.discountType === 'percentage' ? `${params.value}%` : `$${params.value}`}
-        </Box>
-      )
+      renderCell: (params) => {
+        const value = parseFloat(params.value);
+        return (
+          <Box sx={{ 
+            fontWeight: 'medium', 
+            color: params.row.discountType === 'percentage' ? 'success.main' : 'info.main',
+          }}>
+            {params.row.discountType === 'percentage' ? 
+              `${value}%` : 
+              `$${value.toFixed(2)}`}
+          </Box>
+        );
+      }
     },
     { 
       field: 'expiryDate', 
@@ -254,32 +257,12 @@ const AdminCoupons = () => {
         return new Date(params.value).toLocaleDateString();
       }
     },
-    {
-      field: 'actions',
+    {      field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      width: 100,
       sortable: false,
       renderCell: (params) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            sx={{ minWidth: '30px', p: '4px' }}
-            onClick={() => {
-              const couponToEdit = { ...params.row };
-              setNewCoupon({
-                code: couponToEdit.code,
-                discountType: couponToEdit.discountType || 'percentage',
-                discountValue: couponToEdit.discountValue || '',
-                expiryDate: couponToEdit.expiryDate ? new Date(couponToEdit.expiryDate).toISOString().split('T')[0] : '',
-                maxUses: couponToEdit.maxUses || '',
-                id: couponToEdit.id
-              });
-              setOpenDialog(true);
-            }}
-          >
-            Edit
-          </Button>
+        <Box>
           <Button
             color="error"
             variant="outlined"
@@ -441,7 +424,7 @@ const AdminCoupons = () => {
         fullWidth
       >
         <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 'bold' }}>
-          {newCoupon.id ? 'Edit Coupon' : 'Create New Coupon'}
+          Create New Coupon
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {submitError && (
@@ -484,11 +467,21 @@ const AdminCoupons = () => {
               value={newCoupon.discountValue}
               onChange={(e) => setNewCoupon({ ...newCoupon, discountValue: e.target.value })}
               required
-              error={Boolean(submitError && (!newCoupon.discountValue || isNaN(parseFloat(newCoupon.discountValue))))}
-              helperText={submitError && (!newCoupon.discountValue || isNaN(parseFloat(newCoupon.discountValue))) ? "Valid value is required" : ""}
+              error={Boolean(submitError && (!newCoupon.discountValue || isNaN(parseFloat(newCoupon.discountValue))))}              helperText={
+                submitError && (!newCoupon.discountValue || isNaN(parseFloat(newCoupon.discountValue))) 
+                  ? "Valid value is required"
+                  : newCoupon.discountType === 'fixed' 
+                    ? "Enter amount in dollars" 
+                    : "Enter percentage value (1-100)"
+              }
               disabled={isSubmitting}
               InputProps={{
                 endAdornment: newCoupon.discountType === 'percentage' ? '%' : '$',
+                inputProps: {
+                  min: 0,
+                  max: newCoupon.discountType === 'percentage' ? 100 : undefined,
+                  step: newCoupon.discountType === 'percentage' ? 1 : 0.01,
+                },
               }}
             />
             <TextField
@@ -503,9 +496,11 @@ const AdminCoupons = () => {
               label="Maximum Uses"
               type="number"
               value={newCoupon.maxUses}
-              onChange={(e) => setNewCoupon({ ...newCoupon, maxUses: e.target.value })}
-              helperText="Leave empty for unlimited uses"
+              onChange={(e) => setNewCoupon({ ...newCoupon, maxUses: e.target.value })}              helperText="Leave empty for unlimited uses"
               disabled={isSubmitting}
+              InputProps={{
+                inputProps: { min: 1 }
+              }}
             />
           </Box>
         </DialogContent>
@@ -528,11 +523,7 @@ const AdminCoupons = () => {
             color="primary"
             disabled={isSubmitting}
             type="submit"
-          >
-            {isSubmitting ? 
-              (newCoupon.id ? 'Updating...' : 'Creating...') : 
-              (newCoupon.id ? 'Update Coupon' : 'Create Coupon')
-            }
+          >            {isSubmitting ? 'Creating...' : 'Create Coupon'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -27,15 +27,29 @@ class Product(ProductBase):
 
 class CouponBase(BaseModel):
     code: str
-    discountPercent: float  # Frontend uses discountPercent but backend uses discountValue
+    discountType: str = "percentage"  # "percentage" or "fixed"
+    discountValue: float
+    discountPercent: Optional[float] = None  # This will be populated based on discountValue for percentage discounts
     active: bool = True
     expiresAt: Optional[datetime] = None
     maxUses: Optional[int] = None
     usageCount: int = 0
     
-    class Config:
-        # Allow for extra fields to handle discountValue/discountType conversion
-        extra = "allow"
+    model_config = {
+        "populate_by_name": True
+    }
+    
+    @validator('discountValue')
+    def validate_discount(cls, v, values, **kwargs):
+        if v is None:
+            raise ValueError('discountValue is required')
+            
+        if values.get('discountType') == 'percentage':
+            if v < 0 or v > 100:
+                raise ValueError('Percentage discount must be between 0 and 100')
+        elif v < 0:
+            raise ValueError('Fixed discount cannot be negative')
+        return float(v)
 
 class CouponCreate(CouponBase):
     pass
@@ -43,7 +57,7 @@ class CouponCreate(CouponBase):
 class Coupon(CouponBase):
     id: str  # Using str for compatibility with MongoDB ObjectId
     createdAt: datetime
-
+    
     model_config = {
         "populate_by_name": True,
         "arbitrary_types_allowed": True,
@@ -59,15 +73,12 @@ class Coupon(CouponBase):
             return str(id)
         return id
         
-    @validator('discountPercent', pre=True)
-    def set_discount_percent(cls, v, values):
-        # If discountPercent is not provided but discountValue and discountType are
-        if v is None and 'discountValue' in values:
-            if values.get('discountType') == 'percentage':
-                return values['discountValue']
-            # If it's a fixed discount, you might want to convert it somehow
-            # or handle it differently based on your app's needs
-        return v
+    @validator('discountPercent')
+    def compute_discount_percent(cls, v, values, **kwargs):
+        """Compute discountPercent from discountValue for percentage type discounts"""
+        if values.get('discountType') == 'percentage':
+            return values.get('discountValue')
+        return None  # For fixed discounts, discountPercent is not applicable
 
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -173,14 +184,22 @@ async def create_coupon(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    
-    # Convert the model to a dict for processing
+      # Convert the model to a dict for processing
     coupon_data = coupon.dict()
     
-    # Convert discountPercent to discountValue for MongoDB model
-    if "discountPercent" in coupon_data:
-        coupon_data["discountValue"] = coupon_data.pop("discountPercent")
-        coupon_data["discountType"] = "percentage"
+    # Keep the discount type as specified in the request
+    # Only convert values to proper format
+    if coupon_data["discountType"] == "percentage":
+        # For percentage, ensure we're using discountValue correctly
+        coupon_data["discountValue"] = float(coupon_data["discountValue"])
+        if "discountPercent" in coupon_data:
+            # If discountPercent is provided, use that value instead
+            if coupon_data["discountPercent"] is not None:
+                coupon_data["discountValue"] = float(coupon_data.pop("discountPercent"))
+    else:
+        # For fixed amount, just ensure the value is a float
+        coupon_data["discountType"] = "fixed"
+        coupon_data["discountValue"] = float(coupon_data["discountValue"])
     
     # Convert ISOString to datetime if present
     if coupon.expiresAt and isinstance(coupon.expiresAt, str):
