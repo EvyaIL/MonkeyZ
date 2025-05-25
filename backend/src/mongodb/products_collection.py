@@ -47,6 +47,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             list[Product]: A list of recently created products.
         """
         return await Product.find().sort(-Product.created_at).limit(limit).to_list()
+        
     async def create_product(self, product_request: ProductRequest) -> Product:
         """
         Creates a new product in the database.
@@ -107,7 +108,8 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         logging.basicConfig(level=logging.INFO)
         logger = logging.getLogger(__name__)
         
-        try:            current_product = await self.get_product_by_id(product_id)
+        try:
+            current_product = await self.get_product_by_id(product_id)
             
             # Convert key_id to string for consistent handling
             key_id_str = str(key_id)
@@ -188,3 +190,50 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         product: Product = await self.get_product_by_id(product_id)
         await product.delete()
         return str(product.id)
+    
+    async def get_product_with_key_count(self, product_id: PydanticObjectId) -> dict:
+        """
+        Gets a product by its ID and adds a count of its keys.
+
+        Args:
+            product_id (PydanticObjectId): The ID of the product.
+
+        Returns:
+            dict: The product with an additional field for key count.
+        """
+        product = await self.get_product_by_id(product_id)
+        if not product:
+            return None
+        
+        product_dict = product.dict()
+        
+        # Add key count
+        if product.keys and isinstance(product.keys, dict):
+            product_dict["availableKeys"] = len(product.keys)
+        else:
+            product_dict["availableKeys"] = 0
+            
+        return product_dict
+        
+    async def get_all_products_with_key_counts(self) -> list:
+        """
+        Gets all products and adds a count of keys to each one.
+
+        Returns:
+            list: All products with an additional field for key count.
+        """
+        products = await self.get_all_products()
+        products_with_counts = []
+        
+        for product in products:
+            product_dict = product.dict()
+            
+            # Add key count
+            if product.keys and isinstance(product.keys, dict):
+                product_dict["availableKeys"] = len(product.keys)
+            else:
+                product_dict["availableKeys"] = 0
+                
+            products_with_counts.append(product_dict)
+            
+        return products_with_counts
