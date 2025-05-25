@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from "react-router-dom";
-import { useEffect, lazy, Suspense } from "react";
+import * as React from "react";
+import { Suspense } from "react";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -22,20 +23,47 @@ import BlogPostPage from "./pages/BlogPostPage";
 import UserDashboard from "./pages/UserDashboard";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
 
-// Lazy load admin routes
-const AdminOverview = lazy(() => import("./pages/dashboard/admin/AdminOverview"));
-const AdminProducts = lazy(() => import("./pages/dashboard/admin/AdminProducts"));
-const AdminOrders = lazy(() => import("./pages/dashboard/admin/AdminOrders")); 
-const AdminCoupons = lazy(() => import("./pages/dashboard/admin/AdminCoupons"));
+// Import other admin components directly for now
+import AdminProducts from "./pages/dashboard/admin/AdminProducts";
+import AdminOrders from "./pages/dashboard/admin/AdminOrders";
+import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
 
-const AppRouter = () => {
+// Create a wrapper component for lazy-loaded components
+const LazyComponentWrapper = ({ component: Component, fallback }) => {
+  if (!Component) {
+    console.error('Component is undefined in LazyComponentWrapper');
+    return null;
+  }
+  
+  return (
+    <Suspense fallback={fallback || <LoadingSpinner />}>
+      <Component />
+    </Suspense>
+  );
+};
+
+// Lazy load AdminOverview with a more explicit approach
+const AdminOverview = React.lazy(() => 
+  import("./pages/dashboard/admin/AdminOverview").then(module => {
+    if (!module.default) {
+      throw new Error('AdminOverview component not found in module');
+    }
+    return module;
+  })
+);
+
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+  </div>
+);
+
+function AppRouter() {
   const location = useLocation();
 
-  // Track page views when the route changes
-  useEffect(() => {
+  React.useEffect(() => {
     const path = location.pathname;
     const title = document.title || `MonkeyZ - ${path.slice(1) || 'Home'}`;
     pageView(path, title);
@@ -50,31 +78,36 @@ const AppRouter = () => {
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
 
         {/* Protected user routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />        {/* Protected admin routes */}        <Route path="/dashboard/admin/*" element={
-          <ProtectedRoute requireAdmin={true}>
-            <DashboardLayout isAdmin={true}>
-              <Suspense fallback={
-                <div className="flex justify-center items-center h-screen">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-                </div>
-              }>
+        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+        
+        {/* Protected admin routes */}
+        <Route
+          path="/dashboard/admin/*"
+          element={
+            <ProtectedRoute requireAdmin>
+              <DashboardLayout isAdmin>
                 <Routes>
-                  <Route path="" element={<AdminOverview />} />
+                  <Route 
+                    index 
+                    element={
+                      <LazyComponentWrapper 
+                        component={AdminOverview}
+                        fallback={<LoadingSpinner />}
+                      />
+                    } 
+                  />
                   <Route path="products" element={<AdminProducts />} />
                   <Route path="orders" element={<AdminOrders />} />
                   <Route path="coupons" element={<AdminCoupons />} />
-                  <Route path="*" element={<AdminOverview />} />
                 </Routes>
-              </Suspense>
-            </DashboardLayout>
-          </ProtectedRoute>
-        } />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
 
         {/* Other routes */}
         <Route path="/products" element={<AllProducts />} />
@@ -82,24 +115,24 @@ const AppRouter = () => {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
-
+        
         {/* Blog routes */}
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
-
-        {/* Analytics test (for development) */}
+        
+        {/* Analytics test */}
         <Route path="/analytics-test" element={<AnalyticsTest />} />
-
+        
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/success" element={<PaymentSuccess />} />
         <Route path="/fail" element={<PaymentFailed />} />
-
+        
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
-};
+}
 
 export default AppRouter;

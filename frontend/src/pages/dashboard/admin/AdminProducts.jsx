@@ -1,8 +1,9 @@
+import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
 
-const AdminProducts = () => {
+function AdminProducts() {
   const { t } = useTranslation();
   const [products, setProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);  const [isLoading, setIsLoading] = useState(false);
@@ -540,6 +541,6 @@ const AdminProducts = () => {
       )}
     </div>
   );
-};
+}
 
 export default AdminProducts;

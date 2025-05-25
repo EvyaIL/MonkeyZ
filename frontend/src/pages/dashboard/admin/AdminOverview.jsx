@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -24,17 +24,18 @@ ChartJS.register(
   Legend
 );
 
-const AdminOverview = () => {
+// Create component as a named function expression
+const AdminOverview = function AdminOverviewComponent() {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState({
+  const [loading, setLoading] = React.useState(true);
+  const [analytics, setAnalytics] = React.useState({
     totalSales: 0,
     totalOrders: 0,
     averageOrderValue: 0,
     dailySales: [],
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     const loadAnalyticsData = async () => {
       try {
         setLoading(true);
@@ -133,6 +134,8 @@ const AdminOverview = () => {
       </div>
     </div>
   );
-};
+}
 
+// Export the component both as default and named export
+export { AdminOverview };
 export default AdminOverview;

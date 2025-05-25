@@ -11,6 +11,7 @@ from src.routers.products_router import product_router
 from src.routers.admin_router import admin_router
 from src.base_exception.base_exception import BaseException
 from src.routers.keys_router import key_router
+from src.routers.orders import router as orders_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
@@ -46,12 +47,12 @@ app = FastAPI(
         "name": "MonkeyZ Support",
         "url": "https://monkeyz.co.il/contact",
         "email": "support@monkeyz.co.il",
-    },
-    openapi_tags=[
+    },    openapi_tags=[
         {"name": "users", "description": "Operations with users"},
         {"name": "products", "description": "Manage products"},
         {"name": "keys", "description": "Key management"},
         {"name": "grow", "description": "Grow related endpoints"},
+        {"name": "orders", "description": "Manage orders"},
     ]
 )
 
@@ -81,6 +82,7 @@ app.include_router(users_router)
 app.include_router(product_router)
 app.include_router(key_router)
 app.include_router(admin_router)  # Add admin router
+app.include_router(orders_router, prefix="/api", tags=["orders"])  # Add orders router
 
 @app.exception_handler(BaseException)
 async def custom_exception_handler(request: Request, exc: BaseException):

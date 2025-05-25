@@ -16,7 +16,7 @@ import {
 import { DataGrid } from '@mui/x-data-grid';
 import { useApi } from '../../../hooks/useApi';
 
-const AdminCoupons = () => {
+function AdminCoupons() {
   const [coupons, setCoupons] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [newCoupon, setNewCoupon] = useState({

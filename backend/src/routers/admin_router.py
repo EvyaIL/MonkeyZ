@@ -80,6 +80,33 @@ class Coupon(CouponBase):
             return values.get('discountValue')
         return None  # For fixed discounts, discountPercent is not applicable
 
+class OrderItem(BaseModel):
+    productId: str
+    name: str
+    quantity: int
+    price: float
+
+class OrderBase(BaseModel):
+    customerName: str
+    email: str
+    phone: Optional[str] = None
+    status: str = "Pending"
+    total: float
+    items: List[OrderItem]
+
+class Order(OrderBase):
+    id: str
+    date: datetime = datetime.utcnow()
+    createdAt: datetime = datetime.utcnow()
+    statusHistory: List[Dict[str, Any]] = []
+
+    model_config = {
+        "populate_by_name": True,
+        "json_encoders": {
+            ObjectId: str
+        }
+    }
+
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
 async def verify_admin(user_controller: UserController, current_user: TokenData):
@@ -307,3 +334,109 @@ async def get_analytics(
         averageOrderValue=average_order_value,
         dailySales=sorted(daily_sales, key=lambda x: x.date)
     )
+
+# Order routes
+@admin_router.get("/orders", response_model=List[Order])
+async def get_orders(
+    current_user: TokenData = Depends(get_current_user),
+    user_controller: UserController = Depends(get_user_controller_dependency)
+):
+    try:
+        # Verify admin role
+        if not user_controller.has_role(current_user.sub, Role.ADMIN):
+            raise UserException(
+                "Unauthorized: Admin role required",
+                status_code=403
+            )
+        
+        orders = user_controller.db.orders.find()
+        order_list = []
+        for order in orders:
+            order["id"] = str(order["_id"])
+            order_list.append(order)
+        return order_list
+    except UserException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.msg)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.post("/orders", response_model=Order)
+async def create_order(
+    order: OrderBase,
+    current_user: TokenData = Depends(get_current_user),
+    user_controller: UserController = Depends(get_user_controller_dependency)
+):
+    try:
+        # Verify admin role
+        if not user_controller.has_role(current_user.sub, Role.ADMIN):
+            raise UserException(
+                "Unauthorized: Admin role required",
+                status_code=403
+            )
+        
+        # Create order document
+        order_dict = order.model_dump()
+        order_dict["statusHistory"] = [
+            {
+                "status": order.status,
+                "date": datetime.utcnow(),
+                "note": "Order created"
+            }
+        ]
+        order_dict["createdAt"] = datetime.utcnow()
+        order_dict["date"] = datetime.utcnow()
+        
+        result = user_controller.db.orders.insert_one(order_dict)
+        created_order = user_controller.db.orders.find_one({"_id": result.inserted_id})
+        created_order["id"] = str(created_order["_id"])
+        
+        return created_order
+    except UserException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.msg)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@admin_router.patch("/orders/{order_id}", response_model=Order)
+async def update_order_status(
+    order_id: str,
+    update: Dict[str, Any],
+    current_user: TokenData = Depends(get_current_user),
+    user_controller: UserController = Depends(get_user_controller_dependency)
+):
+    try:
+        # Verify admin role
+        if not user_controller.has_role(current_user.sub, Role.ADMIN):
+            raise UserException(
+                "Unauthorized: Admin role required",
+                status_code=403
+            )
+        
+        # Find the order
+        order = user_controller.db.orders.find_one({"_id": ObjectId(order_id)})
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Update status and add to history
+        if "status" in update:
+            history_entry = {
+                "status": update["status"],
+                "date": datetime.utcnow()
+            }
+            if "statusUpdateDate" in update:
+                history_entry["date"] = update["statusUpdateDate"]
+            
+            user_controller.db.orders.update_one(
+                {"_id": ObjectId(order_id)},
+                {
+                    "$set": {"status": update["status"]},
+                    "$push": {"statusHistory": history_entry}
+                }
+            )
+        
+        updated_order = user_controller.db.orders.find_one({"_id": ObjectId(order_id)})
+        updated_order["id"] = str(updated_order["_id"])
+        return updated_order
+    except UserException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.msg)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

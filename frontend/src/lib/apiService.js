@@ -135,6 +135,57 @@ class ApiService {  constructor() {
   delete(url, params = null) {
     return this.request("DELETE", url, null, params);
   }
+
+  /**
+   * Get all orders
+   * @returns {Promise} Response from the API
+   */
+  async getOrders(params = null) {
+    try {
+      console.log('API Request: GET /api/orders', params);
+      const response = await this.httpClient.get('/api/orders', { params });
+      console.log('API Response: GET /api/orders', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API Error: GET /api/orders', error);
+      return { error: error.message };
+    }
+  }
+
+  /**
+   * Create a new order
+   * @param {Object} orderData Order details
+   * @returns {Promise} Response from the API
+   */
+  async createOrder(orderData) {
+    try {
+      console.log('API Request: POST /api/orders', orderData);
+      const response = await this.httpClient.post('/api/orders', orderData);
+      console.log('API Response: POST /api/orders', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API Error: POST /api/orders', error);
+      return { error: error.message };
+    }
+  }
+
+  /**
+   * Update order status
+   * @param {string} orderId Order ID
+   * @param {Object} updateData Update data
+   * @returns {Promise} Response from the API
+   */
+  async updateOrderStatus(orderId, updateData) {
+    try {
+      console.log(`API Request: PATCH /api/orders/${orderId}`, updateData);
+      const response = await this.httpClient.patch(`/api/orders/${orderId}`, updateData);
+      console.log(`API Response: PATCH /api/orders/${orderId}`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`API Error: PATCH /api/orders/${orderId}`, error);
+      return { error: error.message };
+    }
+  }
 }
 
 export const apiService = new ApiService();

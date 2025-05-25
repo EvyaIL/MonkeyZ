@@ -1,0 +1,500 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import { DataGrid, GridToolbar } from '@mui/x-data-grid';
+import {
+  Box,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Alert,
+  Chip,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Grid,
+  TextField,
+  IconButton,
+} from '@mui/material';
+import { useApi } from '../../../hooks/useApi';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+
+const ORDER_STATUSES = {
+  'Pending': { color: 'warning', label: 'Pending' },
+  'Processing': { color: 'info', label: 'Processing' },
+  'Shipped': { color: 'success', label: 'Shipped' },
+  'Delivered': { color: 'primary', label: 'Delivered' },
+  'Cancelled': { color: 'error', label: 'Cancelled' },
+  'Refunded': { color: 'secondary', label: 'Refunded' },
+};
+
+const AdminOrders = () => {
+  const [orders, setOrders] = useState([]);  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+  const [openNewDialog, setOpenNewDialog] = useState(false);
+  const [newOrder, setNewOrder] = useState({
+    customerName: '',
+    email: '',
+    phone: '',
+    total: 0,
+    items: [{
+      productId: '',
+      name: '',
+      quantity: 1,
+      price: 0
+    }]
+  });
+  const api = useApi();
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.get('/api/orders');
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      // Ensure we have an array and format dates
+      const formattedOrders = (response.data || []).map(order => ({
+        ...order,
+        date: new Date(order.date).toLocaleDateString(),
+        createdAt: new Date(order.createdAt).toLocaleString(),
+        statusHistory: order.statusHistory || [],
+      }));
+      
+      setOrders(formattedOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setError('Failed to load orders. Please try again later.');
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      setStatusUpdateLoading(true);
+      setError(null);
+      const response = await api.patch(`/api/orders/${orderId}`, { 
+        status: newStatus,
+        statusUpdateDate: new Date().toISOString(),
+      });
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      await fetchOrders(); // Refresh orders list
+      setOpenDialog(false); // Close dialog after successful update
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setError('Failed to update order status. Please try again.');
+    } finally {
+      setStatusUpdateLoading(false);
+    }
+  };
+
+  const handleCreateOrder = async () => {
+    try {
+      setError(null);
+      const response = await api.post('/api/orders', newOrder);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      await fetchOrders();
+      setOpenNewDialog(false);
+      setNewOrder({
+        customerName: '',
+        email: '',
+        phone: '',
+        total: 0,
+        items: [{
+          productId: '',
+          name: '',
+          quantity: 1,
+          price: 0
+        }]
+      });
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setError('Failed to create order. Please try again.');
+    }
+  };
+
+  const handleAddItem = () => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: [...prev.items, { productId: '', name: '', quantity: 1, price: 0 }]
+    }));
+  };
+
+  const handleRemoveItem = (index) => {
+    setNewOrder(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+      total: prev.items.reduce((acc, item, i) => {
+        if (i === index) return acc;
+        return acc + (item.quantity * item.price);
+      }, 0)
+    }));
+  };
+
+  const handleItemChange = (index, field, value) => {
+    setNewOrder(prev => {
+      const newItems = [...prev.items];
+      newItems[index] = { ...newItems[index], [field]: value };
+      
+      // Recalculate total
+      const total = newItems.reduce((acc, item) => {
+        return acc + (item.quantity * item.price);
+      }, 0);
+      
+      return {
+        ...prev,
+        items: newItems,
+        total
+      };
+    });
+  };
+
+  const columns = useMemo(() => [
+    { 
+      field: 'id', 
+      headerName: 'Order ID', 
+      width: 130,
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    { field: 'customerName', headerName: 'Customer', width: 180 },
+    { 
+      field: 'date', 
+      headerName: 'Date', 
+      width: 130,
+      type: 'date',
+    },
+    { 
+      field: 'total', 
+      headerName: 'Total', 
+      width: 120,
+      type: 'number',
+      valueFormatter: (params) => `$${params.value?.toFixed(2) || '0.00'}`,
+    },
+    { 
+      field: 'status', 
+      headerName: 'Status', 
+      width: 140,
+      renderCell: (params) => (
+        <Chip 
+          label={ORDER_STATUSES[params.value]?.label || params.value}
+          color={ORDER_STATUSES[params.value]?.color || 'default'}
+          size="small"
+        />
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 120,
+      renderCell: (params) => (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => {
+            setSelectedOrder(params.row);
+            setOpenDialog(true);
+          }}
+        >
+          Details
+        </Button>
+      ),
+    },
+  ], []);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ height: 600, width: '100%', p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Orders Management
+      </Typography>
+      
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => setOpenNewDialog(true)}
+        sx={{ mb: 2 }}
+      >
+        Create New Order
+      </Button>
+      
+      <DataGrid
+        rows={orders}
+        columns={columns}
+        pageSize={10}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+        checkboxSelection
+        disableSelectionOnClick
+        components={{
+          Toolbar: GridToolbar,
+        }}
+        componentsProps={{
+          toolbar: {
+            showQuickFilter: true,
+            quickFilterProps: { debounceMs: 500 },
+          },
+        }}
+        sx={{
+          '& .MuiDataGrid-toolbarContainer': {
+            padding: 2,
+          },
+        }}
+      />
+
+      <Dialog 
+        open={openDialog} 
+        onClose={() => !statusUpdateLoading && setOpenDialog(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle>
+          Order Details
+          {selectedOrder?.status && (
+            <Chip 
+              label={ORDER_STATUSES[selectedOrder.status]?.label || selectedOrder.status}
+              color={ORDER_STATUSES[selectedOrder.status]?.color || 'default'}
+              size="small"
+              sx={{ ml: 2 }}
+            />
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedOrder && (
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">Order Information</Typography>
+                <Typography><strong>Order ID:</strong> {selectedOrder.id}</Typography>
+                <Typography><strong>Created:</strong> {selectedOrder.createdAt}</Typography>
+                <Typography><strong>Status:</strong> {selectedOrder.status}</Typography>
+                <Typography><strong>Total:</strong> ${selectedOrder.total?.toFixed(2) || '0.00'}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">Customer Information</Typography>
+                <Typography><strong>Name:</strong> {selectedOrder.customerName}</Typography>
+                <Typography><strong>Email:</strong> {selectedOrder.email}</Typography>
+                {selectedOrder.phone && (
+                  <Typography><strong>Phone:</strong> {selectedOrder.phone}</Typography>
+                )}
+              </Grid>
+              {selectedOrder.items && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+                    Order Items
+                  </Typography>
+                  {selectedOrder.items.map((item, index) => (
+                    <Box key={index} sx={{ mb: 1 }}>
+                      <Typography>
+                        {item.quantity}x {item.name} - ${item.price?.toFixed(2)}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Grid>
+              )}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+                  Update Status
+                </Typography>
+                <FormControl fullWidth disabled={statusUpdateLoading}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={selectedOrder.status}
+                    label="Status"
+                    onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value)}
+                  >
+                    {Object.entries(ORDER_STATUSES).map(([value, { label }]) => (
+                      <MenuItem key={value} value={value}>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              {selectedOrder.statusHistory && selectedOrder.statusHistory.length > 0 && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
+                    Status History
+                  </Typography>
+                  {selectedOrder.statusHistory.map((history, index) => (
+                    <Box key={index} sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(history.date).toLocaleString()} - {history.status}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Grid>
+              )}
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {statusUpdateLoading && <CircularProgress size={24} sx={{ mr: 2 }} />}
+          <Button onClick={() => setOpenDialog(false)} disabled={statusUpdateLoading}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog 
+        open={openNewDialog} 
+        onClose={() => setOpenNewDialog(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle>Create New Order</DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Customer Name"
+                value={newOrder.customerName}
+                onChange={(e) => setNewOrder(prev => ({ ...prev, customerName: e.target.value }))}
+                margin="normal"
+                required
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={newOrder.email}
+                onChange={(e) => setNewOrder(prev => ({ ...prev, email: e.target.value }))}
+                margin="normal"
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Phone"
+                value={newOrder.phone}
+                onChange={(e) => setNewOrder(prev => ({ ...prev, phone: e.target.value }))}
+                margin="normal"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Order Items
+              </Typography>
+              {newOrder.items.map((item, index) => (
+                <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Product Name"
+                        value={item.name}
+                        onChange={(e) => handleItemChange(index, 'name', e.target.value)}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Quantity"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Price"
+                        value={item.price}
+                        onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value) || 0)}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={1}>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleRemoveItem(index)}
+                        disabled={newOrder.items.length === 1}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                </Box>
+              ))}
+              <Button
+                variant="outlined"
+                onClick={handleAddItem}
+                startIcon={<AddIcon />}
+                sx={{ mt: 1 }}
+              >
+                Add Item
+              </Button>
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="h6" color="primary">
+                Total: ${newOrder.total.toFixed(2)}
+              </Typography>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenNewDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleCreateOrder}
+            variant="contained"
+            color="primary"
+            disabled={
+              !newOrder.customerName ||
+              !newOrder.email ||
+              newOrder.items.some(item => !item.name || !item.quantity || !item.price)
+            }
+          >
+            Create Order
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default AdminOrders;

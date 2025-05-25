@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { Helmet } from "react-helmet";
 
-const TermsOfService = () => {
+function TermsOfService() {
   const { t } = useTranslation();
   
   useEffect(() => {

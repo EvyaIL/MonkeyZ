@@ -1,0 +1,34 @@
+from typing import List, Optional
+from datetime import datetime
+from pydantic import BaseModel, Field
+from bson import ObjectId
+
+class OrderItem(BaseModel):
+    productId: str
+    name: str
+    quantity: int
+    price: float
+
+class StatusHistoryEntry(BaseModel):
+    status: str
+    date: datetime
+    note: Optional[str] = None
+
+class Order(BaseModel):
+    id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
+    customerName: str
+    email: str
+    phone: Optional[str] = None
+    date: datetime = Field(default_factory=datetime.utcnow)
+    status: str = "Pending"
+    total: float
+    items: List[OrderItem]
+    statusHistory: List[StatusHistoryEntry] = Field(default_factory=list)
+    createdAt: datetime = Field(default_factory=datetime.utcnow)
+    notes: Optional[str] = None
+    
+    class Config:
+        allow_population_by_alias = True
+        json_encoders = {
+            ObjectId: str
+        }
