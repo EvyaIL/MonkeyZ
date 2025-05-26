@@ -32,14 +32,13 @@ class KeysCollection(MongoDb, metaclass=Singleton):
         """
         Initializes the KeysDB with the 'shop' database and Key model.
         """
+        # Beanie initialization removed. Beanie should only be initialized once in main.py
         await self.connection()  # Ensure we're connected
         mongo_uri = os.getenv("MONGODB_URI")
         if not mongo_uri:
             raise ValueError("MONGODB_URI environment variable is not set.")
-            
         self.client = AsyncIOMotorClient(mongo_uri)
         self.db = self.client.get_database("shop")
-        await self.initialize_beanie(self.db, [Key])
         self.is_connected = True
 
     async def create_key(self, key_request: KeyRequest) -> Key:

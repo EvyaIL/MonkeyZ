@@ -28,6 +28,10 @@ class Product(Document):
     metadata: Optional[ProductMetadata] = None
     createdAt: datetime = datetime.utcnow()
     updatedAt: datetime = datetime.utcnow()
+    isNew: bool = False
+    isBestSeller: bool = False
+    discountPercentage: int = 0
+    displayOnHomepage: bool = False
 
     class Settings:
         name = "products"

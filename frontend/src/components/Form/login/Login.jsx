@@ -32,9 +32,10 @@ const Login = ({ setIsAuthenticated }) => {
       }
       const { access_token, token_expiry } = data;
       const expiryTime = new Date(new Date().getTime() + token_expiry * 1000);
-      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("token", access_token); // Changed from "access_token" to "token" for consistency
       localStorage.setItem("token_expiry", expiryTime);
       localStorage.setItem("is_authenticated", true);
+      apiService.setToken(access_token); // Explicitly set token in apiService
       setIsAuthenticated(true);
     } catch (error) {
       setError("Error during login: " + (error?.response?.data?.error || error.message));
