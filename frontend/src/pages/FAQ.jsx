@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { addStructuredData, generateFAQSchema, generateBreadcrumbSchema } from "../lib/seo-helper";
 
 const FAQ = () => {

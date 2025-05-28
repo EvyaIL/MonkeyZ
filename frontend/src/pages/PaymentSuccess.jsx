@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { trackPurchase, trackEvent } from "../lib/analytics";
 
 const PaymentSuccess = () => {

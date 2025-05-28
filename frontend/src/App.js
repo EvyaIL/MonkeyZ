@@ -6,6 +6,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 import { initAnalytics } from "./lib/analytics";
 import ErrorBoundary from './components/ErrorBoundary';
+import { HelmetProvider } from 'react-helmet-async';
 // Import ThemeToggle with require to troubleshoot potential import issues
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
@@ -57,18 +58,20 @@ const App = () => {
       </div>
     );
   }  return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <GlobalProvider>
-        <ErrorBoundary>
-          <div className="min-h-screen bg-base-200 dark:bg-gray-900 transition-colors duration-300">
-            <AppContent />
-            <React.Suspense fallback={<div>Loading...</div>}>
-              <ThemeToggle />
-            </React.Suspense>
-          </div>
-        </ErrorBoundary>
-      </GlobalProvider>
-    </GoogleOAuthProvider>
+    <HelmetProvider>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <GlobalProvider>
+          <ErrorBoundary>
+            <div className="min-h-screen bg-base-200 dark:bg-gray-900 transition-colors duration-300">
+              <AppContent />
+              <React.Suspense fallback={<div>Loading...</div>}>
+                <ThemeToggle />
+              </React.Suspense>
+            </div>
+          </ErrorBoundary>
+        </GlobalProvider>
+      </GoogleOAuthProvider>
+    </HelmetProvider>
   );
 };
 

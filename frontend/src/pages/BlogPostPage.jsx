@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getPostBySlug } from '../data/BlogData'; // Assuming BlogData.js is in src/data
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { generateArticleSchema, addStructuredData, generateBreadcrumbSchema } from '../lib/seo-helper';
 
 const BlogPostPage = () => {

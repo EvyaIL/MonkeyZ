@@ -4,7 +4,7 @@ import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { addStructuredData } from "../lib/seo-helper";
 
 const fallbackProducts = [
