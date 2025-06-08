@@ -5,7 +5,7 @@ import PrimaryButton from "../components/buttons/PrimaryButton";
 import PrimaryInput from "../components/inputs/PrimaryInput";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet-async";
+import { Helmet } from "react-helmet";
 import Spinner from "../components/Spinner";
 import { generateProductSchema, addStructuredData } from "../lib/seo-helper";
 

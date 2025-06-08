@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import emailjs from "@emailjs/browser";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet-async";
+import { Helmet } from "react-helmet";
 import { addStructuredData, generateBreadcrumbSchema } from "../lib/seo-helper";
 
 const SERVICE_ID = "service_xheer8t"; 

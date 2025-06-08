@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Helmet } from 'react-helmet-async';
+import { Helmet } from 'react-helmet';
 import { useTranslation } from 'react-i18next';
 // Corrected import: directly use blogPosts array
 import { blogPosts } from '../data/BlogData'; 

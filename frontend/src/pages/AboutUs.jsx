@@ -1,6 +1,6 @@
 import { useTranslation, Trans } from "react-i18next";
 import { useEffect } from "react";
-import { Helmet } from "react-helmet-async";
+import { Helmet } from "react-helmet";
 import { addStructuredData, generateBreadcrumbSchema } from "../lib/seo-helper";
 
 const AboutUs = () => {

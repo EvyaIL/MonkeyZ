@@ -7,7 +7,7 @@ import RangeInput from "../components/inputs/RangeInput";
 import PrimaryInput from "../components/inputs/PrimaryInput";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet-async";
+import { Helmet } from "react-helmet";
 
 const AllProducts = () => {
   const { search } = useLocation();
