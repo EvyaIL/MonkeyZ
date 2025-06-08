@@ -23,34 +23,57 @@ const mainRoutes = [
   { path: '/terms-of-service', priority: 0.5, changefreq: 'monthly' }
 ];
 
-// Products data is now fetched from the API rather than using hardcoded values
-// We'll just use a function to load products from the API
-const fetchProductsFromAPI = async () => {
-  try {
-    // Import fetch for Node.js environment
-    const fetch = require('node-fetch');
-    
-    // Fetch products from API
-    console.log('Fetching products from API for sitemap generation...');
-    const apiUrl = 'http://localhost:8000/product/all'; // Adjust URL as needed for your environment
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`API returned status: ${response.status}`);
-    }
-    
-    const products = await response.json();
-    console.log(`Fetched ${products.length} products for sitemap`);
-    return products;
-  } catch (err) {
-    console.error('Error fetching products from API:', err.message);
-    // Return empty array on error - no dummy products as fallback
-    return [];
+// Products data - in a real app, you might fetch this from your API or database
+const products = [
+  {
+    name: 'MonkeyZ Pro Key',
+    slug: 'monkeyz-pro-key',
+    image: 'https://monkeyz.co.il/images/products/monkeyz-pro-key.jpg',
+    caption: 'Premium digital key for MonkeyZ Pro software',
+    lastmod: '2025-05-20',
+    category: 'Security'
+  },
+  {
+    name: 'MonkeyZ Cloud Storage',
+    slug: 'monkeyz-cloud-storage',
+    image: 'https://monkeyz.co.il/images/products/monkeyz-cloud-storage.jpg',
+    caption: 'Secure cloud storage solution for all your digital needs',
+    lastmod: '2025-05-18',
+    category: 'Cloud'
+  },
+  {
+    name: 'MonkeyZ VPN',
+    slug: 'monkeyz-vpn',
+    image: 'https://monkeyz.co.il/images/products/monkeyz-vpn.jpg',
+    caption: 'Fast and secure VPN service for private browsing',
+    lastmod: '2025-05-21',
+    category: 'Security'
+  },
+  {
+    name: 'MonkeyZ Antivirus',
+    slug: 'monkeyz-antivirus',
+    image: 'https://monkeyz.co.il/images/products/monkeyz-antivirus.jpg',
+    caption: 'Comprehensive protection against malware and online threats',
+    lastmod: '2025-05-15',
+    category: 'Security'
+  },
+  {
+    name: 'MonkeyZ Office Suite',
+    slug: 'monkeyz-office-suite',
+    image: 'https://monkeyz.co.il/images/products/monkeyz-office-suite.jpg',
+    caption: 'Complete productivity software for business and personal use',
+    lastmod: '2025-05-10',
+    category: 'Office'
+  },
+  {
+    name: 'MonkeyZ Password Manager',
+    slug: 'monkeyz-password-manager',
+    image: 'https://monkeyz.co.il/images/products/monkeyz-password-manager.jpg',
+    caption: 'Secure password storage and management solution',
+    lastmod: '2025-05-22',
+    category: 'Utility'
   }
-};
-
-// Placeholder for async execution later
-let products = [];
+];
 
 // Categories
 const categories = [
@@ -197,11 +220,7 @@ const generateSitemap = () => {
 };
 
 // Write the sitemap to a file
-const writeSitemap = async () => {
-  // Fetch real products from API
-  products = await fetchProductsFromAPI();
-  
-  // Generate sitemap with real products
+const writeSitemap = () => {
   const sitemap = generateSitemap();
   const publicDir = path.resolve(__dirname, 'public');
   const filePath = path.join(publicDir, 'sitemap.xml');
@@ -211,10 +230,8 @@ const writeSitemap = async () => {
 };
 
 // Execute the script
-(async () => {
-  try {
-    await writeSitemap();
-  } catch (error) {
-    console.error('Error generating sitemap:', error);
-  }
-})()
+try {
+  writeSitemap();
+} catch (error) {
+  console.error('Error generating sitemap:', error);
+}

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from src.models.user.user import Role
-from src.deps.deps import UserController, get_user_controller_dependency, KeyMetricsController, get_key_metrics_controller_dependency, get_keys_controller_dependency, get_products_controller_dependency
-from src.controller.product_controller import ProductsController
+from src.deps.deps import UserController, get_user_controller_dependency, KeyMetricsController, get_key_metrics_controller_dependency, get_keys_controller_dependency
 from src.controller.key_controller import KeyController
 from src.lib.token_handler import get_current_user
 from src.models.token.token import TokenData
@@ -131,13 +130,12 @@ async def verify_admin(user_controller: UserController, current_user: TokenData)
 @admin_router.get("/products", response_model=List[Product])
 async def get_products(
     user_controller: UserController = Depends(get_user_controller_dependency),
-    products_controller: ProductsController = Depends(get_products_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
     try:
-        # Get real products from database using ProductsController which ensures sync
-        products = await products_controller.get_admin_products()
+        # Get real products from database
+        products = await user_controller.admin_product_collection.get_all_products()
         
         # Convert backend model to frontend format for each product
         result = []
@@ -171,7 +169,6 @@ async def get_products(
 async def create_product(
     product: dict,  # Use dict to accept any product structure with complex name/description
     user_controller: UserController = Depends(get_user_controller_dependency),
-    products_controller: ProductsController = Depends(get_products_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
@@ -202,7 +199,7 @@ async def create_product(
     product['createdAt'] = datetime.now()
     product['updatedAt'] = datetime.now()
     
-    new_product = await products_controller.create_admin_product(product)
+    new_product = await user_controller.create_admin_product(product)
     product_dict = new_product.dict() if hasattr(new_product, 'dict') else (
         new_product.model_dump() if hasattr(new_product, 'model_dump') else new_product
     )
@@ -217,22 +214,20 @@ async def update_product(
     product_id: str,
     product: ProductBase,
     user_controller: UserController = Depends(get_user_controller_dependency),
-    products_controller: ProductsController = Depends(get_products_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    updated_product = await products_controller.update_admin_product(product_id, product.dict())
+    updated_product = await user_controller.update_admin_product(product_id, product.dict())
     return updated_product
 
 @admin_router.delete("/products/{product_id}")
 async def delete_product(
     product_id: str,
     user_controller: UserController = Depends(get_user_controller_dependency),
-    products_controller: ProductsController = Depends(get_products_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    await products_controller.delete_admin_product(product_id)
+    await user_controller.delete_admin_product(product_id)
     return {"message": "Product deleted successfully"}
 
 @admin_router.post("/products/{product_id}/keys")
@@ -498,15 +493,48 @@ async def get_orders(
     try:
         # Using verify_admin for consistency across routes
         await verify_admin(user_controller, current_user)
+          # Return mock order data
+        mock_orders = [
+            {
+                "id": "order1",
+                "customerName": "John Doe",
+                "email": "john.doe@example.com",
+                "phone": "+1-555-0123",
+                "date": datetime.now() - timedelta(days=3),
+                "total": 49.99,
+                "status": "completed",
+                "items": [
+                    {"productId": "1", "name": "MonkeyZ Pro Key", "quantity": 1, "price": 49.99}
+                ],
+                "statusHistory": [
+                    {"status": "pending", "date": datetime.now() - timedelta(days=3, hours=2)},
+                    {"status": "processing", "date": datetime.now() - timedelta(days=3, hours=1)},
+                    {"status": "completed", "date": datetime.now() - timedelta(days=3)}
+                ]
+            },
+            {
+                "id": "order2",
+                "customerName": "Jane Smith",
+                "email": "jane.smith@example.com",
+                "phone": "+1-555-0456",
+                "date": datetime.now() - timedelta(days=1),
+                "total": 29.99,                "status": "processing",
+                "items": [
+                    {"productId": "2", "name": "MonkeyZ Standard License", "quantity": 1, "price": 29.99}
+                ],
+                "statusHistory": [
+                    {"status": "pending", "date": datetime.now() - timedelta(days=1, hours=3)},
+                    {"status": "processing", "date": datetime.now() - timedelta(days=1)}
+                ]
+            }
+        ]
+        return mock_orders
         
-        # Get real orders from the database
-        orders = await user_controller.db.orders.find().to_list(length=100)
+        orders = user_controller.db.orders.find()
         order_list = []
-        
         for order in orders:
             order["id"] = str(order["_id"])
             order_list.append(order)
-            
         return order_list
     except UserException as e:
         raise HTTPException(status_code=e.status_code, detail=e.msg)

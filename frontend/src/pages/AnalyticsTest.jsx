@@ -23,16 +23,15 @@ const AnalyticsTest = () => {
     });
     alert("Custom event tracking tested. Check console and GTM debug mode.");
   };
+
   const testProductView = () => {
     console.log("Testing product view tracking...");
-    // Instead of hardcoded product data, we'll use a test event
-    // Real product data would come from the user viewing an actual product
     trackEvent("view_item", {
       ecommerce: {
         items: [{
-          item_id: "analytics-test",
-          item_name: "Analytics Test (not a real product)",
-          price: 0.00,
+          item_id: "test-123",
+          item_name: "Test Product",
+          price: 99.99,
           currency: 'ILS'
         }]
       }
@@ -42,14 +41,12 @@ const AnalyticsTest = () => {
 
   const testAddToCart = () => {
     console.log("Testing add to cart tracking...");
-    // Instead of hardcoded product data, we'll use a test event
-    // Real product data would come from the user adding an actual product to cart
     trackEvent("add_to_cart", {
       ecommerce: {
         items: [{
-          item_id: "analytics-test",
-          item_name: "Analytics Test (not a real product)",
-          price: 0.00,
+          item_id: "test-123",
+          item_name: "Test Product",
+          price: 99.99,
           quantity: 1,
           currency: 'ILS'
         }]
@@ -60,32 +57,31 @@ const AnalyticsTest = () => {
 
   const testPurchase = () => {
     console.log("Testing purchase tracking...");
-    // Instead of hardcoded product data, we'll use a test event
-    // Real product data would come from actual purchase
     trackEvent("purchase", {
       ecommerce: {
         transaction_id: `test-${Date.now()}`,
-        value: 0.00,
+        value: 99.99,
         currency: 'ILS',
         items: [{
-          item_id: "analytics-test",
-          item_name: "Analytics Test (not a real product)",
-          price: 0.00,
+          item_id: "test-123",
+          item_name: "Test Product",
+          price: 99.99,
           quantity: 1
         }]
       }
     });
     alert("Purchase tracking tested. Check console and GTM debug mode.");
   };
-    const testFunnel = () => {
+  
+  const testFunnel = () => {
     console.log("Testing funnel analysis...");
-    // Simulate a complete funnel sequence with test-only data
+    // Simulate a complete funnel sequence
     trackEvent("view_item", {
       ecommerce: {
         items: [{
-          item_id: "analytics-test",
-          item_name: "Analytics Test (not a real product)",
-          price: 0.00,
+          item_id: "test-123",
+          item_name: "Test Product",
+          price: 99.99,
           currency: 'ILS'
         }]
       }
@@ -95,25 +91,26 @@ const AnalyticsTest = () => {
       trackEvent("add_to_cart", {
         ecommerce: {
           items: [{
-            item_id: "analytics-test",
-            item_name: "Analytics Test (not a real product)",
-            price: 0.00,
+            item_id: "test-123",
+            item_name: "Test Product",
+            price: 99.99,
             quantity: 1,
             currency: 'ILS'
           }]
         }
       });
-        setTimeout(() => {
+      
+      setTimeout(() => {
         trackEvent("begin_checkout", {
           ecommerce: {
             items: [{
-              item_id: "analytics-test",
-              item_name: "Analytics Test (not a real product)",
-              price: 0.00,
+              item_id: "test-123",
+              item_name: "Test Product",
+              price: 99.99,
               quantity: 1,
               currency: 'ILS'
             }],
-            value: 0.00,
+            value: 99.99,
             currency: 'ILS'
           }
         });
@@ -122,12 +119,12 @@ const AnalyticsTest = () => {
           trackEvent("purchase", {
             ecommerce: {
               transaction_id: `test-${Date.now()}`,
-              value: 0.00,
+              value: 99.99,
               currency: 'ILS',
               items: [{
-                item_id: "analytics-test",
-                item_name: "Analytics Test (not a real product)",
-                price: 0.00,
+                item_id: "test-123",
+                item_name: "Test Product",
+                price: 99.99,
                 quantity: 1
               }]
             }

@@ -1,8 +1,7 @@
-# filepath: c:\Users\User\OneDrive\????? ??????\??????\GitHub\nin1\MonkeyZ\backend\src\mongodb\products_collection.py
 from beanie import PydanticObjectId
 from .mongodb import MongoDb
 from src.models.products.products import Product, ProductRequest
-from src.models.products.products_exception import CreateError, NotValid, NotFound
+from src.models.products.products_exception import CreateError, NotValid ,NotFound
 from src.singleton.singleton import Singleton
 from datetime import datetime, timedelta
 
@@ -31,29 +30,12 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
 
     async def get_best_sellers(self) -> list[Product]:
         """
-        Retrieves all the best sellers products from the database.
-        Handles both best_seller and isBestSeller field names.
+            Retrieves all the best sellers products from the database.
 
-        Returns:
-            list[Product]: A list of all best sellers products in the database.
+            Returns:
+                list[Product]: A list of all best sellers products in the database.
         """
-        try:
-            # Try with snake_case field name
-            best_sellers = await Product.find_many(Product.best_seller == True, Product.active == True).to_list()
-            
-            # If empty, try with camelCase field name
-            if not best_sellers:
-                best_sellers = await Product.find_many(Product.isBestSeller == True, Product.active == True).to_list()
-                
-            return best_sellers
-        except Exception as e:
-            print(f"Error in get_best_sellers: {str(e)}")
-            # Fall back to active products if error occurs
-            try:
-                return await Product.find_many(Product.active == True).limit(8).to_list()
-            except Exception as e2:
-                print(f"Error in get_best_sellers fallback: {str(e2)}")
-                return []
+        return await Product.find_many(Product.best_seller == True).to_list()
 
     async def get_recent_products(self, limit: int) -> list[Product]:
         """
@@ -65,11 +47,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             list[Product]: A list of recently created products.
         """
-        try:
-            return await Product.find_many(Product.active == True).sort(-Product.created_at).limit(limit).to_list()
-        except Exception as e:
-            print(f"Error in get_recent_products: {str(e)}")
-            return []
+        return await Product.find().sort(-Product.created_at).limit(limit).to_list()
         
     async def create_product(self, product_request: ProductRequest) -> Product:
         """
@@ -82,7 +60,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             Product: The created product.
 
         Raises:
-            CreateError: If the product name is already in use.
+            CreateErorr: If the product name is already in use.
         """
         if await self.get_product_by_name(product_request.name):
             raise CreateError("This name is already in use")
@@ -103,8 +81,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
 
         Returns:
             Product: The edited product.
-            
-        Raises:
+              Raises:
             CreateError: If the new product name is already in use.
         """
         current_product = await self.get_product_by_id(product_id)
@@ -181,9 +158,10 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             keys (dict[PydanticObjectId, PydanticObjectId]): The product keys.
 
         Returns:
-            Product: The created or updated product instance.        """
+            Product: The created or updated product instance.
+        """
         return Product(**product_request, keys=keys)
-        
+
     async def get_product_by_name(self, name: str) -> Product:
         """
         Retrieves a product by its name.
@@ -194,24 +172,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             Product: The product with the given name, or None if not found.
         """
-        try:
-            # First try exact match with name field
-            product = await Product.find_one(Product.name == name)
-            if not product:
-                # Try case-insensitive search if exact match fails
-                from pymongo import ASCENDING
-                # Use a case-insensitive regex search for single character names                products = await Product.find_many({"name": {"$regex": f"^{name}$", "$options": "i"}}).to_list()
-                if products and len(products) > 0:
-                    return products[0]
-                
-                raise NotFound(f"Product not found with name: {name}")
-            return product
-        except Exception as e:
-            if isinstance(e, NotFound):
-                raise
-            print(f"Error in get_product_by_name: {str(e)}")
-            raise NotFound(f"Error finding product with name: {name}")
-            
+        product = await Product.find_one(Product.name == name)
+        if not product: 
+            raise  NotFound(f"not found product with the name: {name}")
+        return product
+
     async def get_product_by_id(self, product_id: PydanticObjectId) -> Product:
         """
         Retrieves a product by its ID.
@@ -225,106 +190,75 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         # Use the correct MongoDB primary key field
         return await Product.get(product_id)
 
-    async def get_homepage_products(self, limit: int = 6) -> list[Product]:
+    async def delete_product(self, product_id: PydanticObjectId):
         """
-        Retrieves products marked for homepage display.
-        Handles both display_on_homepage and displayOnHomepage field names.
+        Deletes a product from the database.
 
         Args:
-            limit (int): Maximum number of products to return. Default is 6.
+            product_id (PydanticObjectId): The ID of the product to delete.
 
         Returns:
-            list[Product]: A list of products marked for homepage display.
+            str: The deleted product's ID.
         """
-        try:
-            # Try with snake_case field name
-            homepage_products = await Product.find_many(Product.display_on_homepage == True, Product.active == True).limit(limit).to_list()
+        product: Product = await self.get_product_by_id(product_id)
+        await product.delete()
+        return str(product.id)
+    
+    async def get_product_with_key_count(self, product_id: PydanticObjectId) -> dict:
+        """
+        Gets a product by its ID and adds a count of its keys.
+
+        Args:
+            product_id (PydanticObjectId): The ID of the product.
+
+        Returns:
+            dict: The product with an additional field for key count.
+        """
+        product = await self.get_product_by_id(product_id)
+        if not product:
+            return None
+        
+        product_dict = product.dict()
+        
+        # Add key count
+        if product.keys and isinstance(product.keys, dict):
+            product_dict["availableKeys"] = len(product.keys)
+        else:
+            product_dict["availableKeys"] = 0
             
-            # If empty, try with camelCase field name
-            if not homepage_products:
-                homepage_products = await Product.find_many(Product.displayOnHomepage == True, Product.active == True).limit(limit).to_list()
+        return product_dict
+        
+    async def get_all_products_with_key_counts(self) -> list:
+        """
+        Gets all products and adds a count of keys to each one.
+
+        Returns:
+            list: All products with an additional field for key count.
+        """
+        products = await self.get_all_products()
+        products_with_counts = []
+        
+        for product in products:
+            product_dict = product.dict()
+            
+            # Add key count
+            if product.keys and isinstance(product.keys, dict):
+                product_dict["availableKeys"] = len(product.keys)
+            else:
+                product_dict["availableKeys"] = 0
                 
-            return homepage_products
-        except Exception as e:
-            print(f"Error in get_homepage_products: {str(e)}")
-            # Fall back to active products if error occurs
-            try:
-                return await Product.find_many(Product.active == True).limit(8).to_list()
-            except Exception as e2:
-                print(f"Error in get_homepage_products fallback: {str(e2)}")
-                return []
-
-    async def create_product_from_dict(self, product_data: dict) -> Product:
+            products_with_counts.append(product_dict)
+            
+        return products_with_counts
+    
+    async def get_homepage_products(self, limit: int) -> list[Product]:
         """
-        Creates a new product from dictionary data (used for syncing admin products).
+        Retrieves products marked for display on the homepage.
 
         Args:
-            product_data (dict): The product data dictionary.
+            limit (int): The maximum number of products to retrieve.
 
         Returns:
-            Product: The created product.
+            list[Product]: A list of products marked for display on the homepage.
         """
-        # Convert dict to ProductRequest for compatibility
-        try:
-            # Create ProductRequest from dictionary, handling missing fields
-            product_request_data = {
-                'name': product_data.get('name', ''),
-                'description': product_data.get('description', ''),
-                'price': float(product_data.get('price', 0.0)),
-                'active': product_data.get('active', True),
-                # Handle both naming conventions
-                'best_seller': product_data.get('best_seller', product_data.get('isBestSeller', False)),
-                'isBestSeller': product_data.get('isBestSeller', product_data.get('best_seller', False)),
-                'display_on_homepage': product_data.get('display_on_homepage', product_data.get('displayOnHomepage', False)),
-                'displayOnHomepage': product_data.get('displayOnHomepage', product_data.get('display_on_homepage', False)),
-                'is_new': product_data.get('is_new', product_data.get('isNew', False)),
-                'isNew': product_data.get('isNew', product_data.get('is_new', False)),
-                'discount_percentage': product_data.get('discount_percentage', product_data.get('discountPercentage', 0)),
-                'discountPercentage': product_data.get('discountPercentage', product_data.get('discount_percentage', 0)),
-                'created_at': product_data.get('created_at', product_data.get('createdAt')),
-                'createdAt': product_data.get('createdAt', product_data.get('created_at'))
-            }
-            
-            from src.models.products.products import ProductRequest
-            product_request = ProductRequest(**product_request_data)
-            
-            # Use the existing create_product method
-            return await self.create_product(product_request)
-            
-        except Exception as e:
-            print(f"Error creating product from dict: {str(e)}")
-            # Fallback: create Product directly from dict
-            from src.models.products.products import Product
-            product = Product(**product_data)
-            await product.save()
-            return product
-
-    async def update_product_from_dict(self, product_id: str, product_data: dict) -> Product:
-        """
-        Updates a product from dictionary data (used for syncing admin products).
-
-        Args:
-            product_id (str): The ID of the product to update.
-            product_data (dict): The product data dictionary.
-
-        Returns:
-            Product: The updated product.
-        """
-        try:
-            from beanie import PydanticObjectId
-            obj_id = PydanticObjectId(product_id)
-            current_product = await self.get_product_by_id(obj_id)
-            
-            if not current_product:
-                # Product doesn't exist, create it
-                return await self.create_product_from_dict(product_data)
-            
-            # Update the existing product
-            product_data["updatedAt"] = datetime.now()
-            await current_product.update({"$set": product_data})
-            return current_product
-            
-        except Exception as e:
-            print(f"Error updating product from dict: {str(e)}")
-            # If update fails, try to create new product
-            return await self.create_product_from_dict(product_data)
+        return await Product.find_many(Product.displayOnHomepage == True, Product.active == True).limit(limit).to_list()

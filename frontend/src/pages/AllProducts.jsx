@@ -85,52 +85,62 @@ const AllProducts = () => {
       if (error) {
         setErrorMsg(t("failed_to_load_products", "Failed to load products. Please try again later."));
         setLoading(false);
+        loadFallbackProducts();
         return;
       }
 
       // If we got data from API, use it
       if (data && data.length > 0) {
-        // Keep the original product data including category - don't assign random categories
-        // Only assign a default category when absolutely necessary for the UI
+        // Ensure products have categories
         const productsWithCategories = data.map(p => ({
           ...p, 
-          category: p.category || "Other" // Use "Other" as a default category only when necessary
+          category: p.category || getDemoCategories()[Math.floor(Math.random() * getDemoCategories().length)]
         }));
         
         processProductData(productsWithCategories);
       } else {
-        // Show a message if no products were found
-        setAllProducts([]);
-        setFilteredProducts([]);
-        setErrorMsg(t("no_products_found", "No products are available at the moment."));
-        setLoading(false);
+        // Use fallback data if API returned empty
+        loadFallbackProducts();
       }
     } catch (error) {
       console.error("Error fetching products:", error);
       setErrorMsg(t("failed_to_load_products", "Failed to load products. Please try again later."));
-      setAllProducts([]);
-      setFilteredProducts([]);
-      setLoading(false);
+      loadFallbackProducts();
     }
+  };
+  const loadFallbackProducts = async () => {
+    // Try fetching again from public products endpoint as fallback
+    try {
+      const { data } = await apiService.get("/admin/public/products");
+      if (data && data.length > 0) {
+        processProductData(data);
+      } else {
+        // If public endpoint fails, try admin endpoint as a final fallback
+        try {
+          const { data: adminData } = await apiService.get("/admin/products");
+          if (adminData && adminData.length > 0) {
+            processProductData(adminData);
+          } else {
+            processProductData([]);
+          }
+        } catch (adminErr) {
+          console.error("Error in admin products fallback fetch:", adminErr);
+          processProductData([]);
+        }
+      }
+    } catch (err) {
+      console.error("Error in public products fallback fetch:", err);
+      processProductData([]);
+    }
+    setLoading(false);
   };
 
   const processProductData = (productData) => {
-    // Extract only actual categories from products, filtering out any empty values
     const uniqueCategories = [...new Set(productData.map(p => p.category).filter(Boolean))];
-    
-    // These are pre-defined categories that may be useful for filtering
-    // Only add these if they actually appear in products to avoid confusion
     const systemCategories = ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
     
-    // Only include system categories that actually have products
-    const relevantSystemCategories = systemCategories.filter(category => 
-      productData.some(product => product.category === category)
-    );
-    
-    // Combine actual categories with relevant system categories without duplicates
-    const allCategories = [...new Set([...uniqueCategories, ...relevantSystemCategories])];
-    
-    console.log("Available product categories:", allCategories);
+    // Combine existing categories with system categories without duplicates
+    const allCategories = [...new Set([...uniqueCategories, ...systemCategories])];
     
     setCategories(allCategories);
     setAllProducts(productData);
@@ -147,32 +157,20 @@ const AllProducts = () => {
       const name = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
       const description = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
       
-      // Handle category filtering - if no categories selected, show all products
-      let categoryMatch = true;
-      if (selectedCategories.length > 0) {
-        // Check if product has a category that matches one of the selected categories
-        categoryMatch = product.category && selectedCategories.includes(product.category);
-        
-        // If there's still no match, check if product name/description contains the category
-        // (this is a fallback for products without explicit categories)
-        if (!categoryMatch) {
-          categoryMatch = selectedCategories.some(sc => 
-            name?.toLowerCase().includes(sc.toLowerCase()) || 
-            description?.toLowerCase().includes(sc.toLowerCase())
-          );
-        }
-      }
+      const categoryMatch = selectedCategories.length === 0 || 
+                           (product.category && selectedCategories.includes(product.category)) || 
+                           selectedCategories.some(sc => 
+                             name?.toLowerCase().includes(sc.toLowerCase()) || 
+                             description?.toLowerCase().includes(sc.toLowerCase())
+                           );
 
-      // Price range filtering
       const priceMatch = 
         product.price >= filterPriceRange.min &&
         product.price <= filterPriceRange.max;
         
-      // Search query filtering
       const searchMatch = !searchQuery || 
         name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category?.toLowerCase().includes(searchQuery.toLowerCase());
+        description?.toLowerCase().includes(searchQuery.toLowerCase());
 
       return priceMatch && searchMatch && categoryMatch;
     });
@@ -193,16 +191,7 @@ const AllProducts = () => {
           return nameB.localeCompare(nameA);
         case 'featured':
         default:
-          // For featured, prioritize products marked for homepage
-          if (a.display_on_homepage || a.displayOnHomepage) return -1;
-          if (b.display_on_homepage || b.displayOnHomepage) return 1;
-          // Then prioritize best sellers
-          if (a.best_seller || a.isBestSeller) return -1;
-          if (b.best_seller || b.isBestSeller) return 1;
-          // Then prioritize new products
-          if (a.is_new || a.isNew) return -1;
-          if (b.is_new || b.isNew) return 1;
-          return 0;
+          return 0; // Keep original order for featured
       }
     });
     
@@ -216,6 +205,7 @@ const AllProducts = () => {
         : [...prev, category]
     );
   };
+
   const clearFilters = () => {
     setFilterPriceRange({ min: 0, max: 200 });
     setSearchQuery("");
@@ -233,6 +223,8 @@ const AllProducts = () => {
       { value: "name-desc", label: t("sort_name_z_to_a", "Name: Z to A") },
     ];
   };
+
+  const getDemoCategories = () => ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
 
   return (
     <>
