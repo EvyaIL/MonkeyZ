@@ -25,7 +25,29 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             list[Product]: A list of all products in the database.
         """
-        return await Product.find_all().to_list()
+        try:
+            # Fetch raw data with projection to convert field names
+            collection = Product.get_motor_collection()
+            cursor = collection.find({})
+            products = []
+            
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
+                if 'createdAt' in doc and 'created_at' not in doc:
+                    doc['created_at'] = doc['createdAt']
+                if 'updatedAt' in doc and 'updated_at' not in doc:
+                    doc['updated_at'] = doc['updatedAt']
+                if 'isBestSeller' in doc and 'best_seller' not in doc:
+                    doc['best_seller'] = doc['isBestSeller']
+                
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
+                
+            return products
+        except Exception as e:
+            print(f"Error in get_all_products: {str(e)}")
+            return []
 
     async def get_best_sellers(self) -> list[Product]:
         """
@@ -34,7 +56,33 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             Returns:
                 list[Product]: A list of all best sellers products in the database.
         """
-        return await Product.find_many(Product.best_seller == True).to_list()
+        try:
+            # Fetch raw data with projection to convert field names
+            collection = Product.get_motor_collection()
+            # Try both field naming conventions
+            cursor = collection.find({"$or": [
+                {"best_seller": True},  # snake_case
+                {"isBestSeller": True}  # camelCase
+            ]})
+            products = []
+            
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
+                if 'createdAt' in doc and 'created_at' not in doc:
+                    doc['created_at'] = doc['createdAt']
+                if 'updatedAt' in doc and 'updated_at' not in doc:
+                    doc['updated_at'] = doc['updatedAt']
+                if 'isBestSeller' in doc and 'best_seller' not in doc:
+                    doc['best_seller'] = doc['isBestSeller']
+                
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
+                
+            return products
+        except Exception as e:
+            print(f"Error in get_best_sellers: {str(e)}")
+            return []
 
     async def get_recent_products(self, limit: int) -> list[Product]:
         """
@@ -46,7 +94,34 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             list[Product]: A list of recently created products.
         """
-        return await Product.find().sort(-Product.created_at).limit(limit).to_list()
+        try:
+            # Fetch raw data with projection to convert field names
+            collection = Product.get_motor_collection()
+            # Sort by createdAt (camelCase) or created_at (snake_case), whichever exists
+            pipeline = [
+                {"$sort": {"createdAt": -1}},  # Try camelCase first
+                {"$limit": limit}
+            ]
+            cursor = collection.aggregate(pipeline)
+            products = []
+            
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
+                if 'createdAt' in doc and 'created_at' not in doc:
+                    doc['created_at'] = doc['createdAt']
+                if 'updatedAt' in doc and 'updated_at' not in doc:
+                    doc['updated_at'] = doc['updatedAt']
+                if 'isBestSeller' in doc and 'best_seller' not in doc:
+                    doc['best_seller'] = doc['isBestSeller']
+                
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
+                
+            return products
+        except Exception as e:
+            print(f"Error in get_recent_products: {str(e)}")
+            return []
         
     async def create_product(self, product_request: ProductRequest) -> Product:
         """
@@ -149,6 +224,65 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             Product: The created or updated product instance.
         """
         return Product(**product_request, keys=keys)
+        
+    async def create_product_from_dict(self, product_data: dict) -> Product:
+        """
+        Creates a new product from a dictionary (typically from admin collection).
+        Handles field name conversion between camelCase and snake_case.
+
+        Args:
+            product_data (dict): The product data as a dictionary.
+
+        Returns:
+            Product: The created product.
+        """
+        # Create a copy of the dict to avoid modifying the original
+        data = product_data.copy()
+        
+        # Handle field name conversions
+        if 'createdAt' in data and 'created_at' not in data:
+            data['created_at'] = data['createdAt']
+        if 'updatedAt' in data and 'updated_at' not in data:
+            data['updated_at'] = data['updatedAt']
+        if 'isBestSeller' in data and 'best_seller' not in data:
+            data['best_seller'] = data['isBestSeller']
+            
+        # Create and save the product
+        product = Product(**data)
+        await product.save()
+        return product
+        
+    async def update_product_from_dict(self, product_id: str, product_data: dict) -> Product:
+        """
+        Updates an existing product using dictionary data.
+        Handles field name conversion between camelCase and snake_case.
+
+        Args:
+            product_id (str): The ID of the product to update.
+            product_data (dict): The updated product data.
+
+        Returns:
+            Product: The updated product.
+        """
+        # Get existing product
+        product = await Product.get(product_id)
+        if not product:
+            raise ValueError("Product not found")
+            
+        # Create a copy of the dict to avoid modifying the original
+        data = product_data.copy()
+        
+        # Handle field name conversions
+        if 'createdAt' in data and 'created_at' not in data:
+            data['created_at'] = data['createdAt']
+        if 'updatedAt' in data and 'updated_at' not in data:
+            data['updated_at'] = data['updatedAt']
+        if 'isBestSeller' in data and 'best_seller' not in data:
+            data['best_seller'] = data['isBestSeller']
+            
+        # Update the product
+        await product.update({"$set": data})
+        return product
 
     async def get_product_by_name(self, name: str) -> Product:
         """

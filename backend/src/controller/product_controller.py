@@ -1,202 +1,252 @@
-from beanie import PydanticObjectId
-from src.models.key.key import Key, KeyRequest
-from src.models.products.products import Product, ProductRequest
-from src.controller.controller_interface import ControllerInterface
-from src.mongodb.keys_collection import KeysCollection
+from src.models.products.products import Product
+# Using Product from product_collection as AdminProduct since there's no separate AdminProduct class
+from src.mongodb.product_collection import Product as AdminProduct
 from src.mongodb.products_collection import ProductsCollection
-from src.mongodb.users_collection import UserCollection
 from src.mongodb.product_collection import ProductCollection
-from src.models.products.products_exception import DeleteError
-from typing import List
+from src.mongodb.keys_collection import KeysCollection
+from src.mongodb.users_collection import UserCollection
+import datetime
+import re
 
-class ProductsController(ControllerInterface):
+class ProductsController:
     """Controller for managing products, including creation, editing, and deletion."""
-
+    
     def __init__(self, product_collection: ProductsCollection, keys_collection: KeysCollection, 
                  user_collection: UserCollection, admin_product_collection: ProductCollection):
-        """
-        Initializes the ProductsController with dependencies.
-
+        """Initialize the controller with required collections.
+        
         Args:
-            product_collection (ProductsCollection): Collection for product-related operations.
-            keys_collection (KeysCollection): Collection for key-related operations.
-            user_collection (UserCollection): Collection for user-related operations.
-            admin_product_collection (ProductCollection): Collection for admin product operations.
+            product_collection: The main products collection for frontend display
+            keys_collection: Collection for managing keys/IDs
+            user_collection: Collection for user management
+            admin_product_collection: The admin product collection
         """
         self.product_collection = product_collection
         self.keys_collection = keys_collection
         self.user_collection = user_collection
         self.admin_product_collection = admin_product_collection
-
+    
     async def initialize(self):
-        """Initializes database connections and collections."""
-        await self.keys_collection.connection()
-        await self.keys_collection.initialize()
-        await self.user_collection.connection()
-        await self.user_collection.initialize()
-        await self.product_collection.connection()
-        await self.product_collection.initialize()
-        await self.admin_product_collection.connection()
-        await self.admin_product_collection.initialize()
-
-    async def disconnect(self):
-        """Disconnect from all collections."""
-        await self.keys_collection.disconnect()
-        await self.user_collection.disconnect()
-        await self.product_collection.disconnect()
-        await self.admin_product_collection.disconnect()
-
-    async def create_product(self, product_request: ProductRequest, username: str) -> str:
-        """
-        Creates a new product.
-
-        Args:
-            product_request (ProductRequest): The product request data.
-            username (str): The username of the requester.
-
-        Returns:
-            str: The created product's ID.
-        """
-        await self.user_collection.validate_user_role(username)
-        product = await self.product_collection.create_product(product_request)
-        return str(product.id)
-
-    async def edit_product(self, product_id: PydanticObjectId, product_request: ProductRequest, username: str) -> str:
-        """
-        Edits an existing product.
-
-        Args:
-            product_id (PydanticObjectId): The ID of the product to edit.
-            product_request (ProductRequest): The updated product data.
-            username (str): The username of the requester.
-
-        Returns:
-            str: The edited product's ID.
-        """
-        await self.user_collection.validate_user_role(username)
-        product = await self.product_collection.edit_product(product_id, product_request)
-        return str(product.id)
-
-    async def delete_product(self, product_id: PydanticObjectId, username: str) -> str:
-        """
-        Deletes a product, ensuring that no active keys are associated with it.
-
-        Args:
-            product_id (PydanticObjectId): The ID of the product to delete.
-            username (str): The username of the requester.
-
-        Returns:
-            str: The deleted product's ID.
-
-        Raises:
-            DeleteError: If the product has active keys.
-        """
-        await self.user_collection.validate_user_role(username)
-        product: Product = await self.product_collection.get_product_by_id(product_id)
-        keys = []
-
-        for key_id in product.keys:
-            key: Key = await self.keys_collection.get_key_by_id(key_id)
-            if key.owner:
-                raise DeleteError("Cannot delete this product. Someone is using one of its keys.")
-            keys.append(key)
-
-        await self.keys_collection.delete_many_keys(keys)
-        await self.product_collection.delete_product(product_id)
-        return str(product.id)
-
-    async def update_key(self, key_id: PydanticObjectId, key_request: KeyRequest, username: str) -> str:
-        """
-        Updates an existing key.
-
-        Args:
-            key_id (PydanticObjectId): The ID of the key to update.
-            key_request (KeyRequest): The updated key data.
-            username (str): The username of the requester.
-
-        Returns:
-            str: The updated key's ID.
-        """
-        await self.user_collection.validate_user_role(username)
-        key = await self.keys_collection.update_key(key_id, key_request)
-        return str(key.id)
+        """Initialize any required data or connections."""
+        # No additional initialization needed at this time
+        pass
     
+    async def sync_products(self):
+        """Synchronize products between admin collection and main collection."""
+        try:
+            print("Starting product sync between collections")
+            # Get all products from admin collection
+            admin_products = await self.admin_product_collection.get_all_products()
+            
+            for admin_product in admin_products:
+                # Convert admin product to dictionary format expected by main collection
+                product_dict = admin_product.model_dump()
+                
+                try:
+                    # Try to update the product in main collection
+                    await self.product_collection.update_product_from_dict(admin_product.id, product_dict)
+                except ValueError:  # Product doesn't exist in main collection
+                    # Create product in main collection
+                    await self.product_collection.create_product_from_dict(product_dict)
+            
+            print(f"Successfully synchronized {len(admin_products)} products")
+            return True
+        except Exception as e:
+            print(f"Error synchronizing products: {e}")
+            return False
     
-    async def get_best_sellers(self) -> list[Product]:
+    async def get_products(self, page: int = 1, limit: int = 10) -> list[Product]:
+        """Get main products for frontend display with pagination.
+        
+        Args:
+            page: Page number (starting from 1)
+            limit: Number of products per page
+            
+        Returns:
+            List of products for the specified page
         """
-            Retrieves all the best sellers products from the database.
-
-            Returns:
-                list[Product]: A list of all best sellers products in the database.
+        return await self.product_collection.get_products(page, limit)
+    
+    async def get_all_products(self) -> list[Product]:
+        """Get all products from main collection.
+        
+        Returns:
+            List of all products
         """
-        products:list[Product] = await self.product_collection.get_best_sellers()
-        return products
-
-
-    async def get_recent_products(self, limit: int) -> list[Product]:
+        return await self.product_collection.get_all_products()
+    
+    async def create_product(self, product: Product) -> Product:
+        """Create a new product in main collection.
+        
+        Args:
+            product: Product to create
+            
+        Returns:
+            Created product
         """
-            Retrieves the most recently created products.
-
-            Args:
-                limit (int): The number of recent products to retrieve. Defaults to 8.
-
-            Returns:
-                list[Product]: A list of recently created products.
+        return await self.product_collection.create_product(product)
+    
+    async def create_admin_product(self, product: AdminProduct) -> AdminProduct:
+        """Create a product in admin collection and sync to main collection.
+        
+        Args:
+            product: Admin product to create
+            
+        Returns:
+            Created admin product
+        """
+        # First create in admin collection
+        created_admin_product = await self.admin_product_collection.create_product(product)
+        
+        # Convert to dictionary format for main collection
+        product_dict = created_admin_product.model_dump()
+        
+        try:
+            # Create in main products collection
+            await self.product_collection.create_product_from_dict(product_dict)
+            print(f"Product {product.id} created in both collections")
+        except Exception as e:
+            print(f"Error creating product in main collection: {e}")
+            # Continue even if sync fails - at least it's in admin collection
+        
+        return created_admin_product
+    
+    async def update_product(self, product_id: str, product: Product) -> Product:
+        """Update a product in main collection.
+        
+        Args:
+            product_id: ID of product to update
+            product: Updated product data
+            
+        Returns:
+            Updated product
+        """
+        return await self.product_collection.update_product(product_id, product)
+    
+    async def update_admin_product(self, product_id: str, product: AdminProduct) -> AdminProduct:
+        """Update a product in admin collection and sync to main collection.
+        
+        Args:
+            product_id: ID of product to update
+            product: Updated product data
+            
+        Returns:
+            Updated admin product
+        """
+        # First update in admin collection
+        updated_admin_product = await self.admin_product_collection.update_product(product_id, product)
+        
+        # Convert to dictionary format for main collection
+        product_dict = updated_admin_product.model_dump()
+        
+        try:
+            # Update in main products collection
+            await self.product_collection.update_product_from_dict(product_id, product_dict)
+            print(f"Product {product_id} updated in both collections")
+        except Exception as e:
+            print(f"Error updating product in main collection: {e}")
+            # Continue even if sync fails - at least it's updated in admin collection
+        
+        return updated_admin_product
+    
+    async def delete_product(self, product_id: str) -> bool:
+        """Delete a product from main collection.
+        
+        Args:
+            product_id: ID of product to delete
+            
+        Returns:
+            True if deletion successful, False otherwise
+        """
+        return await self.product_collection.delete_product(product_id)
+    
+    async def delete_admin_product(self, product_id: str) -> bool:
+        """Delete a product from admin collection and sync deletion to main collection.
+        
+        Args:
+            product_id: ID of product to delete
+            
+        Returns:
+            True if deletion successful, False otherwise
+        """
+        # First delete from admin collection
+        admin_delete_success = await self.admin_product_collection.delete_product(product_id)
+        
+        if admin_delete_success:
+            try:
+                # Also delete from main products collection
+                main_delete_success = await self.product_collection.delete_product(product_id)
+                print(f"Product {product_id} deleted from both collections")
+                return main_delete_success
+            except Exception as e:
+                print(f"Error deleting product from main collection: {e}")
+                # Continue even if sync fails - at least it's deleted from admin
+                return admin_delete_success
+        
+        return False
+    
+    async def get_admin_products(self) -> list[AdminProduct]:
+        """Get all products from admin collection.
+        
+        Returns:
+            List of all admin products
+        """
+        return await self.admin_product_collection.get_all_products()
+    
+    async def get_admin_product(self, product_id: str) -> AdminProduct:
+        """Get a specific product from admin collection.
+        
+        Args:
+            product_id: ID of product to retrieve
+            
+        Returns:
+            Admin product if found
+        """
+        return await self.admin_product_collection.get_product(product_id)
+    
+    async def get_product(self, product_id: str) -> Product:
+        """Get a specific product from main collection.
+        
+        Args:
+            product_id: ID of product to retrieve
+            
+        Returns:
+            Product if found
+        """
+        return await self.product_collection.get_product(product_id)
+    
+    async def get_best_sellers(self, limit: int = 4) -> list[Product]:
+        """Get best selling products.
+        
+        Args:
+            limit: Maximum number of products to return
+            
+        Returns:
+            List of best selling products
+        """
+        return await self.product_collection.get_best_sellers(limit)
+    
+    async def get_recent_products(self, limit: int = 4) -> list[Product]:
+        """Get recently added products.
+        
+        Args:
+            limit: Maximum number of products to return
+            
+        Returns:
+            List of recently added products
         """
         return await self.product_collection.get_recent_products(limit)
-
-    async def sync_products(self):
+    
+    async def get_homepage_products(self) -> dict:
+        """Get products for homepage display.
+        
+        Returns:
+            Dictionary with best sellers and recent products
         """
-        Synchronize products between admin_product_collection and product_collection.
-        """
-        admin_products = await self.admin_product_collection.get_all_products()
-        for product in admin_products:
-            # Convert admin product to main product format if needed
-            try:
-                await self.product_collection.update_product(product.id, product.dict())
-            except ValueError:  # Product doesn't exist in main collection
-                await self.product_collection.create_product(product.dict())
-                
-    async def get_admin_products(self) -> list[Product]:
-        """Get all admin products and sync with main collection."""
-        products = await self.admin_product_collection.get_all_products()
-        await self.sync_products()  # Keep collections in sync
-        return products
-
-    async def create_admin_product(self, product_data: dict) -> Product:
-        """Create a new admin product and sync it to main collection."""
-        product = await self.admin_product_collection.create_product(product_data)
-        await self.sync_products()
-        return product
-
-    async def update_admin_product(self, product_id: str, product_data: dict) -> Product:
-        """Update an admin product and sync changes to main collection."""
-        product = await self.admin_product_collection.update_product(product_id, product_data)
-        await self.sync_products()
-        return product
-
-    async def delete_admin_product(self, product_id: str) -> None:
-        """Delete an admin product and its corresponding main product."""
-        await self.admin_product_collection.delete_product(product_id)
-        try:
-            await self.product_collection.delete_product(product_id)
-        except ValueError:
-            pass  # Product may not exist in main collection
-
-    # Coupon management methods
-    async def get_all_coupons(self) -> List[Product]:
-        """Get all coupons."""
-        return await self.admin_product_collection.get_all_coupons()
-
-    async def create_coupon(self, coupon_data: dict) -> Product:
-        """Create a new coupon."""
-        return await self.admin_product_collection.create_coupon(coupon_data)
-
-    async def update_coupon(self, coupon_id: str, coupon_data: dict) -> Product:
-        """Update a coupon."""
-        return await self.admin_product_collection.update_coupon(coupon_id, coupon_data)
-
-    async def delete_coupon(self, coupon_id: str) -> None:
-        """Delete a coupon."""
-        await self.admin_product_collection.delete_coupon(coupon_id)
-
+        best_sellers = await self.get_best_sellers(4)
+        recent_products = await self.get_recent_products(4)
+        
+        return {
+            "best_sellers": best_sellers,
+            "recent_products": recent_products
+        }
