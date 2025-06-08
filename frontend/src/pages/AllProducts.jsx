@@ -108,28 +108,19 @@ const AllProducts = () => {
       loadFallbackProducts();
     }
   };
+
   const loadFallbackProducts = async () => {
-    // Try fetching again from public products endpoint as fallback
+    // Try fetching again from admin products as fallback
     try {
-      const { data } = await apiService.get("/admin/public/products");
+      const { data } = await apiService.get("/admin/products");
       if (data && data.length > 0) {
         processProductData(data);
       } else {
-        // If public endpoint fails, try admin endpoint as a final fallback
-        try {
-          const { data: adminData } = await apiService.get("/admin/products");
-          if (adminData && adminData.length > 0) {
-            processProductData(adminData);
-          } else {
-            processProductData([]);
-          }
-        } catch (adminErr) {
-          console.error("Error in admin products fallback fetch:", adminErr);
-          processProductData([]);
-        }
+        // No products available - show empty state
+        processProductData([]);
       }
     } catch (err) {
-      console.error("Error in public products fallback fetch:", err);
+      console.error("Error in fallback products fetch:", err);
       processProductData([]);
     }
     setLoading(false);

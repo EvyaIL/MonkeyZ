@@ -74,27 +74,12 @@ export default function AdminProducts() {
         productsList = Object.values(response.data);
       }
       
-      // Ensure each product has a valid MongoDB ObjectId as id
-      const productsWithIds = productsList.map(product => {
-        // Check if product.id is present and is a string.
-        if (!product.id || typeof product.id !== 'string') {
-          console.error('Product received from backend is missing a valid string ID field or has an incorrect type. Product data:', product);
-          // Attempt to use product._id if it's a string, as a fallback.
-          if (product._id && typeof product._id === 'string') {
-            // If using product._id, ensure the original _id field is preserved or also updated if necessary for consistency
-            return { ...product, id: product._id, _id: product._id };
-          }
-          // If neither product.id nor product._id is a usable string, this product is problematic.
-          // Assign a temporary random ID for frontend purposes, though operations requiring this ID on the backend will likely fail.
-          console.warn('Assigning temporary ID to product:', product);
-          const tempId = `temp_${Math.random().toString(36).substr(2, 9)}`;
-          return { ...product, id: tempId, _id: tempId }; // Ensure _id is also set for consistency if id is temporary
-        }
-        // If product.id is already the correct string ID, ensure it's used.
-        // Return a new object to ensure no unintended mutations of the original product data.
-        // Also, ensure _id field is consistent with the id field if not already present or different.
-        return { ...product, id: product.id, _id: product._id || product.id };
-      });
+      // Ensure each product has an id
+      const productsWithIds = productsList.map(product => ({
+        ...product,
+        id: product.id || product._id || Math.random().toString(36).substr(2, 9)
+      }));
+      
       setProducts(productsWithIds);
       console.log('Processed products:', productsWithIds);
     } catch (err) {
@@ -132,7 +117,6 @@ export default function AdminProducts() {
       discountPercentage: parseInt(formData.get('discountPercentage')) || 0,
       isBestSeller: formData.get('isBestSeller') === 'on',
       isNew: formData.get('isNew') === 'on',
-      displayOnHomepage: formData.get('displayOnHomepage') === 'on',
       keyManagement: {
         format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
         minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
@@ -250,11 +234,20 @@ export default function AdminProducts() {
         : `✅ Product "${nameEn}" created successfully!`;
       
       setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 2000);
-
-      await loadProducts(); // Ensure product list is always up-to-date
+      setTimeout(() => setShowSuccessMessage(false), 4000);
+        // Clear cached data using CacheManager pattern
+      console.log('🗑️ Clearing cached data for synchronization');
+      CacheManager.clearComponentCache('AdminProducts');
+      CacheManager.clearComponentCache('AdminStock');
+      CacheManager.clearComponentCache('AdminOrders');
+      
+      // Refresh products list
+      await loadProducts();
       setShowDialog(false);
       setEditingProduct(null);
+      
+      console.log('✨ Product save operation completed successfully');
+      
     } catch (error) {
       console.error('❌ Error saving product:', error);
       
@@ -701,7 +694,7 @@ export default function AdminProducts() {
                       color="default"
                     />
                     <Box>
-                      <Tooltip title="Manage Codes (Stock)">
+                      <Tooltip title="Add Keys">
                         <IconButton
                           size="small"
                           color="primary"
@@ -887,7 +880,8 @@ export default function AdminProducts() {
                       sx={{ mt: 1 }}
                     />
                   </Grid>
-                    <Grid item xs={12} sm={6}>
+                  
+                  <Grid item xs={12} sm={6}>
                     <FormControlLabel
                       control={
                         <Switch
@@ -896,19 +890,6 @@ export default function AdminProducts() {
                         />
                       }
                       label="Product Active"
-                      sx={{ mt: 1 }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name="displayOnHomepage"
-                          defaultChecked={editingProduct?.displayOnHomepage ?? false}
-                        />
-                      }
-                      label="Display on Homepage"
                       sx={{ mt: 1 }}
                     />
                   </Grid>
@@ -1000,16 +981,6 @@ export default function AdminProducts() {
                     />
                   </Grid>
                 </Grid>
-              </Grid>
-
-              {/* Stock Management Info */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                  Stock Management (Codes/Keys)
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  You can add codes/keys for this product after saving it, using the 'Manage Codes' button.
-                </Typography>
               </Grid>
             </Grid>
           </DialogContent>

@@ -92,20 +92,20 @@ const KeyDialog = ({
       console.log(`Sending ${keysList.length} keys to backend for product ID: ${product.id}`);
       
       // First, validate that the product exists by checking with the backend
-      // try {
-      //   const productCheck = await apiService.get(`/admin/products`);
-      //   if (productCheck.error) {
-      //     throw new Error('Unable to verify product existence. Backend may be unavailable.');
-      //   }
+      try {
+        const productCheck = await apiService.get(`/admin/products`);
+        if (productCheck.error) {
+          throw new Error('Unable to verify product existence. Backend may be unavailable.');
+        }
         
-      //   const productExists = productCheck.data && productCheck.data.some(p => p.id === product.id);
-      //   if (!productExists) {
-      //     throw new Error(`Product with ID ${product.id} not found in database. Please refresh the page to sync with the latest data.`);
-      //   }
-      // } catch (validationError) {
-      //   console.warn('Product validation failed:', validationError);
-      //   // Continue with the request anyway, let the backend handle the error
-      // }
+        const productExists = productCheck.data && productCheck.data.some(p => p.id === product.id);
+        if (!productExists) {
+          throw new Error(`Product with ID ${product.id} not found in database. Please refresh the page to sync with the latest data.`);
+        }
+      } catch (validationError) {
+        console.warn('Product validation failed:', validationError);
+        // Continue with the request anyway, let the backend handle the error
+      }
         // Ensure we're sending the correct product ID and keys format
       console.log(`Sending keys to: /admin/products/${product.id}/keys`);
       const response = await apiService.post(`/admin/products/${product.id}/keys`, {

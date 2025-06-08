@@ -120,17 +120,13 @@ const fallbackProducts = [
 const Home = () => {
   const [bestSellers, setBestSellers] = useState([]);
   const [recent, setRecent] = useState([]);
-  const [homepageProducts, setHomepageProducts] = useState([]);
   const [loadingBest, setLoadingBest] = useState(true);
   const [loadingRecent, setLoadingRecent] = useState(true);
-  const [loadingHomepage, setLoadingHomepage] = useState(true);
   const [errorBest, setErrorBest] = useState("");
   const [errorRecent, setErrorRecent] = useState("");
-  const [errorHomepage, setErrorHomepage] = useState("");
   const { t } = useTranslation();
 
   useEffect(() => {
-    getHomepageProducts();
     getBestSellers();
     getRecent();
     
@@ -168,21 +164,6 @@ const Home = () => {
     return [...apiProducts, ...fallback.filter((p) => !ids.has(p.id))];
   };
 
-  const getHomepageProducts = async () => {
-    setLoadingHomepage(true);
-    setErrorHomepage("");
-    const { data, error } = await apiService.get("/product/homepage");
-    if (error || !data || !Array.isArray(data) || data.length === 0) {
-      console.log("No products marked for homepage display, falling back to best sellers");
-      setErrorHomepage(error ? t("failed_to_load_homepage_products") : "");
-      // We'll use best sellers as a fallback for homepage products (will be empty initially but populated later)
-      setHomepageProducts([]);
-    } else {
-      setHomepageProducts(data);
-    }
-    setLoadingHomepage(false);
-  };
-
   const getBestSellers = async () => {
     setLoadingBest(true);
     setErrorBest("");
@@ -202,11 +183,6 @@ const Home = () => {
         setBestSellers(enhancedProducts.slice(0, 5)); // Limit to 5 products
       } else {
         setBestSellers(data);
-      }
-      
-      // If we have no homepage products, use best sellers as a fallback
-      if (homepageProducts.length === 0 && !loadingHomepage) {
-        setHomepageProducts(data);
       }
     }
     setLoadingBest(false);
@@ -247,25 +223,9 @@ const Home = () => {
         <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
           {t("home")}
         </h1>
-
-        {/* Featured Homepage Products */}
-        <section className="w-full max-w-6xl mb-12" aria-label={t("featured_products")}>
-          {loadingHomepage ? (
-            <div className="flex justify-center py-8 bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm">
-              <Spinner />
-            </div>
-          ) : errorHomepage && homepageProducts.length === 0 ? (
-            <p className="text-error text-center bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700" role="alert">
-              {errorHomepage}
-            </p>
-          ) : homepageProducts.length > 0 ? (
-            <ProductShowcase products={homepageProducts} title={t("featured_products")} />
-          ) : null}
-        </section>
 
         <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
           {loadingBest ? (

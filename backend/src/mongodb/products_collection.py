@@ -16,8 +16,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         """
         database_name = "shop"
         self.db = await self.add_new_collection(database_name)
-        # Removed: await self.initialize_beanie(self.db, [Product])
-        # Beanie is now initialized only once in main.py
+        await self.initialize_beanie(self.db, [Product])
 
     async def get_all_products(self) -> list[Product]:
         """
@@ -64,10 +63,8 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         """
         if await self.get_product_by_name(product_request.name):
             raise CreateError("This name is already in use")
+            
         product = self.update_or_create_product(product_request, {})
-        # Ensure keys field is always present and is a dict
-        if not hasattr(product, "keys") or product.keys is None:
-            product.keys = {}
         await product.save()
         return product
         
@@ -187,8 +184,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             Product: The product with the given ID, or None if not found.
         """
-        # Use the correct MongoDB primary key field
-        return await Product.get(product_id)
+        return await Product.find_one(Product.id == product_id)
 
     async def delete_product(self, product_id: PydanticObjectId):
         """
@@ -250,15 +246,3 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             products_with_counts.append(product_dict)
             
         return products_with_counts
-    
-    async def get_homepage_products(self, limit: int) -> list[Product]:
-        """
-        Retrieves products marked for display on the homepage.
-
-        Args:
-            limit (int): The maximum number of products to retrieve.
-
-        Returns:
-            list[Product]: A list of products marked for display on the homepage.
-        """
-        return await Product.find_many(Product.displayOnHomepage == True, Product.active == True).limit(limit).to_list()

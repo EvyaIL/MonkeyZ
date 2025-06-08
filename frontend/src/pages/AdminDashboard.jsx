@@ -119,10 +119,10 @@ const AdminDashboard = () => {
         he: formData.get('description_he')
       },
       price: parseFloat(formData.get('price')),
-      category: formData.get('category'),      image: formData.get('imageUrl') || formData.get('image'),
+      category: formData.get('category'),
+      image: formData.get('imageUrl') || formData.get('image'),
       isNew: formData.get('isNew') === 'on',
       isBestSeller: formData.get('isBestSeller') === 'on',
-      displayOnHomepage: formData.get('displayOnHomepage') === 'on',
       discountPercentage: parseInt(formData.get('discountPercentage') || '0'),
       tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : [],
       inStock: formData.get('inStock') !== 'off',
@@ -584,7 +584,8 @@ const AdminDashboard = () => {
                         className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
                       />
                       <span>{t('admin.isNew')}</span>
-                    </label>                    <label className="flex items-center space-x-2">
+                    </label>
+                    <label className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         name="isBestSeller"
@@ -592,15 +593,6 @@ const AdminDashboard = () => {
                         className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
                       />
                       <span>{t('admin.isBestSeller')}</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        name="displayOnHomepage"
-                        defaultChecked={editingProduct.displayOnHomepage}
-                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
-                      />
-                      <span>Display on Homepage</span>
                     </label>
                   </div>
 

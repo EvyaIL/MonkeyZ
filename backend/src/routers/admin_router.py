@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, validator, field_serializer
 from bson.objectid import ObjectId
 from src.models.admin.analytics import AdminAnalytics, DailySale
-from src.mongodb.products_collection import ProductsCollection
 
 class ProductBase(BaseModel):
     name: str  # Primary language (English) name
@@ -145,19 +144,23 @@ async def get_products(
                 product_dict = product.dict() if hasattr(product, 'dict') else (
                     product.model_dump() if hasattr(product, 'model_dump') else product
                 )
-                # Always set 'id' to the string version of '_id', and keep '_id' as well for debugging
-                if '_id' in product_dict:
-                    product_dict['id'] = str(product_dict['_id'])
-                else:
-                    # fallback: if 'id' is present and is ObjectId, convert to string
-                    if 'id' in product_dict and isinstance(product_dict['id'], ObjectId):
-                        product_dict['id'] = str(product_dict['id'])
-                # Optionally, keep '_id' for debugging (frontend can ignore it)
+                
+                # Ensure _id is properly converted to string id
+                if "_id" in product_dict and "id" not in product_dict:
+                    product_dict["id"] = str(product_dict.pop("_id"))
+                elif "_id" in product_dict:
+                    product_dict.pop("_id")
+                    
+                # Convert ObjectId to string if it exists
+                if "id" in product_dict and isinstance(product_dict["id"], ObjectId):
+                    product_dict["id"] = str(product_dict["id"])
+                
                 result.append(product_dict)
             except Exception as e:
                 # Log error but continue processing other products
                 print(f"Error processing product: {e}")
                 continue
+        
         return result
     except Exception as e:
         # Log the actual error but return a user-friendly message
@@ -172,6 +175,7 @@ async def create_product(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
+      # Ensure proper database fields and handle translations
     if not product.get('name') or not product.get('description'):
         raise HTTPException(
             status_code=400, 
@@ -200,13 +204,16 @@ async def create_product(
     product['updatedAt'] = datetime.now()
     
     new_product = await user_controller.create_admin_product(product)
+    
+    # Convert to dict to ensure proper serialization
     product_dict = new_product.dict() if hasattr(new_product, 'dict') else (
         new_product.model_dump() if hasattr(new_product, 'model_dump') else new_product
     )
+    
     # Ensure id is properly formatted
     if "_id" in product_dict and "id" not in product_dict:
         product_dict["id"] = str(product_dict.pop("_id"))
-    print(f"[ADMIN] Created product with id: {product_dict.get('id')}, type: {type(product_dict.get('id'))}")
+        
     return product_dict
 
 @admin_router.patch("/products/{product_id}", response_model=Product)
@@ -238,77 +245,81 @@ async def add_product_keys(
     key_controller: KeyController = Depends(get_keys_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
+    """Add new keys to a product's inventory."""
     await verify_admin(user_controller, current_user)
-    print(f"[ADMIN] Add keys to product_id: {product_id} (type: {type(product_id)})")
+    
     try:
+        # First, validate that the product exists
         from beanie import PydanticObjectId
-        if not product_id or not isinstance(product_id, str) or len(product_id) != 24:
-            print(f"[ADMIN] Invalid product_id format before PydanticObjectId conversion: {product_id}")
-            raise HTTPException(status_code=400, detail="Invalid product ID format. Must be a 24-character hex string.")
-        
         try:
             product_object_id = PydanticObjectId(product_id)
-            print(f"[ADMIN] Parsed product_id \'{product_id}\' as ObjectId: {product_object_id}")
-        except Exception as e:
-            print(f"[ADMIN] Error converting product_id \'{product_id}\' to PydanticObjectId: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid product ID format: {e}")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid product ID format")
         
-        # Use ProductsCollection for product lookup
-        products_collection = ProductsCollection()
-        product = await products_collection.get_product_by_id(product_object_id)
-        print(f"[ADMIN] Product lookup result: {product}")
-        if product is None:
-            raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
-    except Exception as e:
-        print(f"[ADMIN] Error checking product existence: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
-    
-    # Validate key format (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
-    key_format_regex = r'^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$'
-    import re
-    
-    invalid_keys = []
-    for key in keys_request.keys:
-        if not re.match(key_format_regex, key):
-            invalid_keys.append(key)
-    
-    if invalid_keys:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid key format. Keys must match XXXXX-XXXXX-XXXXX-XXXXX-XXXXX pattern. Invalid keys: {', '.join(invalid_keys[:5])}"
-        )
-    
-    # Add keys to the product using KeyController
-    added_keys_count = 0
-    failed_keys = []
-    
-    for key_string in keys_request.keys:
+        # Check if product exists
         try:
-            from src.models.key.key import KeyRequest
-            key_request = KeyRequest(
-                product=product_object_id,
-                is_active=True,
-                key=key_string
-            )
-            result = await key_controller.create_key(key_request, current_user.username)
-            print(f"Successfully created key {key_string} with ID: {result}")
-            added_keys_count += 1
+            product = await user_controller.admin_product_collection.get_product_by_id(product_object_id)
+            if product is None:
+                raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
         except Exception as e:
-            print(f"Error adding key {key_string}: {str(e)}")
-            failed_keys.append(f"{key_string}: {str(e)}")
-            continue        
-    result_message = f"Successfully added {added_keys_count} keys to product {product.name}"
-    if failed_keys:
-        result_message += f". Failed keys: {len(failed_keys)}"
-    return {
-        "message": result_message,
-        "keysAdded": added_keys_count,
-        "keysFailed": len(failed_keys),
-        "productId": product_id,
-        "productName": product.name,
-        "failedKeys": failed_keys if failed_keys else []
-    }
-    
+            print(f"Error checking product existence: {str(e)}")
+            raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
+        
+        # Validate key format (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
+        key_format_regex = r'^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$'
+        import re
+        
+        invalid_keys = []
+        for key in keys_request.keys:
+            if not re.match(key_format_regex, key):
+                invalid_keys.append(key)
+        
+        if invalid_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid key format. Keys must match XXXXX-XXXXX-XXXXX-XXXXX-XXXXX pattern. Invalid keys: {', '.join(invalid_keys[:5])}"
+            )
+        
+        # Add keys to the product using KeyController
+        # Create Key objects for each key
+        added_keys_count = 0
+        failed_keys = []
+        
+        for key_string in keys_request.keys:
+            try:
+                from src.models.key.key import KeyRequest
+                key_request = KeyRequest(
+                    product=product_object_id,
+                    is_active=True,
+                    key=key_string
+                )
+                result = await key_controller.create_key(key_request, current_user.username)
+                print(f"Successfully created key {key_string} with ID: {result}")
+                added_keys_count += 1
+            except Exception as e:
+                print(f"Error adding key {key_string}: {str(e)}")
+                failed_keys.append(f"{key_string}: {str(e)}")
+                continue        
+        
+        result_message = f"Successfully added {added_keys_count} keys to product {product.name}"
+        if failed_keys:
+            result_message += f". Failed keys: {len(failed_keys)}"
+        
+        return {
+            "message": result_message,
+            "keysAdded": added_keys_count,
+            "keysFailed": len(failed_keys),
+            "productId": product_id,
+            "productName": product.name,
+            "failedKeys": failed_keys if failed_keys else []
+        }
+        
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        print(f"Error adding keys to product {product_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to add keys to product: {str(e)}")
+
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])
 async def get_coupons(
@@ -702,95 +713,3 @@ async def get_key_metrics(
     # Get metrics from the dedicated controller
     metrics = await key_metrics_controller.get_key_metrics()
     return metrics
-
-# Public Product routes (no authentication required)
-@admin_router.get("/public/products", response_model=List[Product])
-async def get_public_products(
-    user_controller: UserController = Depends(get_user_controller_dependency),
-):
-    """
-    Public endpoint to get all active products without requiring authentication.
-    This allows the products to be displayed for all users, even if they're not logged in.
-    """
-    try:
-        # Get real products from database
-        products = await user_controller.admin_product_collection.get_all_products()
-        
-        # Convert backend model to frontend format for each product
-        result = []
-        for product in products:
-            try:
-                # Only include active products in the public endpoint
-                product_dict = product.dict() if hasattr(product, 'dict') else (
-                    product.model_dump() if hasattr(product, 'model_dump') else product
-                )
-                
-                # Skip inactive products in public endpoint
-                if not product_dict.get('active', True):
-                    continue
-                    
-                # Always set 'id' to the string version of '_id'
-                if '_id' in product_dict:
-                    product_dict['id'] = str(product_dict['_id'])
-                else:
-                    # fallback: if 'id' is present and is ObjectId, convert to string
-                    if 'id' in product_dict and isinstance(product_dict['id'], ObjectId):
-                        product_dict['id'] = str(product_dict['id'])
-                
-                result.append(product_dict)
-            except Exception as e:
-                # Log error but continue processing other products
-                print(f"Error processing product: {e}")
-                continue
-        return result
-    except Exception as e:
-        # Log the actual error but return a user-friendly message
-        print(f"Error in get_public_products: {str(e)}")
-        return []  # Return empty list instead of failing
-
-@admin_router.get("/public/products/{product_id}", response_model=Product)
-async def get_public_product(
-    product_id: str,
-    user_controller: UserController = Depends(get_user_controller_dependency),
-):
-    """
-    Public endpoint to get a specific product by ID without requiring authentication.
-    This endpoint allows any user to view a specific product details.
-    """
-    try:
-        # Convert string ID to ObjectId
-        try:
-            from bson.objectid import ObjectId
-            product_object_id = ObjectId(product_id)
-            print(f"[PUBLIC] Parsed product_id \'{product_id}\' as ObjectId: {product_object_id}")
-        except Exception as e:
-            print(f"[PUBLIC] Error converting product_id \'{product_id}\' to ObjectId: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid product ID format: {e}")
-        
-        # Get product from collection
-        products_collection = ProductsCollection()
-        product = await products_collection.get_product_by_id(product_object_id)
-        
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
-        
-        # Convert to dict if needed
-        if hasattr(product, 'dict'):
-            product_dict = product.dict()
-        elif hasattr(product, 'model_dump'):
-            product_dict = product.model_dump()
-        else:
-            product_dict = product
-        
-        # Ensure ID is properly set
-        if '_id' in product_dict:
-            product_dict['id'] = str(product_dict['_id'])
-        elif 'id' in product_dict and isinstance(product_dict['id'], ObjectId):
-            product_dict['id'] = str(product_dict['id'])
-        
-        return product_dict
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[PUBLIC] Error getting product by ID: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to get product details")

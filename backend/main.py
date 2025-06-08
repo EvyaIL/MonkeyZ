@@ -18,9 +18,6 @@ from src.mongodb.contacts_collection import ContactCollection
 from motor.motor_asyncio import AsyncIOMotorClient
 from src.lib.mongo_json_encoder import MongoJSONEncoder
 from bson.objectid import ObjectId
-from src.models.products.products import Product
-from src.models.key.key import Key
-from beanie import init_beanie
 
 load_dotenv()
 
@@ -146,9 +143,6 @@ async def startup_event():
     await mongo.connection()
     mongo_client = await mongo.get_client()
     contact_collection = ContactCollection(mongo_client)
-    # --- Beanie ODM initialization for all models ---
-    db = mongo_client.get_database("shop")
-    await init_beanie(database=db, document_models=[Product, Key])
 
 @app.post("/contact", response_model=ContactResponse)
 async def handle_contact_form(contact_form: ContactForm):

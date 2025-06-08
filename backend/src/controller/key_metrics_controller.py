@@ -4,7 +4,6 @@ import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from src.controller.key_controller import KeyController
 
 class KeyMetricsController:
     """Controller for key metrics operations."""
@@ -47,39 +46,7 @@ class KeyMetricsController:
         low_stock_products = 0
         key_usage_by_product = []
         
-        try:
-            # Ensure collections are initialized
-            if hasattr(self.keys_collection, 'initialize') and (not hasattr(self.keys_collection, 'is_connected') or not self.keys_collection.is_connected):
-                try:
-                    await self.keys_collection.initialize()
-                except Exception as e:
-                    print(f"Error initializing keys_collection: {e}")
-                    # Return minimal metrics if initialization fails
-                    return {
-                        "totalKeys": 0,
-                        "availableKeys": 0, 
-                        "usedKeys": 0,
-                        "expiredKeys": 0,
-                        "lowStockProducts": 0,
-                        "keyUsageByProduct": []
-                    }
-            
-            if hasattr(self.admin_product_collection, 'initialize') and (not hasattr(self.admin_product_collection, 'is_connected') or not self.admin_product_collection.is_connected):
-                try:
-                    await self.admin_product_collection.initialize()
-                except Exception as e:
-                    print(f"Error initializing admin_product_collection: {e}")
-                    # Return minimal metrics if initialization fails
-                    return {
-                        "totalKeys": 0,
-                        "availableKeys": 0, 
-                        "usedKeys": 0,
-                        "expiredKeys": 0,
-                        "lowStockProducts": 0,
-                        "keyUsageByProduct": []
-                    }
-            
-            # Get all products with key management settings in a single query
+        try:            # Get all products with key management settings in a single query
             products = await self.admin_product_collection.get_all_products()
               # Create KeyController instance for optimized key fetching
             key_controller = KeyController(self.admin_product_collection, self.keys_collection, None)

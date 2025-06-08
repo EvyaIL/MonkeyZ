@@ -78,13 +78,13 @@ const ProductPage = () => {
           return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
         });
       }
-        // If we don't have enough related products, try getting from public products endpoint
+      
+      // If we don't have enough related products, try getting from admin products
       if (filtered.length < 4) {
         try {
-          // First try the public endpoint which doesn't require authentication
-          const { data: publicProducts } = await apiService.get('/admin/public/products');
-          if (publicProducts && publicProducts.length > 0) {
-            const publicFiltered = publicProducts.filter(p => {
+          const { data: adminProducts } = await apiService.get('/admin/products');
+          if (adminProducts && adminProducts.length > 0) {
+            const adminFiltered = adminProducts.filter(p => {
               if (!p || p.id === product.id) return false;
               if (filtered.some(fp => fp.id === p.id)) return false; // Don't duplicate products
               if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
@@ -92,28 +92,10 @@ const ProductPage = () => {
               const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
               return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
             });
-            filtered = [...filtered, ...publicFiltered];
+            filtered = [...filtered, ...adminFiltered];
           }
-        } catch (publicError) {
-          console.error("Error fetching related products from public API:", publicError);
-          
-          // Fall back to admin products if public endpoint fails
-          try {
-            const { data: adminProducts } = await apiService.get('/admin/products');
-            if (adminProducts && adminProducts.length > 0) {
-              const adminFiltered = adminProducts.filter(p => {
-                if (!p || p.id === product.id) return false;
-                if (filtered.some(fp => fp.id === p.id)) return false; // Don't duplicate products
-                if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
-                const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
-                const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-                return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
-              });
-              filtered = [...filtered, ...adminFiltered];
-            }
-          } catch (adminError) {
-            console.error("Error fetching related products from admin API:", adminError);
-          }
+        } catch (adminError) {
+          console.error("Error fetching related products from admin API:", adminError);
         }
       }
       
@@ -130,33 +112,13 @@ const ProductPage = () => {
   const fetchProduct = useCallback(async () => {
     if (!name) return;
     
-    try {      const decodedName = decodeURIComponent(name);
+    try {
+      const decodedName = decodeURIComponent(name);
       console.log("Initial decoded name:", decodedName);
       
       setLoading(true);
       setErrorMsg("");
-      
-      // Check if the name might be a MongoDB ObjectId
-      const isObjectId = /^[0-9a-fA-F]{24}$/.test(decodedName);
-      
-      // If it looks like an ObjectId, try getting the product directly by ID first
-      if (isObjectId) {
-        console.log("Name looks like an ObjectId, trying direct product fetch by ID");
-        try {
-          const response = await apiService.get(`/admin/public/products/${decodedName}`);
-          if (response.data) {
-            console.log("Successfully retrieved product by ID:", response.data);
-            setProduct(response.data);
-            fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
-            setLoading(false);
-            return;
-          }
-        } catch (idError) {
-          console.log("Could not find product by ID, continuing with name search");
-        }
-      }
-      
-      // For Hebrew names, we need special handling
+        // For Hebrew names, we need special handling
       const isHebrew = /[\u0590-\u05FF]/.test(decodedName);
       
       // Handle object names and extract the correct language version
@@ -185,13 +147,15 @@ const ProductPage = () => {
         responseData: error.response?.data,
         name,
         decodedName: decodeURIComponent(name)
-      });      // First try the public products API which doesn't require authentication
+      });
+
+      // Try admin products API as a fallback
       try {
-        const { data: publicProducts } = await apiService.get('/admin/public/products');
-        if (publicProducts && publicProducts.length > 0) {
+        const { data: adminProducts } = await apiService.get('/admin/products');
+        if (adminProducts && adminProducts.length > 0) {
           const decodedNameLower = decodeURIComponent(name).toLowerCase();
           
-          const matchedProduct = publicProducts.find(p => {
+          const matchedProduct = adminProducts.find(p => {
             if (typeof p.name === "object") {
               return (p.name.he && p.name.he.toLowerCase() === decodedNameLower) || 
                      (p.name.en && p.name.en.toLowerCase() === decodedNameLower);
@@ -200,38 +164,13 @@ const ProductPage = () => {
           });
           
           if (matchedProduct) {
-            console.log("Found product in public API:", matchedProduct);
             setProduct(matchedProduct);
             fetchRelatedProducts(matchedProduct.category || extractSearchTerm(matchedProduct.name));
             return;
           }
         }
-      } catch (publicError) {
-        console.error("Error fetching from public products API:", publicError);
-        
-        // Try admin products API as a fallback if user is authenticated
-        try {
-          const { data: adminProducts } = await apiService.get('/admin/products');
-          if (adminProducts && adminProducts.length > 0) {
-            const decodedNameLower = decodeURIComponent(name).toLowerCase();
-            
-            const matchedProduct = adminProducts.find(p => {
-              if (typeof p.name === "object") {
-                return (p.name.he && p.name.he.toLowerCase() === decodedNameLower) || 
-                       (p.name.en && p.name.en.toLowerCase() === decodedNameLower);
-              }
-              return p.name && p.name.toLowerCase() === decodedNameLower;
-            });
-            
-            if (matchedProduct) {
-              setProduct(matchedProduct);
-              fetchRelatedProducts(matchedProduct.category || extractSearchTerm(matchedProduct.name));
-              return;
-            }
-          }
-        } catch (adminError) {
-          console.error("Error fetching from admin products:", adminError);
-        }
+      } catch (adminError) {
+        console.error("Error fetching from admin products:", adminError);
       }
 
       // If no product found, show error
@@ -331,25 +270,15 @@ const ProductPage = () => {
               <p className="text-white text-center mt-4">
                 {t("loading_product", "Loading product...")}
               </p>
-            </div>          ) : errorMsg ? (
+            </div>
+          ) : errorMsg ? (
             <div className="text-center p-8">
-              <h2 className="text-2xl font-bold mb-4 text-gray-700 dark:text-gray-200">
-                {t("product_not_found_heading", "Product Not Found")}
-              </h2>
-              <p className="text-lg mb-6 text-red-500 dark:text-red-400" role="alert">
+              <p className="text-red-500 text-lg mb-4" role="alert">
                 {errorMsg}
               </p>
-              <div className="flex flex-col items-center justify-center gap-4">
-                <p className="text-gray-600 dark:text-gray-300">
-                  {t("product_not_found_description", "The product you're looking for may have been removed or doesn't exist.")}
-                </p>
-                <Link 
-                  to="/products" 
-                  className="bg-accent hover:bg-accent-light text-white px-6 py-3 rounded-md transition-colors inline-block"
-                >
-                  {t("browse_all_products", "Browse all products")}
-                </Link>
-              </div>
+              <Link to="/products" className="text-accent hover:text-accent-light underline transition-colors">
+                {t("browse_all_products", "Browse all products")}
+              </Link>
             </div>
           ) : (
             <>

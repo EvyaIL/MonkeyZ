@@ -72,18 +72,3 @@ async def edit_product(product_id:PydanticObjectId, product_request:ProductReque
 async def delete_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency), current_user:User = Depends(get_current_user)):
    product_id = await products_controller.delete_product(product_id,current_user.username)
    return product_id
-
-@product_router.get("/homepage", response_model=list[ProductResponse])
-async def get_homepage_products(limit:int = 6, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   """
-   Get products marked for display on the homepage.
-   
-   Args:
-       limit (int): Maximum number of homepage products to return.
-       products_controller (ProductsController): Injected product controller.
-       
-   Returns:
-       list[ProductResponse]: List of products marked for homepage display.
-   """
-   products = await products_controller.product_collection.get_homepage_products(limit=limit) 
-   return products
