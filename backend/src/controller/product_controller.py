@@ -144,6 +144,18 @@ class ProductsController(ControllerInterface):
                 list[Product]: A list of recently created products.
         """
         return await self.product_collection.get_recent_products(limit)
+        
+    async def get_homepage_products(self, limit: int = 6) -> list[Product]:
+        """
+            Retrieves products marked for display on the homepage.
+
+            Args:
+                limit (int): The maximum number of homepage products to retrieve. Defaults to 6.
+
+            Returns:
+        list[Product]: A list of products marked for homepage display.
+        """
+        return await self.product_collection.get_homepage_products(limit)
 
     async def sync_products(self):
         """
@@ -151,11 +163,28 @@ class ProductsController(ControllerInterface):
         """
         admin_products = await self.admin_product_collection.get_all_products()
         for product in admin_products:
-            # Convert admin product to main product format if needed
+            # Convert admin product to dict format for main collection
             try:
-                await self.product_collection.update_product(product.id, product.dict())
-            except ValueError:  # Product doesn't exist in main collection
-                await self.product_collection.create_product(product.dict())
+                # Handle both dict and Document objects
+                if hasattr(product, 'dict'):
+                    product_dict = product.dict()
+                elif hasattr(product, 'model_dump'):
+                    product_dict = product.model_dump()
+                else:
+                    product_dict = product
+                
+                # Ensure we have a string ID for the main collection
+                product_id = str(product_dict.get('id', product_dict.get('_id')))
+                
+                # Try to update existing product in main collection using new dict methods
+                try:
+                    await self.product_collection.update_product_from_dict(product_id, product_dict)
+                except ValueError:  # Product doesn't exist in main collection
+                    # Create new product in main collection
+                    await self.product_collection.create_product_from_dict(product_dict)
+            except Exception as e:
+                print(f"Error syncing product {getattr(product, 'id', 'unknown')}: {str(e)}")
+                continue
                 
     async def get_admin_products(self) -> list[Product]:
         """Get all admin products and sync with main collection."""

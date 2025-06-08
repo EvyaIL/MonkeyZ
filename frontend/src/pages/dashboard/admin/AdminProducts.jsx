@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
-import CacheManager, { CACHE_KEYS } from '../../../lib/cacheManager';
+import CacheManager from '../../../lib/cacheManager';
 import KeyDialog from '../../../components/admin/KeyDialog';
 import {
   Box,
@@ -120,19 +120,21 @@ export default function AdminProducts() {
     
     // Format the data to match the backend model structure
     // Backend expects name and description as strings (primary language)
-    const productData = {
-      name: nameEn, // Primary language (English) as string
+    const productData = {      name: nameEn, // Primary language (English) as string
       description: descriptionEn, // Primary language (English) as string
       price: parseFloat(formData.get('price')) || 0,
       imageUrl: formData.get('imageUrl') || formData.get('image') || '',
       category: formData.get('category') || '',
       active: formData.get('active') === 'on',
       inStock: true,
-      // New fields
+      // New fields, specify both naming conventions to ensure compatibility
       discountPercentage: parseInt(formData.get('discountPercentage')) || 0,
       isBestSeller: formData.get('isBestSeller') === 'on',
+      best_seller: formData.get('isBestSeller') === 'on', // Backend uses snake_case 
       isNew: formData.get('isNew') === 'on',
+      is_new: formData.get('isNew') === 'on', // Backend uses snake_case
       displayOnHomepage: formData.get('displayOnHomepage') === 'on',
+      display_on_homepage: formData.get('displayOnHomepage') === 'on', // Backend uses snake_case
       keyManagement: {
         format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
         minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
@@ -241,14 +243,9 @@ export default function AdminProducts() {
           errorMessage = 'Network error. Please check your connection and try again.';
         }
         
-        throw new Error(errorMessage);
-      }
+        throw new Error(errorMessage);      }
       
       // Success handling
-      const successMessage = operation === 'update' 
-        ? `✅ Product "${nameEn}" updated successfully!`
-        : `✅ Product "${nameEn}" created successfully!`;
-      
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 2000);
 

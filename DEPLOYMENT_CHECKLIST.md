@@ -31,6 +31,13 @@
 
 7. Review and launch
 
+8. After deployment, run the product field standardization script:
+   ```bash
+   # Open a console to your backend app
+   python standardize_product_fields.py
+   ```
+   This ensures all products have the proper fields for tags and visibility.
+
 ## Frontend Deployment (Static Site)
 
 1. Log in to your DigitalOcean dashboard

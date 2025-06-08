@@ -6,6 +6,7 @@ import {
   CircularProgress,
   Alert
 } from '@mui/material';
+import { apiService } from '../../../lib/apiService';
 
 function AdminOrdersSimple() {
   const [orders, setOrders] = useState([]);
@@ -17,22 +18,18 @@ function AdminOrdersSimple() {
       setLoading(true);
       setError(null);
       
-      // Mock data for now
-      const mockOrders = [
-        {
-          id: '1',
-          customerName: 'John Doe',
-          email: 'john@example.com',
-          total: 49.99,
-          status: 'completed',
-          date: new Date().toISOString(),
-          items: [{ name: 'Test Product', quantity: 1, price: 49.99 }]
-        }
-      ];
+      // Load real orders from API
+      const { data, error } = await apiService.get('/admin/orders');
       
-      setOrders(mockOrders);
+      if (error) {
+        throw new Error(error);
+      }
+      
+      setOrders(data || []);
     } catch (err) {
-      setError('Failed to load orders');
+      console.error('Error loading orders:', err);
+      setError('Failed to load orders: ' + (err.message || 'Unknown error'));
+      setOrders([]);
     } finally {
       setLoading(false);
     }

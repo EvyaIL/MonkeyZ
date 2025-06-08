@@ -1,4 +1,3 @@
-﻿// filepath: c:\Users\User\OneDrive\שולחן העבודה\מסמכים\GitHub\nin1\MonkeyZ\frontend\src\pages\Home.jsx
 import { useEffect, useState } from "react";
 import ProductCard from "../components/product/ProductCard";
 import ProductShowcase from "../components/product/ProductShowcase";
@@ -7,6 +6,21 @@ import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { addStructuredData } from "../lib/seo-helper";
+
+const Home = () => {
+    id: 8,
+    name: { en: "MonkeyZ Music Studio", he: "אולפן מוזיקה של MonkeyZ" },
+    description: {
+      en: "Create, mix, and share your music with our powerful studio suite.",
+      he: "צרו, ערכו ושתפו מוזיקה עם חבילת האולפן העוצמתית שלנו.",
+    },
+    image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
+    price: 24.99,
+    discountPercentage: 0,
+    isNew: false,
+    inStock: true
+  },
+];
 
 const Home = () => {
   const [bestSellers, setBestSellers] = useState([]);
@@ -53,7 +67,6 @@ const Home = () => {
   useEffect(() => {
     document.title = t("home");
   }, [t]);
-  
   const getHomepageProducts = async () => {
     setLoadingHomepage(true);
     setErrorHomepage("");
@@ -145,8 +158,7 @@ const Home = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-6">
         <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
           {t("home")}
-        </h1>        
-        {/* Featured Homepage Products */}
+        </h1>        {/* Featured Homepage Products */}
         <section className="w-full max-w-6xl mb-12" aria-label={t("featured_products")}>
           {loadingHomepage ? (
             <div className="flex justify-center py-8 bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm">

@@ -136,9 +136,18 @@ function AppRouter() {
         {/* Blog routes */}
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
-        
-        {/* Analytics test */}
+          {/* Analytics test */}
         <Route path="/analytics-test" element={<AnalyticsTest />} />
+        
+        {/* Product tags test page */}
+        <Route path="/test-product-tags" element={
+          <ErrorBoundary>
+            <React.Suspense fallback={<LoadingSpinner />}>
+              {/* Dynamic import to avoid issues if file is missing */}
+              {React.createElement(React.lazy(() => import('./pages/ProductTagTestPage')))}
+            </React.Suspense>
+          </ErrorBoundary>
+        } />
         
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />

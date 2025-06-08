@@ -1,0 +1,8 @@
+2025-05-29 11:56:39,070 - INFO - Connected to MongoDB
+2025-05-29 11:56:40,177 - INFO - Found product H in admin.products
+2025-05-29 11:56:40,178 - ERROR - Error checking admin.products: '_asyncio.Future' object is not subscriptable
+2025-05-29 11:56:40,696 - INFO - Product update operation completed
+2025-05-29 12:24:27,322 - INFO - Connected to MongoDB
+2025-05-29 12:24:28,359 - INFO - Found product H in admin.products
+2025-05-29 12:24:28,360 - ERROR - Error checking admin.products: '_asyncio.Future' object is not subscriptable
+2025-05-29 12:24:28,829 - INFO - Product update operation completed
