@@ -2,7 +2,6 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
-import CacheManager, { CACHE_KEYS } from '../../../lib/cacheManager';
 import KeyDialog from '../../../components/admin/KeyDialog';
 import {
   Box,
@@ -22,16 +21,22 @@ import {
   Chip,
   Tooltip,
   Alert,
+  AlertTitle,
   CircularProgress,
   Select,
   MenuItem,
   InputLabel,
   FormControl,
-  Checkbox
+  InputAdornment,
+  Divider
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import KeyIcon from '@mui/icons-material/VpnKey';
+import SaveIcon from '@mui/icons-material/Save';
+import CloseIcon from '@mui/icons-material/Close';
+import CancelIcon from '@mui/icons-material/Cancel';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import KeyBulkManagement from '../../../components/admin/KeyBulkManagement';
 import KeyManagementSection from '../../../components/admin/KeyManagementSection';
 
@@ -41,7 +46,6 @@ export default function AdminProducts() {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedProducts, setSelectedProducts] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,30 +97,26 @@ export default function AdminProducts() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
   const handleProductSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
     
-    // Extract form values
-    const nameEn = formData.get('name_en') || '';
-    const nameHe = formData.get('name_he') || '';
-    const descriptionEn = formData.get('description_en') || '';
-    const descriptionHe = formData.get('description_he') || '';
-    
     // Format the data to match the backend model structure
-    // Backend expects name and description as strings (primary language)
     const productData = {
-      name: nameEn, // Primary language (English) as string
-      description: descriptionEn, // Primary language (English) as string
+      name: {
+        en: formData.get('name_en') || '',
+        he: formData.get('name_he') || ''
+      },
+      description: {
+        en: formData.get('description_en') || '',
+        he: formData.get('description_he') || ''
+      },
       price: parseFloat(formData.get('price')) || 0,
       imageUrl: formData.get('imageUrl') || formData.get('image') || '',
       category: formData.get('category') || '',
       active: formData.get('active') === 'on',
       inStock: true,
-      // New fields
-      discountPercentage: parseInt(formData.get('discountPercentage')) || 0,
-      isBestSeller: formData.get('isBestSeller') === 'on',
-      isNew: formData.get('isNew') === 'on',
       keyManagement: {
         format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
         minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
@@ -129,146 +129,60 @@ export default function AdminProducts() {
       metadata: {
         translations: {
           name: {
-            en: nameEn,
-            he: nameHe
+            en: formData.get('name_en') || '',
+            he: formData.get('name_he') || ''
           },
           description: {
-            en: descriptionEn,
-            he: descriptionHe
+            en: formData.get('description_en') || '',
+            he: formData.get('description_he') || ''
           }
         }
       }
-    };    try {
-      // Enhanced validation with detailed error messages
-      setError("");
-      const validationErrors = [];
-      
-      if (!nameEn?.trim()) {
-        validationErrors.push('Product name (English) is required');
+    };
+
+    try {
+      // Validate required fields
+      if (!productData.name.en && !productData.name.he) {
+        setError(t('admin.nameRequired'));
+        return;
       }
-      
-      if (!descriptionEn?.trim()) {
-        validationErrors.push('Product description (English) is required');
+      if (!productData.price || isNaN(productData.price)) {
+        setError(t('admin.priceRequired'));
+        return;
       }
-      
-      if (!productData.price || isNaN(productData.price) || productData.price <= 0) {
-        validationErrors.push('Valid price greater than 0 is required');
+      if (!productData.description.en && !productData.description.he) {
+        setError(t('admin.descriptionRequired'));
+        return;
       }
-      
-      if (!productData.imageUrl?.trim()) {
-        validationErrors.push('Image URL is required');
-      } else if (!productData.imageUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-        validationErrors.push('Image URL must be a valid image file (.jpg, .jpeg, .png, .gif, .webp)');
-      }
-      
-      if (!productData.category?.trim()) {
-        validationErrors.push('Product category is required');
-      }
-      
-      // Validate key management settings
-      if (productData.keyManagement.minStockAlert < 0) {
-        validationErrors.push('Minimum stock alert cannot be negative');
-      }
-      
-      if (productData.keyManagement.keyExpiry && (!productData.keyManagement.validityDays || productData.keyManagement.validityDays < 1)) {
-        validationErrors.push('Key validity days must be at least 1 when key expiry is enabled');
-      }
-      
-      if (productData.discountPercentage < 0 || productData.discountPercentage > 100) {
-        validationErrors.push('Discount percentage must be between 0 and 100');
-      }
-      
-      // Display validation errors
-      if (validationErrors.length > 0) {
-        setError(`Validation failed: ${validationErrors.join('; ')}`);
+      if (!productData.imageUrl) {
+        setError(t('admin.imageRequired'));
         return;
       }
       
       setIsLoading(true);
-      console.log('🔄 Submitting product data:', productData);
-      
-      // Check for duplicate product names
-      const duplicateProduct = products.find(p => 
-        p.id !== editingProduct?.id && 
-        (p.name?.toLowerCase() === nameEn.toLowerCase() || 
-         p.name?.en?.toLowerCase() === nameEn.toLowerCase())
-      );
-      
-      if (duplicateProduct) {
-        setError('A product with this name already exists. Please choose a different name.');
-        setIsLoading(false);
-        return;
-      }
+      setError("");
       
       let response;
-      const operation = editingProduct?.id ? 'update' : 'create';
       
       if (editingProduct?.id) {
-        console.log(`📝 Updating product ${editingProduct.id}`);
         response = await apiService.put(`/admin/products/${editingProduct.id}`, productData);
       } else {
-        console.log('➕ Creating new product');
         response = await apiService.post('/admin/products', productData);
       }
       
-      console.log('✅ Backend response:', response);
-      
       if (response.error) {
-        // Handle specific backend errors
-        let errorMessage = response.error;
-        
-        if (response.error.includes('duplicate') || response.error.includes('already exists')) {
-          errorMessage = 'A product with this name already exists. Please choose a different name.';
-        } else if (response.error.includes('validation')) {
-          errorMessage = `Validation error: ${response.error}`;
-        } else if (response.error.includes('network') || response.error.includes('connection')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        }
-        
-        throw new Error(errorMessage);
+        throw new Error(response.error);
       }
       
-      // Success handling
-      const successMessage = operation === 'update' 
-        ? `✅ Product "${nameEn}" updated successfully!`
-        : `✅ Product "${nameEn}" created successfully!`;
-      
       setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 4000);
-        // Clear cached data using CacheManager pattern
-      console.log('🗑️ Clearing cached data for synchronization');
-      CacheManager.clearComponentCache('AdminProducts');
-      CacheManager.clearComponentCache('AdminStock');
-      CacheManager.clearComponentCache('AdminOrders');
+      setTimeout(() => setShowSuccessMessage(false), 3000);
       
-      // Refresh products list
       await loadProducts();
       setShowDialog(false);
       setEditingProduct(null);
-      
-      console.log('✨ Product save operation completed successfully');
-      
     } catch (error) {
-      console.error('❌ Error saving product:', error);
-      
-      // Enhanced error handling with user-friendly messages
-      let userFriendlyError = 'Failed to save product. Please try again.';
-      
-      if (error.message) {
-        if (error.message.includes('network') || error.message.includes('fetch')) {
-          userFriendlyError = 'Network error. Please check your internet connection and try again.';
-        } else if (error.message.includes('timeout')) {
-          userFriendlyError = 'Request timed out. Please try again.';
-        } else if (error.message.includes('unauthorized') || error.message.includes('403')) {
-          userFriendlyError = 'You do not have permission to perform this action.';
-        } else if (error.message.includes('not found') || error.message.includes('404')) {
-          userFriendlyError = 'Product not found. Please refresh the page and try again.';
-        } else {
-          userFriendlyError = error.message;
-        }
-      }
-      
-      setError(userFriendlyError);
+      console.error('Error saving product:', error);
+      setError(error.message || t('admin.saveError'));
     } finally {
       setIsLoading(false);
     }
@@ -333,14 +247,11 @@ export default function AdminProducts() {
       
       if (response.error) {
         throw new Error(response.error);
-      }      // Show success message
+      }
+      
+      // Show success message
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      // Clear any cached data to ensure synchronization
-      CacheManager.clearComponentCache('AdminProducts');
-      CacheManager.clearComponentCache('AdminStock');
-      CacheManager.clearComponentCache('AdminOrders');
       
       await loadProducts();
     } catch (error) {
@@ -348,93 +259,8 @@ export default function AdminProducts() {
       setError(error.message || t('admin.deleteError') || 'Failed to delete product');
     } finally {
       setIsLoading(false);
-    }  };  
-  
-  // Batch operations
-  const handleSelectProduct = (productId) => {
-    const newSelected = new Set(selectedProducts);
-    if (newSelected.has(productId)) {
-      newSelected.delete(productId);
-    } else {
-      newSelected.add(productId);
     }
-    setSelectedProducts(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (selectedProducts.size === filteredProducts.length) {
-      setSelectedProducts(new Set());
-    } else {
-      setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
-    }
-  };
-
-  const handleBatchDelete = async () => {
-    if (selectedProducts.size === 0) return;
-    
-    if (!window.confirm(`Delete ${selectedProducts.size} selected products? This action cannot be undone.`)) {
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const deletePromises = Array.from(selectedProducts).map(productId =>
-        apiService.delete(`/admin/products/${productId}`)
-      );
-      
-      const results = await Promise.allSettled(deletePromises);
-      const failed = results.filter(r => r.status === 'rejected').length;
-        if (failed > 0) {
-        setError(`${failed} products failed to delete`);
-      } else {
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 3000);
-      }
-        // Clear any cached data to ensure synchronization
-      CacheManager.clearComponentCache('AdminProducts');
-      CacheManager.clearComponentCache('AdminStock');
-      CacheManager.clearComponentCache('AdminOrders');
-      
-      setSelectedProducts(new Set());
-      await loadProducts();
-    } catch (error) {
-      setError('Failed to delete products');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBatchStatusChange = async (active) => {
-    if (selectedProducts.size === 0) return;
-    
-    setIsLoading(true);
-    try {
-      const updatePromises = Array.from(selectedProducts).map(productId => {
-        const product = products.find(p => p.id === productId);
-        return apiService.put(`/admin/products/${productId}`, { ...product, active });
-      });
-        await Promise.allSettled(updatePromises);
-      setSelectedProducts(new Set());
-      
-      // Clear any cached data to ensure synchronization
-      localStorage.removeItem('adminStockData');
-      localStorage.removeItem('adminStockDataTimestamp');
-      localStorage.removeItem('adminProducts');
-      localStorage.removeItem('adminProductsTimestamp');
-      localStorage.removeItem('adminKeyMetrics');
-      localStorage.removeItem('adminKeyMetricsTimestamp');
-      
-      await loadProducts();
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      setError('Failed to update products');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Key management is now handled in KeyDialog component
+  };  // Key management is now handled in KeyDialog component
   // Key generation is now handled in KeyDialog component
 
   const handleKeyManagement = (product) => {
@@ -521,66 +347,9 @@ export default function AdminProducts() {
               <MenuItem value="price-high">{t('admin.priceHigh')}</MenuItem>
               <MenuItem value="price-low">{t('admin.priceLow')}</MenuItem>
             </Select>
-          </FormControl>        </Grid>
+          </FormControl>
+        </Grid>
       </Grid>
-
-      {/* Select All Row */}
-      <Box mb={2} display="flex" alignItems="center">
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
-              indeterminate={selectedProducts.size > 0 && selectedProducts.size < filteredProducts.length}
-              onChange={handleSelectAll}
-            />
-          }
-          label={`Select All (${filteredProducts.length} products)`}
-        />
-        {selectedProducts.size > 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-            {selectedProducts.size} selected
-          </Typography>
-        )}
-      </Box>
-
-      {/* Batch Operations Toolbar */}
-      {selectedProducts.size > 0 && (
-        <Box mb={2} p={2} bgcolor="action.hover" borderRadius={1}>
-          <Typography variant="body2" component="span" sx={{ mr: 2 }}>
-            {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''} selected
-          </Typography>
-          <Button
-            size="small"
-            color="error"
-            onClick={handleBatchDelete}
-            sx={{ mr: 1 }}
-          >
-            Delete Selected
-          </Button>
-          <Button
-            size="small"
-            color="primary"
-            onClick={() => handleBatchStatusChange(true)}
-            sx={{ mr: 1 }}
-          >
-            Activate
-          </Button>
-          <Button
-            size="small"
-            color="secondary"
-            onClick={() => handleBatchStatusChange(false)}
-            sx={{ mr: 1 }}
-          >
-            Deactivate
-          </Button>
-          <Button
-            size="small"
-            onClick={() => setSelectedProducts(new Set())}
-          >
-            Clear Selection
-          </Button>
-        </Box>
-      )}
 
       {/* Success/Error messages */}
       {showSuccessMessage && (
@@ -622,26 +391,8 @@ export default function AdminProducts() {
                       objectFit: 'cover',
                     }}
                   />
-                </Box>                <CardContent sx={{ position: 'relative' }}>
-                  {/* Selection checkbox */}
-                  <Checkbox
-                    checked={selectedProducts.has(product.id)}
-                    onChange={() => handleSelectProduct(product.id)}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      left: 8,
-                      zIndex: 1,
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      borderRadius: 1,
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 1)',
-                      }
-                    }}
-                    size="small"
-                  />
-                  
-                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+                </Box>
+                <CardContent>                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                     <Box>
                       <Typography variant="h6" noWrap gutterBottom>
                         {product.name}
@@ -826,71 +577,14 @@ export default function AdminProducts() {
                         <MenuItem value="Other">Other</MenuItem>
                       </Select>
                     </FormControl>
-                  </Grid>                  <Grid item xs={12}>
+                  </Grid>
+                  <Grid item xs={12}>
                     <TextField
                       fullWidth
                       label={t('admin.imageUrl')}
                       name="imageUrl"
                       defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
                       required
-                    />
-                  </Grid>
-
-                  {/* Additional Product Options */}
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                      Product Options
-                    </Typography>
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Discount Percentage"
-                      name="discountPercentage"
-                      type="number"
-                      inputProps={{ min: 0, max: 100, step: 1 }}
-                      defaultValue={editingProduct?.discountPercentage || 0}
-                      helperText="Enter discount percentage (0-100)"
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name="isBestSeller"
-                          defaultChecked={editingProduct?.isBestSeller ?? false}
-                        />
-                      }
-                      label="Show in Best Sellers"
-                      sx={{ mt: 1 }}
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name="isNew"
-                          defaultChecked={editingProduct?.isNew ?? false}
-                        />
-                      }
-                      label="Mark as New Product"
-                      sx={{ mt: 1 }}
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name="active"
-                          defaultChecked={editingProduct?.active ?? true}
-                        />
-                      }
-                      label="Product Active"
-                      sx={{ mt: 1 }}
                     />
                   </Grid>
                 </Grid>

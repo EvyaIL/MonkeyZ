@@ -5,7 +5,7 @@ import {
   Alert, 
   CircularProgress, 
   Card, 
-  CardContent,
+  CardContent, 
   Grid, 
   Button,
   Chip,
@@ -30,6 +30,7 @@ import {
   MenuItem
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import AddIcon from '@mui/icons-material/Add';
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -37,46 +38,35 @@ import KeyIcon from '@mui/icons-material/VpnKey';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import { apiService } from '../../../lib/apiService';
-import CacheManager, { CACHE_KEYS } from '../../../lib/cacheManager';
 
 function AdminStock() {
   const [stockItems, setStockItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-    const [successMessage, setSuccessMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [openAddKeysDialog, setOpenAddKeysDialog] = useState(false);
   const [newKeys, setNewKeys] = useState("");
   const [keyFormat, setKeyFormat] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-
   const loadStockData = useCallback(async () => {
     setLoading(true);
     setError("");
     setSuccessMessage("");
     try {
-      // Check for sync errors and clear cache if needed
-      const syncError = CacheManager.checkAndClearSyncError();
-      if (syncError) {
-        console.log('🔄 Recovering from sync error:', syncError);
-      }
+      // Check if we have cached data that's less than 1 minute old
+      const cacheTimestamp = localStorage.getItem('adminStockDataTimestamp');
+      const isCacheValid = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 60000;
+      const cachedData = localStorage.getItem('adminStockData');
 
-      // Check if we have valid cached data
-      const cachedData = CacheManager.getCachedData(
-        CACHE_KEYS.ADMIN_STOCK_DATA, 
-        CACHE_KEYS.ADMIN_STOCK_TIMESTAMP, 
-        1 // 1 minute cache
-      );
-
-      if (cachedData && !syncError) {
-        console.debug('📦 Using cached stock data');
-        setStockItems(cachedData);
+      if (isCacheValid && cachedData) {
+        console.debug('Using cached stock data');
+        setStockItems(JSON.parse(cachedData));
         setLoading(false);
         return;
       }
 
-      console.log('🔄 Loading fresh data from backend...');
       const [metricsResponse, productsResponse] = await Promise.all([
         apiService.get('/admin/key-metrics'),
         apiService.get('/admin/products')
@@ -88,9 +78,6 @@ function AdminStock() {
       const metrics = metricsResponse.data;
       const products = productsResponse.data;
       
-      console.log('Loaded metrics:', metrics);
-      console.log('Loaded products:', products);
-      
       if (!metrics || !products) {
         throw new Error('Invalid response from server');
       }
@@ -98,7 +85,7 @@ function AdminStock() {
       // Combine metrics with product details
       const stockData = products.map(product => {
         const productMetrics = metrics.keyUsageByProduct?.find(p => p.productId === product.id) || {};
-        const stockItem = {
+        return {
           id: product.id,
           productId: product.id,
           productName: product.name?.en || product.name,
@@ -108,35 +95,27 @@ function AdminStock() {
           usedKeys: (productMetrics.totalKeys || 0) - (productMetrics.availableKeys || 0),
           minStockAlert: product.keyManagement?.minStockAlert || 10,
           status: productMetrics.availableKeys === 0 ? 'Out of Stock' : 
-                 productMetrics.availableKeys <= (product.keyManagement?.minStockAlert || 10) ? 'Low Stock' : 
-                 'In Stock'        };
-        console.log(`Product ${product.name?.en || product.name}: available=${productMetrics.availableKeys}, total=${productMetrics.totalKeys}`);
-        return stockItem;
-      });
-
-      // Cache the data using CacheManager
-      CacheManager.setCachedData(
-        CACHE_KEYS.ADMIN_STOCK_DATA, 
-        CACHE_KEYS.ADMIN_STOCK_TIMESTAMP, 
-        stockData
-      );
+                 productMetrics.availableKeys <= product.keyManagement?.minStockAlert ? 'Low Stock' : 
+                 'In Stock'
+        };
+      });      // Cache the data
+      localStorage.setItem('adminStockData', JSON.stringify(stockData));
+      localStorage.setItem('adminStockDataTimestamp', Date.now().toString());
       
       setStockItems(stockData);
     } catch (err) {
       console.error('Error loading stock data:', err);
       setError("Failed to load stock data: " + err.message);
       
-      // Mark sync error and try to use cached data as fallback
-      CacheManager.markSyncError('AdminStock', err);
-      
-      const fallbackData = CacheManager.getCachedData(
-        CACHE_KEYS.ADMIN_STOCK_DATA, 
-        CACHE_KEYS.ADMIN_STOCK_TIMESTAMP, 
-        60 // Use older cache as fallback (up to 60 minutes)
-      );
-        if (fallbackData) {
-        console.debug('📦 Using cached stock data as fallback');
-        setStockItems(fallbackData);
+      // Try to use cached data as fallback
+      try {
+        const cachedData = localStorage.getItem('adminStockData');
+        if (cachedData) {
+          console.debug('Using cached stock data as fallback');
+          setStockItems(JSON.parse(cachedData));
+        }
+      } catch (cacheError) {
+        console.error('Cache fallback failed:', cacheError);
       }
     } finally {
       setLoading(false);
@@ -175,72 +154,29 @@ function AdminStock() {
       }
 
       // Validate key format if specified
-      const keyFormatRegex = /^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
-      const invalidKeys = keys.filter(key => !keyFormatRegex.test(key));
-      
-      if (invalidKeys.length > 0) {
-        throw new Error(`Invalid key format detected. Keys must be in format XXXXX-XXXXX-XXXXX-XXXXX-XXXXX. First invalid key: ${invalidKeys[0]}`);
-      }      console.log('Adding keys to product:', selectedProductId);
-      console.log('Keys to add:', keys.length);
-      console.log('Key format:', keyFormat);
-
-      // First, verify the product exists
-      const productCheck = await apiService.get(`/admin/products/${selectedProductId}`);
-      if (productCheck.error) {
-        throw new Error(`Product not found: ${productCheck.error}. Please refresh the product list.`);
+      if (keyFormat) {
+        const formatRegex = new RegExp(keyFormat.replace(/X/g, '[A-Z0-9]'));
+        const invalidKeys = keys.filter(key => !formatRegex.test(key));
+        if (invalidKeys.length > 0) {
+          throw new Error(`Invalid key format detected. First invalid key: ${invalidKeys[0]}`);
+        }
       }
 
       const response = await apiService.post(`/admin/products/${selectedProductId}/keys`, {
         keys,
         format: keyFormat
       });
-      
-      console.log('Add keys response:', response);
 
       if (response.error) throw new Error(response.error);
-      
-      console.log('Keys added successfully:', response.data);      const successCount = response.data?.successCount || keys.length;
-      const failedKeys = response.data?.failedKeys || [];
-      const totalAttempted = keys.length;
-      
-      let successMsg = `Successfully added ${successCount} out of ${totalAttempted} keys to ${selectedProduct?.productName}`;
-      if (failedKeys.length > 0) {
-        successMsg += `\n${failedKeys.length} keys failed: ${failedKeys.slice(0, 3).join(', ')}${failedKeys.length > 3 ? '...' : ''}`;
-      }
-      
-      setSuccessMessage(successMsg);
+
+      setSuccessMessage(`Successfully added ${keys.length} keys to ${selectedProduct?.productName}`);
       setOpenAddKeysDialog(false);
       setNewKeys("");
       
-      // Clear any cached data to force refresh
-      localStorage.removeItem('adminStockData');
-      localStorage.removeItem('adminStockDataTimestamp');
-      localStorage.removeItem('adminKeyMetrics');
-      localStorage.removeItem('adminKeyMetricsTimestamp');
-      
-      // Add a small delay to ensure backend data is updated, then refresh
-      setTimeout(async () => {
-        await loadStockData();
-      }, 1000);
-      
-      // Auto-clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(""), 5000);    } catch (error) {
-      console.error('Error adding keys:', error);
-      let errorMessage = error.message || 'Failed to add keys. Please try again.';
-      
-      // If it's a product not found error, suggest refreshing
-      if (errorMessage.includes('Product not found') || errorMessage.includes('not found')) {
-        errorMessage += ' The product list will be refreshed automatically.';
-        // Automatically refresh the product list
-        setTimeout(async () => {
-          await loadStockData();
-        }, 2000);
-      }
-      
-      setError(errorMessage);
-      
-      // Auto-clear error message after 8 seconds
-      setTimeout(() => setError(""), 8000);
+      // Wait a moment before refreshing data
+      setTimeout(loadStockData, 1000);
+    } catch (err) {
+      setError(`Failed to add keys: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -302,22 +238,20 @@ function AdminStock() {
       </Box>
     );
   }
+
   return (
-    <Box sx={{ p: 3 }}>      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ p: 3 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           Stock Management
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={() => {
-            setError("");
-            setSuccessMessage("");
-            loadStockData();
-          }}
+        <Button 
+          variant="outlined" 
+          onClick={loadStockData} 
           disabled={loading}
+          startIcon={<RefreshIcon />}
         >
-                    Refresh Products
+          Refresh
         </Button>
       </Box>
 
