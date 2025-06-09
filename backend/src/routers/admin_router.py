@@ -23,6 +23,7 @@ class ProductBase(BaseModel):
     percent_off: int = 0  # Discount percentage
     best_seller: bool = False  # Best Seller tag
     displayOnHomePage: bool = False  # Homepage display flag
+    slug: Optional[str] = None  # Unique URL-friendly identifier
 
 class ProductCreate(ProductBase):
     pass
@@ -142,8 +143,7 @@ async def get_products(
           # Convert backend model to frontend format for each product
         result = []
         for product in products:
-            try:
-                # Handle both dict and document objects
+            try:                # Handle both dict and document objects
                 product_dict = product.dict() if hasattr(product, 'dict') else (
                     product.model_dump() if hasattr(product, 'model_dump') else product
                 )
@@ -166,12 +166,20 @@ async def get_products(
                 # Ensure required fields exist with default values
                 if "imageUrl" not in product_dict:
                     product_dict["imageUrl"] = product_dict.get("image", "")  # Use image if available, otherwise empty
+                elif not product_dict["imageUrl"]:  # Empty imageUrl
+                    product_dict["imageUrl"] = ""  # Ensure it's an empty string, not None
                     
                 # Add current time to createdAt/updatedAt if missing
                 if "createdAt" not in product_dict:
                     product_dict["createdAt"] = datetime.utcnow()
                 if "updatedAt" not in product_dict:
                     product_dict["updatedAt"] = datetime.utcnow()
+                    
+                # Make sure boolean fields are properly set
+                if "best_seller" in product_dict:
+                    product_dict["best_seller"] = bool(product_dict["best_seller"])
+                if "displayOnHomePage" in product_dict:
+                    product_dict["displayOnHomePage"] = bool(product_dict["displayOnHomePage"])
                 
                 result.append(product_dict)
             except Exception as e:
@@ -216,14 +224,28 @@ async def create_product(
     # Make sure we have imageUrl - frontend might use image or imageUrl property
     if 'image' in product and not product.get('imageUrl'):
         product['imageUrl'] = product.get('image')
+      # Handle field name conversion for compatibility
+    # Convert camelCase to snake_case for backend model
+    if 'createdAt' in product and 'created_at' not in product:
+        product['created_at'] = product['createdAt']
+    if 'updatedAt' in product and 'updated_at' not in product:
+        product['updated_at'] = product['updatedAt']
     
     # Set timestamps
-    product['createdAt'] = datetime.now()
-    product['updatedAt'] = datetime.now()
+    product['created_at'] = datetime.now()
+    product['updated_at'] = datetime.now()    # Ensure boolean fields are properly converted
+    if 'displayOnHomePage' in product:
+        product['displayOnHomePage'] = bool(product['displayOnHomePage'])
+    if 'best_seller' in product:
+        product['best_seller'] = bool(product['best_seller'])
+    
+    # Ensure slug field exists (will be further processed in collection class)
+    if not product.get('slug'):
+        # Allow the collection class to generate the slug
+        product['slug'] = None
     
     new_product = await user_controller.create_admin_product(product)
-    
-    # Convert to dict to ensure proper serialization
+      # Convert to dict to ensure proper serialization
     product_dict = new_product.dict() if hasattr(new_product, 'dict') else (
         new_product.model_dump() if hasattr(new_product, 'model_dump') else new_product
     )
@@ -231,6 +253,30 @@ async def create_product(
     # Ensure id is properly formatted
     if "_id" in product_dict and "id" not in product_dict:
         product_dict["id"] = str(product_dict.pop("_id"))
+    elif "_id" in product_dict:
+        product_dict.pop("_id")  # Remove _id if id already exists
+        
+    # Convert snake_case to camelCase fields
+    if "created_at" in product_dict:
+        product_dict["createdAt"] = product_dict.pop("created_at")
+    if "updated_at" in product_dict:
+        product_dict["updatedAt"] = product_dict.pop("updated_at")
+        
+    # Ensure required fields exist with default values
+    if "imageUrl" not in product_dict or not product_dict["imageUrl"]:
+        product_dict["imageUrl"] = product_dict.get("image", "")  # Use image if available, otherwise empty
+    
+    # Ensure timestamps are present
+    if "createdAt" not in product_dict:
+        product_dict["createdAt"] = datetime.utcnow()
+    if "updatedAt" not in product_dict:
+        product_dict["updatedAt"] = datetime.utcnow()
+        
+    # Ensure boolean fields are properly set
+    if "best_seller" in product_dict:
+        product_dict["best_seller"] = bool(product_dict["best_seller"])
+    if "displayOnHomePage" in product_dict:
+        product_dict["displayOnHomePage"] = bool(product_dict["displayOnHomePage"])
         
     return product_dict
 
@@ -273,7 +319,9 @@ async def update_product(
     # Ensure metadata is a plain dict (not a Pydantic model)
     if "metadata" in product_dict and hasattr(product_dict["metadata"], "dict"):
         product_dict["metadata"] = product_dict["metadata"].dict()
-    # Defensive: if metadata is still a Pydantic model, convert recursively    import pydantic    def to_dict(obj):
+    # Defensive: if metadata is still a Pydantic model, convert recursively    import pydantic
+    
+    def to_dict(obj):
         if isinstance(obj, dict):
             return {k: to_dict(v) for k, v in obj.items()}
         elif hasattr(obj, 'dict'):

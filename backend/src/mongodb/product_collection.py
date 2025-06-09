@@ -23,6 +23,54 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         
     async def create_product(self, product_data: dict) -> Product:
         """Create a new product."""
+        # Convert timestamp fields if needed
+        if 'createdAt' in product_data and 'created_at' not in product_data:
+            product_data['created_at'] = product_data['createdAt']
+        if 'updatedAt' in product_data and 'updated_at' not in product_data:
+            product_data['updated_at'] = product_data['updatedAt']
+            
+        # Ensure imageUrl is present
+        if 'imageUrl' in product_data and 'image' not in product_data:
+            product_data['image'] = product_data['imageUrl']
+            
+        # Ensure boolean fields are properly converted
+        if 'displayOnHomePage' in product_data:
+            product_data['displayOnHomePage'] = bool(product_data['displayOnHomePage'])
+        if 'best_seller' in product_data:
+            product_data['best_seller'] = bool(product_data['best_seller'])
+            
+        # Set timestamps if missing
+        if 'created_at' not in product_data:
+            product_data['created_at'] = datetime.utcnow()
+        if 'updated_at' not in product_data:
+            product_data['updated_at'] = datetime.utcnow()
+        
+        # Generate a unique slug for the product
+        if 'slug' not in product_data or not product_data['slug']:
+            # Generate slug from English name or first available name
+            name_for_slug = ""
+            if isinstance(product_data.get('name'), dict):
+                name_for_slug = product_data['name'].get('en') or next(iter(product_data['name'].values()), "")
+            else:
+                name_for_slug = str(product_data.get('name', ""))
+            
+            # Generate basic slug
+            import re
+            from unidecode import unidecode
+            if name_for_slug:
+                # Replace non-alphanumeric characters and convert to lowercase
+                slug_base = unidecode(name_for_slug)  # Convert accented characters to ASCII
+                slug_base = re.sub(r'[^\w\s-]', '', slug_base.lower())
+                slug_base = re.sub(r'[\s-]+', '-', slug_base).strip('-')
+                
+                # Add timestamp to ensure uniqueness
+                timestamp = int(datetime.utcnow().timestamp())
+                product_data['slug'] = f"{slug_base}-{timestamp}"
+            else:
+                # Fallback if no name is provided
+                timestamp = int(datetime.utcnow().timestamp())
+                product_data['slug'] = f"product-{timestamp}"
+            
         product = Product(**product_data)
         await product.save()
         return product
@@ -42,6 +90,34 @@ class ProductCollection(MongoDb, metaclass=Singleton):
             product_data["displayOnHomePage"] = bool(product_data["displayOnHomePage"])
         if "best_seller" in product_data:
             product_data["best_seller"] = bool(product_data["best_seller"])
+            
+        # Ensure slug is maintained - if no slug exists, create one
+        if not product.slug and ('slug' not in product_data or not product_data.get('slug')):
+            # Generate slug from English name or first available name
+            name_for_slug = ""
+            product_name = product_data.get('name', product.name)
+            if isinstance(product_name, dict):
+                name_for_slug = product_name.get('en') or next(iter(product_name.values()), "")
+            else:
+                name_for_slug = str(product_name or "")
+            
+            # Generate basic slug
+            import re
+            from unidecode import unidecode
+            if name_for_slug:
+                # Replace non-alphanumeric characters and convert to lowercase
+                slug_base = unidecode(name_for_slug)  # Convert accented characters to ASCII
+                slug_base = re.sub(r'[^\w\s-]', '', slug_base.lower())
+                slug_base = re.sub(r'[\s-]+', '-', slug_base).strip('-')
+                
+                # Add timestamp to ensure uniqueness
+                timestamp = int(datetime.utcnow().timestamp())
+                product_data['slug'] = f"{slug_base}-{timestamp}"
+            else:
+                # Fallback if no name is provided
+                timestamp = int(datetime.utcnow().timestamp())
+                product_data['slug'] = f"product-{timestamp}"
+        
         await product.update({"$set": product_data})
         return product
         

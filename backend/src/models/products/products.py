@@ -15,6 +15,7 @@ class Product(Document):
     percent_off: int = 0  # Discount percentage
     best_seller: bool = False  # Best Seller tag
     displayOnHomePage: bool = False  # New field for homepage display
+    slug: Optional[str] = None  # Unique URL-friendly identifier
 
 class ProductRequest(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -26,5 +27,6 @@ class ProductRequest(BaseModel):
     percent_off: int = 0
     best_seller: bool = False
     displayOnHomePage: bool = False  # New field for homepage display
+    slug: Optional[str] = None  # Unique URL-friendly identifier
 
 
