@@ -88,7 +88,7 @@ function AdminStock() {
         return {
           id: product.id,
           productId: product.id,
-          productName: product.name?.en || product.name,
+          productName: typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name,
           keyFormat: product.keyManagement?.format || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
           quantity: productMetrics.availableKeys || 0,
           totalKeys: productMetrics.totalKeys || 0,

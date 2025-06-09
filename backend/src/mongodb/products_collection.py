@@ -39,7 +39,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                     doc['updated_at'] = doc['updatedAt']
                 if 'isBestSeller' in doc and 'best_seller' not in doc:
                     doc['best_seller'] = doc['isBestSeller']
-                
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
                 # Create product instance
                 product = Product(**doc)
                 products.append(product)
@@ -49,7 +53,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             print(f"Error in get_all_products: {str(e)}")
             return []
 
-    async def get_best_sellers(self) -> list[Product]:
+    async def get_best_sellers(self, limit: int = None) -> list[Product]:
         """
             Retrieves all the best sellers products from the database.
 
@@ -60,10 +64,13 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             # Fetch raw data with projection to convert field names
             collection = Product.get_motor_collection()
             # Try both field naming conventions
-            cursor = collection.find({"$or": [
+            query = {"$or": [
                 {"best_seller": True},  # snake_case
                 {"isBestSeller": True}  # camelCase
-            ]})
+            ]}
+            cursor = collection.find(query)
+            if limit:
+                cursor = cursor.limit(limit)
             products = []
             
             async for doc in cursor:
@@ -74,7 +81,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                     doc['updated_at'] = doc['updatedAt']
                 if 'isBestSeller' in doc and 'best_seller' not in doc:
                     doc['best_seller'] = doc['isBestSeller']
-                
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
                 # Create product instance
                 product = Product(**doc)
                 products.append(product)
@@ -113,7 +124,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                     doc['updated_at'] = doc['updatedAt']
                 if 'isBestSeller' in doc and 'best_seller' not in doc:
                     doc['best_seller'] = doc['isBestSeller']
-                
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
                 # Create product instance
                 product = Product(**doc)
                 products.append(product)

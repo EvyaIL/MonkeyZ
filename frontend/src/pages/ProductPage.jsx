@@ -65,12 +65,10 @@ const ProductPage = () => {
     if (!categoryOrName) return;
     setLoadingRelated(true);
     try {
-      // First try to get products from product API
-      const { data } = await apiService.get("/product/all");
-      
+      const { data: adminProducts } = await apiService.get('/admin/products');
       let filtered = [];
-      if (data && Array.isArray(data) && data.length > 0) {
-        filtered = data.filter(p => {
+      if (adminProducts && Array.isArray(adminProducts) && adminProducts.length > 0) {
+        filtered = adminProducts.filter(p => {
           if (!p || p.id === product.id) return false;
           if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
           const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
@@ -78,27 +76,6 @@ const ProductPage = () => {
           return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
         });
       }
-      
-      // If we don't have enough related products, try getting from admin products
-      if (filtered.length < 4) {
-        try {
-          const { data: adminProducts } = await apiService.get('/admin/products');
-          if (adminProducts && adminProducts.length > 0) {
-            const adminFiltered = adminProducts.filter(p => {
-              if (!p || p.id === product.id) return false;
-              if (filtered.some(fp => fp.id === p.id)) return false; // Don't duplicate products
-              if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
-              const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
-              const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-              return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
-            });
-            filtered = [...filtered, ...adminFiltered];
-          }
-        } catch (adminError) {
-          console.error("Error fetching related products from admin API:", adminError);
-        }
-      }
-      
       setRelatedProducts(filtered.slice(0, 4));
     } catch (err) {
       console.error("Error fetching related products:", err);
@@ -114,8 +91,6 @@ const ProductPage = () => {
     
     try {
       const decodedName = decodeURIComponent(name);
-      console.log("Initial decoded name:", decodedName);
-      
       setLoading(true);
       setErrorMsg("");
       
@@ -129,12 +104,9 @@ const ProductPage = () => {
 
       // Try API with proper encoding
       const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
-      console.log("API request URL:", `${process.env.REACT_APP_PATH_BACKEND}/product/${encodedName}`);
-      
       const response = await apiService.get(`/product/${encodedName}`);
       
       if (response.data) {
-        console.log("API response:", response.data);
         setProduct(response.data);
         // Track product view and fetch related products
         fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
@@ -189,27 +161,11 @@ const ProductPage = () => {
   useEffect(() => {
     const loadProductData = async () => {
       await fetchProduct();
-      // Keep products data fresh by fetching in background
-      const { data } = await apiService.get("/product/all");
-      if (data && data.length > 0) {
-        // silently update any latest changes
-        const currentProduct = data.find(p => {
-          if (typeof p.name === "object") {
-            return (p.name.en === name || p.name.he === name);
-          }
-          return p.name === name;
-        });
-        if (currentProduct) {
-          setProduct(currentProduct);
-        }
-      }
+      // Remove background fetch from /product/all
     };
     loadProductData();
-    return () => {
-      setQuantity(1);
-      setAddedToCart(false);
-    };
-  }, [fetchProduct, name]);
+    // eslint-disable-next-line
+  }, [name, lang]);
 
   // Add structured data when product data changes
   useEffect(() => {

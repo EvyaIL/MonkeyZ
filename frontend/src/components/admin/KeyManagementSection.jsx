@@ -94,7 +94,7 @@ const KeyManagementSection = () => {
                 <Box component="ul" sx={{ mt: 1, mb: 0 }}>
                   {stats.lowStockProducts.map(product => (
                     <li key={product.id}>
-                      {product.name}: {product.availableKeys} keys available (minimum: {product.minStockAlert})
+                      {typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name}: {product.availableKeys} keys available (minimum: {product.minStockAlert})
                     </li>
                   ))}
                 </Box>

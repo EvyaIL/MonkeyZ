@@ -5,10 +5,13 @@ from typing import Optional
 from src.models.key.key import KeyRespond
 
 class ProductResponse(BaseModel):
-    name: Indexed(str,unique=True) # type: ignore 
-    description:str
-    price:int
-    active:bool
+    name: dict  # {'en': str, 'he': str}
+    description: dict  # {'en': str, 'he': str}
+    price: int
+    active: bool
+    is_new: bool = False
+    percent_off: int = 0
+    is_best_seller: bool = False
 
-    
+
 

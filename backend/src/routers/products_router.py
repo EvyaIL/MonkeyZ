@@ -23,7 +23,6 @@ async def lifespan(router: APIRouter):
    product_controller:ProductsController = get_products_controller_dependency()
    await product_controller.initialize()
    yield
-   await product_controller.disconnect()
 
 
 product_router = APIRouter(prefix=f"/product",tags=["products"], lifespan=lifespan)

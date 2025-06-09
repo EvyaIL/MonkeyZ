@@ -12,13 +12,16 @@ from bson.objectid import ObjectId
 from src.models.admin.analytics import AdminAnalytics, DailySale
 
 class ProductBase(BaseModel):
-    name: str  # Primary language (English) name
-    description: str  # Primary language (English) description
+    name: dict  # {'en': str, 'he': str}
+    description: dict  # {'en': str, 'he': str}
     price: float
     imageUrl: str
     active: bool = True
     category: Optional[str] = None
     metadata: Optional[dict] = None  # Stores translations and other metadata
+    is_new: bool = False  # New tag
+    percent_off: int = 0  # Discount percentage
+    is_best_seller: bool = False  # Best Seller tag
 
 class ProductCreate(ProductBase):
     pass

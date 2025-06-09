@@ -81,46 +81,26 @@ const AllProducts = () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      const { data, error } = await apiService.get("/product/all");      
+      const { data, error } = await apiService.get("/admin/products");
       if (error) {
         setErrorMsg(t("failed_to_load_products", "Failed to load products. Please try again later."));
         setLoading(false);
-        loadFallbackProducts();
+        processProductData([]);
         return;
       }
-
-      // If we got data from API, use it
       if (data && data.length > 0) {
         // Ensure products have categories
         const productsWithCategories = data.map(p => ({
           ...p, 
           category: p.category || getDemoCategories()[Math.floor(Math.random() * getDemoCategories().length)]
         }));
-        
         processProductData(productsWithCategories);
       } else {
-        // Use fallback data if API returned empty
-        loadFallbackProducts();
+        processProductData([]);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
       setErrorMsg(t("failed_to_load_products", "Failed to load products. Please try again later."));
-      loadFallbackProducts();
-    }
-  };
-
-  const loadFallbackProducts = async () => {
-    // Try fetching again from admin products as fallback
-    try {
-      const { data } = await apiService.get("/admin/products");
-      if (data && data.length > 0) {
-        processProductData(data);
-      } else {
-        // No products available - show empty state
-        processProductData([]);
-      }
-    } catch (err) {
-      console.error("Error in fallback products fetch:", err);
       processProductData([]);
     }
     setLoading(false);

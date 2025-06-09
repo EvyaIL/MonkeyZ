@@ -36,6 +36,9 @@ export interface IProduct {
     updatedAt: string;
     customFields?: Record<string, any>;
   };
+  is_new?: boolean;
+  percent_off?: number;
+  is_best_seller?: boolean;
 }
 
 export interface IKey {

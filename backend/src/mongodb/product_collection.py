@@ -19,8 +19,8 @@ class ProductMetadata(BaseModel):
     translations: Optional[ProductTranslations] = None
 
 class Product(Document):
-    name: str
-    description: str
+    name: dict  # {'en': str, 'he': str}
+    description: dict  # {'en': str, 'he': str}
     price: float
     imageUrl: str
     active: bool = True

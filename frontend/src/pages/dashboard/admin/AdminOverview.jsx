@@ -473,7 +473,7 @@ const AdminOverview = function AdminOverviewComponent() {
                     <TableBody>
                       {analytics.topSellingProducts.slice(0, 5).map((product) => (
                         <TableRow key={product.id}>
-                          <TableCell>{product.name}</TableCell>
+                          <TableCell>{typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name}</TableCell>
                           <TableCell>{product.category}</TableCell>
                           <TableCell>₪{product.price}</TableCell>
                           <TableCell>

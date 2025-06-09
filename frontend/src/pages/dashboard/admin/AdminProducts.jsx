@@ -137,7 +137,10 @@ export default function AdminProducts() {
             he: formData.get('description_he') || ''
           }
         }
-      }
+      },
+      is_new: formData.get('is_new') === 'on',
+      percent_off: parseInt(formData.get('percent_off')) || 0,
+      is_best_seller: formData.get('is_best_seller') === 'on'
     };
 
     try {
@@ -395,7 +398,7 @@ export default function AdminProducts() {
                 <CardContent>                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                     <Box>
                       <Typography variant="h6" noWrap gutterBottom>
-                        {product.name}
+                        {typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {product.category}
@@ -426,7 +429,7 @@ export default function AdminProducts() {
                       mt: 1
                     }}
                   >
-                    {product.description}
+                    {typeof product.description === "object" ? (product.description.en || Object.values(product.description)[0] || "") : product.description}
                   </Typography>
                   
                   <Box mt={1}>
@@ -585,6 +588,28 @@ export default function AdminProducts() {
                       name="imageUrl"
                       defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
                       required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <FormControlLabel
+                      control={<Switch name="is_new" defaultChecked={editingProduct?.is_new ?? false} />}
+                      label={t('admin.new_tag', 'New Tag')}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.percent_off', 'Percent Off (%)')}
+                      name="percent_off"
+                      type="number"
+                      inputProps={{ min: 0, max: 100 }}
+                      defaultValue={editingProduct?.percent_off || 0}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <FormControlLabel
+                      control={<Switch name="is_best_seller" defaultChecked={editingProduct?.is_best_seller ?? false} />}
+                      label={t('admin.best_seller', 'Best Seller')}
                     />
                   </Grid>
                 </Grid>
