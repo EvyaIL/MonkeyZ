@@ -8,23 +8,23 @@ class Product(Document):
     name: dict  # {'en': str, 'he': str}
     description: dict  # {'en': str, 'he': str}
     price: int
-    best_seller: bool
     active: bool
     created_at: datetime
     keys: dict[PydanticObjectId, PydanticObjectId] = {}
     is_new: bool = False  # New product tag
     percent_off: int = 0  # Discount percentage
-    is_best_seller: bool = False  # Best Seller tag
+    best_seller: bool = False  # Best Seller tag
+    displayOnHomePage: bool = False  # New field for homepage display
 
 class ProductRequest(BaseModel):
     name: dict  # {'en': str, 'he': str}
     description: dict  # {'en': str, 'he': str}
     price: int
-    best_seller: bool
     created_at: Optional[datetime] = Field(default_factory=datetime.now)
     active: bool
     is_new: bool = False
     percent_off: int = 0
-    is_best_seller: bool = False
+    best_seller: bool = False
+    displayOnHomePage: bool = False  # New field for homepage display
 
 

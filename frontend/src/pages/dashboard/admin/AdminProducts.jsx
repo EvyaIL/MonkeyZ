@@ -53,8 +53,14 @@ export default function AdminProducts() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [showDialog, setShowDialog] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);  const [showKeyDialog, setShowKeyDialog] = useState(false);
-  const [showKeyManagement, setShowKeyManagement] = useState(false);
-  const [categories, setCategories] = useState([]);  const loadProducts = useCallback(async () => {
+  const [showKeyManagement, setShowKeyManagement] = useState(false);  const [categories, setCategories] = useState([]);
+  const [displayOnHomePage, setDisplayOnHomePage] = useState(false);  const [bestSeller, setBestSeller] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [isNewProduct, setIsNewProduct] = useState(false);
+  const [keyReuse, setKeyReuse] = useState(false);
+  const [keyExpiry, setKeyExpiry] = useState(false);
+  const [autoGenerateKeys, setAutoGenerateKeys] = useState(false);
+  const [keyValidityDays, setKeyValidityDays] = useState(365);  const loadProducts = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -81,7 +87,10 @@ export default function AdminProducts() {
       // Ensure each product has an id
       const productsWithIds = productsList.map(product => ({
         ...product,
-        id: product.id || product._id || Math.random().toString(36).substr(2, 9)
+        id: product.id || product._id || Math.random().toString(36).substr(2, 9),
+        // Normalize displayOnHomePage for UI compatibility
+        displayOnHomePage: product.displayOnHomePage ?? product.display_on_homepage ?? false,
+        display_on_homepage: product.display_on_homepage ?? product.displayOnHomePage ?? false,
       }));
       
       setProducts(productsWithIds);
@@ -91,18 +100,39 @@ export default function AdminProducts() {
       setError(t('admin.loadError') || 'Failed to load products');
     } finally {
       setIsLoading(false);
-    }
-  }, [t]);  // Remove apiService from dependencies as it's a singleton
+    }  }, [t]);  // Remove apiService from dependencies as it's a singleton
 
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  // Sync state with editingProduct when it changes
+  useEffect(() => {
+    if (editingProduct) {
+      setBestSeller(editingProduct?.best_seller ?? false);      setDisplayOnHomePage(editingProduct?.displayOnHomePage ?? editingProduct?.display_on_homepage ?? false);
+      setIsActive(editingProduct?.active ?? true);
+      setIsNewProduct(editingProduct?.is_new ?? false);      setKeyReuse(editingProduct?.keyReuse ?? false);
+      setKeyExpiry(editingProduct?.keyExpiry ?? false);
+      setAutoGenerateKeys(editingProduct?.autoGenerateKeys ?? false);
+      setKeyValidityDays(editingProduct?.keyValidityDays || 365);
+    } else {
+      setBestSeller(false);
+      setDisplayOnHomePage(false);
+      setIsActive(true);
+      setIsNewProduct(false);
+      setKeyReuse(false);
+      setKeyExpiry(false);
+      setAutoGenerateKeys(false);
+      setKeyValidityDays(365);
+    }
+  }, [editingProduct]);
 
   const handleProductSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
     
     // Format the data to match the backend model structure
+    const isBestSellerValue = formData.get('best_seller') === 'on';
     const productData = {
       name: {
         en: formData.get('name_en') || '',
@@ -115,16 +145,15 @@ export default function AdminProducts() {
       price: parseFloat(formData.get('price')) || 0,
       imageUrl: formData.get('imageUrl') || formData.get('image') || '',
       category: formData.get('category') || '',
-      active: formData.get('active') === 'on',
-      inStock: true,
-      keyManagement: {
+      active: isActive,
+      inStock: true,      keyManagement: {
         format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
         minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
-        autoGenerateKeys: formData.get('autoGenerateKeys') === 'on',
+        autoGenerateKeys: autoGenerateKeys,
         validationMethod: formData.get('keyValidation') || 'format',
-        allowReuse: formData.get('keyReuse') === 'on',
-        keyExpiry: formData.get('keyExpiry') === 'on',
-        validityDays: parseInt(formData.get('keyValidityDays')) || 365
+        allowReuse: keyReuse,
+        keyExpiry: keyExpiry,
+        validityDays: keyValidityDays
       },
       metadata: {
         translations: {
@@ -136,11 +165,11 @@ export default function AdminProducts() {
             en: formData.get('description_en') || '',
             he: formData.get('description_he') || ''
           }
-        }
-      },
-      is_new: formData.get('is_new') === 'on',
+        }      },
+      is_new: isNewProduct,
       percent_off: parseInt(formData.get('percent_off')) || 0,
-      is_best_seller: formData.get('is_best_seller') === 'on'
+      best_seller: bestSeller, // Use state, not formData
+      displayOnHomePage: displayOnHomePage,
     };
 
     try {
@@ -168,7 +197,7 @@ export default function AdminProducts() {
       let response;
       
       if (editingProduct?.id) {
-        response = await apiService.put(`/admin/products/${editingProduct.id}`, productData);
+        response = await apiService.patch(`/admin/products/${editingProduct.id}`, productData);
       } else {
         response = await apiService.post('/admin/products', productData);
       }
@@ -270,6 +299,11 @@ export default function AdminProducts() {
     setSelectedProduct(product);
     setShowKeyManagement(true);
   };
+
+  // When editingProduct changes (dialog opens), sync bestSeller state
+  useEffect(() => {
+    setBestSeller(editingProduct?.best_seller ?? false);
+  }, [editingProduct]);
 
   return (
     <Box p={3}>
@@ -589,10 +623,15 @@ export default function AdminProducts() {
                       defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
                       required
                     />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
+                  </Grid>                  <Grid item xs={12} sm={4}>
                     <FormControlLabel
-                      control={<Switch name="is_new" defaultChecked={editingProduct?.is_new ?? false} />}
+                      control={
+                        <Switch 
+                          name="is_new" 
+                          checked={isNewProduct}
+                          onChange={e => setIsNewProduct(e.target.checked)}
+                        />
+                      }
                       label={t('admin.new_tag', 'New Tag')}
                     />
                   </Grid>
@@ -608,8 +647,31 @@ export default function AdminProducts() {
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <FormControlLabel
-                      control={<Switch name="is_best_seller" defaultChecked={editingProduct?.is_best_seller ?? false} />}
+                      control={<Switch name="best_seller" checked={bestSeller} onChange={e => setBestSeller(e.target.checked)} />}
                       label={t('admin.best_seller', 'Best Seller')}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          name="displayOnHomePage"
+                          checked={displayOnHomePage}
+                          onChange={e => setDisplayOnHomePage(e.target.checked)}
+                        />
+                      }
+                      label={t('admin.display_on_homepage', 'Display on Home Page')}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>                    <FormControlLabel
+                      control={
+                        <Switch 
+                          name="active"
+                          checked={isActive}
+                          onChange={e => setIsActive(e.target.checked)}
+                        />
+                      }
+                      label={t('admin.active', 'Active')}
                     />
                   </Grid>
                 </Grid>
@@ -654,46 +716,47 @@ export default function AdminProducts() {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
+                  <Grid item xs={12} sm={6}>                    <FormControlLabel
                       control={
                         <Switch
                           name="keyReuse"
-                          defaultChecked={editingProduct?.keyReuse ?? false}
+                          checked={keyReuse}
+                          onChange={e => setKeyReuse(e.target.checked)}
                         />
                       }
                       label="Allow key reuse"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
+                  <Grid item xs={12} sm={6}>                    <FormControlLabel
                       control={
                         <Switch
                           name="keyExpiry"
-                          defaultChecked={editingProduct?.keyExpiry ?? false}
+                          checked={keyExpiry}
+                          onChange={e => setKeyExpiry(e.target.checked)}
                         />
                       }
                       label="Keys expire"
                     />
                   </Grid>
-                  {editingProduct?.keyExpiry && (
+                  {keyExpiry && (
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
                         label="Key Validity (days)"
                         name="keyValidityDays"
-                        type="number"
+                        value={keyValidityDays}
+                        onChange={(e) => setKeyValidityDays(parseInt(e.target.value) || 365)}
                         defaultValue={editingProduct?.keyValidityDays || 365}
                         InputProps={{ inputProps: { min: 1 } }}
                       />
                     </Grid>
-                  )}
-                  <Grid item xs={12}>
+                  )}                  <Grid item xs={12}>
                     <FormControlLabel
                       control={
                         <Switch
                           name="autoGenerateKeys"
-                          defaultChecked={editingProduct?.autoGenerateKeys ?? false}
+                          checked={autoGenerateKeys}
+                          onChange={e => setAutoGenerateKeys(e.target.checked)}
                         />
                       }
                       label="Auto-generate keys when stock is low"

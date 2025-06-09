@@ -23,58 +23,6 @@ const mainRoutes = [
   { path: '/terms-of-service', priority: 0.5, changefreq: 'monthly' }
 ];
 
-// Products data - in a real app, you might fetch this from your API or database
-const products = [
-  {
-    name: 'MonkeyZ Pro Key',
-    slug: 'monkeyz-pro-key',
-    image: 'https://monkeyz.co.il/images/products/monkeyz-pro-key.jpg',
-    caption: 'Premium digital key for MonkeyZ Pro software',
-    lastmod: '2025-05-20',
-    category: 'Security'
-  },
-  {
-    name: 'MonkeyZ Cloud Storage',
-    slug: 'monkeyz-cloud-storage',
-    image: 'https://monkeyz.co.il/images/products/monkeyz-cloud-storage.jpg',
-    caption: 'Secure cloud storage solution for all your digital needs',
-    lastmod: '2025-05-18',
-    category: 'Cloud'
-  },
-  {
-    name: 'MonkeyZ VPN',
-    slug: 'monkeyz-vpn',
-    image: 'https://monkeyz.co.il/images/products/monkeyz-vpn.jpg',
-    caption: 'Fast and secure VPN service for private browsing',
-    lastmod: '2025-05-21',
-    category: 'Security'
-  },
-  {
-    name: 'MonkeyZ Antivirus',
-    slug: 'monkeyz-antivirus',
-    image: 'https://monkeyz.co.il/images/products/monkeyz-antivirus.jpg',
-    caption: 'Comprehensive protection against malware and online threats',
-    lastmod: '2025-05-15',
-    category: 'Security'
-  },
-  {
-    name: 'MonkeyZ Office Suite',
-    slug: 'monkeyz-office-suite',
-    image: 'https://monkeyz.co.il/images/products/monkeyz-office-suite.jpg',
-    caption: 'Complete productivity software for business and personal use',
-    lastmod: '2025-05-10',
-    category: 'Office'
-  },
-  {
-    name: 'MonkeyZ Password Manager',
-    slug: 'monkeyz-password-manager',
-    image: 'https://monkeyz.co.il/images/products/monkeyz-password-manager.jpg',
-    caption: 'Secure password storage and management solution',
-    lastmod: '2025-05-22',
-    category: 'Utility'
-  }
-];
-
 // Categories
 const categories = [
   'Security',
@@ -143,10 +91,26 @@ const getCurrentDate = () => {
   return date.toISOString().split('T')[0];
 };
 
+// Fetch products from backend API
+async function fetchProductsFromAPI() {
+  try {
+    // Adjust the API endpoint if needed
+    const response = await axios.get(`${API_BASE_URL}/product/all`);
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && Array.isArray(response.data.products)) {
+      return response.data.products;
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch products from API:', error);
+    return [];
+  }
+}
+
 // Generate XML for the sitemap
-const generateSitemap = () => {
+async function generateSitemap() {
   const currentDate = getCurrentDate();
-  
   let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
@@ -165,22 +129,33 @@ const generateSitemap = () => {
 `;
   });
 
+  // Fetch real products
+  const products = await fetchProductsFromAPI();
+
   // Add product pages
   sitemap += `  <!-- Product Pages -->
 `;
   products.forEach(product => {
-    const encodedName = encodeURIComponent(product.name);
+    // Use product.name or product.slug for the URL, fallback to id if needed
+    const name = typeof product.name === 'object' ? (product.name.en || Object.values(product.name)[0]) : product.name;
+    const encodedName = encodeURIComponent(name || product.slug || product.id);
+    const image = product.image || product.imageUrl || '';
+    const caption = typeof product.description === 'object' ? (product.description.en || Object.values(product.description)[0]) : product.description || '';
     sitemap += `  <url>
     <loc>${BASE_URL}/product/${encodedName}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <lastmod>${currentDate}</lastmod>
-    <image:image>
-      <image:loc>${product.image}</image:loc>
-      <image:title>${product.name}</image:title>
-      <image:caption>${product.caption}</image:caption>
+`;
+    if (image) {
+      sitemap += `    <image:image>
+      <image:loc>${image}</image:loc>
+      <image:title>${name}</image:title>
+      <image:caption>${caption}</image:caption>
     </image:image>
-  </url>
+`;
+    }
+    sitemap += `  </url>
 `;
   });
 
@@ -217,21 +192,22 @@ const generateSitemap = () => {
 
   sitemap += `</urlset>`;
   return sitemap;
-};
+}
 
 // Write the sitemap to a file
-const writeSitemap = () => {
-  const sitemap = generateSitemap();
+async function writeSitemap() {
+  const sitemap = await generateSitemap();
   const publicDir = path.resolve(__dirname, 'public');
   const filePath = path.join(publicDir, 'sitemap.xml');
-  
   fs.writeFileSync(filePath, sitemap);
   console.log(`Sitemap generated successfully at: ${filePath}`);
-};
+}
 
 // Execute the script
-try {
-  writeSitemap();
-} catch (error) {
-  console.error('Error generating sitemap:', error);
-}
+(async () => {
+  try {
+    await writeSitemap();
+  } catch (error) {
+    console.error('Error generating sitemap:', error);
+  }
+})();

@@ -68,12 +68,9 @@ class ProductsController:
         return await self.product_collection.get_products(page, limit)
     
     async def get_all_products(self) -> list[Product]:
-        """Get all products from main collection.
-        
-        Returns:
-            List of all products
-        """
-        return await self.product_collection.get_all_products()
+        """Get all products from admin collection (for public display). Only active products are returned."""
+        products = await self.admin_product_collection.get_all_products()
+        return [p for p in products if getattr(p, 'active', True)]
     
     async def create_product(self, product: Product) -> Product:
         """Create a new product in main collection.
@@ -154,35 +151,38 @@ class ProductsController:
         
         Args:
             product_id: ID of product to delete
-            
+        
         Returns:
             True if deletion successful, False otherwise
         """
         return await self.product_collection.delete_product(product_id)
-    
+
     async def delete_admin_product(self, product_id: str) -> bool:
         """Delete a product from admin collection and sync deletion to main collection.
         
         Args:
             product_id: ID of product to delete
-            
+        
         Returns:
             True if deletion successful, False otherwise
         """
         # First delete from admin collection
         admin_delete_success = await self.admin_product_collection.delete_product(product_id)
-        
         if admin_delete_success:
             try:
                 # Also delete from main products collection
                 main_delete_success = await self.product_collection.delete_product(product_id)
-                print(f"Product {product_id} deleted from both collections")
+                # Ensure the product is not displayed on homepage anymore by setting displayOnHomePage to False
+                try:
+                    product = await self.product_collection.get_product(product_id)
+                    if product:
+                        product.displayOnHomePage = False
+                        await product.save()
+                except Exception:
+                    pass
                 return main_delete_success
-            except Exception as e:
-                print(f"Error deleting product from main collection: {e}")
-                # Continue even if sync fails - at least it's deleted from admin
-                return admin_delete_success
-        
+            except Exception:
+                return False
         return False
     
     async def get_admin_products(self) -> list[AdminProduct]:
@@ -231,22 +231,14 @@ class ProductsController:
         
         Args:
             limit: Maximum number of products to return
-            
+        
         Returns:
             List of recently added products
         """
         return await self.product_collection.get_recent_products(limit)
-    
-    async def get_homepage_products(self) -> dict:
-        """Get products for homepage display.
-        
-        Returns:
-            Dictionary with best sellers and recent products
-        """
-        best_sellers = await self.get_best_sellers(4)
-        recent_products = await self.get_recent_products(4)
-        
-        return {
-            "best_sellers": best_sellers,
-            "recent_products": recent_products
-        }
+
+    async def get_homepage_products(self, limit: int = 6) -> list[Product]:
+        """Get products for homepage display from admin collection. Only active and displayOnHomePage products are returned."""
+        products = await self.admin_product_collection.get_all_products()
+        homepage_products = [p for p in products if getattr(p, 'active', True) and getattr(p, 'displayOnHomePage', False)]
+        return homepage_products[:limit]

@@ -30,7 +30,8 @@ def get_user_controller_dependency() -> UserController:
     keys_collection = get_keys_collection_dependency()
     user_collection = get_user_collection_dependency()
     admin_product_collection = get_admin_product_collection_dependency()
-    user_controller = UserController(keys_collection, user_collection, admin_product_collection)
+    shop_product_collection = get_products_collection_dependency()
+    user_controller = UserController(keys_collection, user_collection, admin_product_collection, shop_product_collection)
     return user_controller
     
 def get_products_controller_dependency() -> ProductsController: 

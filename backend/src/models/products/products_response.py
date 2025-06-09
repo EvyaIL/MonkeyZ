@@ -11,7 +11,8 @@ class ProductResponse(BaseModel):
     active: bool
     is_new: bool = False
     percent_off: int = 0
-    is_best_seller: bool = False
+    best_seller: bool = False
+    displayOnHomePage: bool = False  # New field for homepage display
 
 
 

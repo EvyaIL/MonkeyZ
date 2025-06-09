@@ -122,7 +122,6 @@ const AdminDashboard = () => {
       category: formData.get('category'),
       image: formData.get('imageUrl') || formData.get('image'),
       isNew: formData.get('isNew') === 'on',
-      isBestSeller: formData.get('isBestSeller') === 'on',
       discountPercentage: parseInt(formData.get('discountPercentage') || '0'),
       tags: formData.get('tags') ? formData.get('tags').split(',').map(tag => tag.trim()) : [],
       inStock: formData.get('inStock') !== 'off',
@@ -585,15 +584,6 @@ const AdminDashboard = () => {
                       />
                       <span>{t('admin.isNew')}</span>
                     </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        name="isBestSeller"
-                        defaultChecked={editingProduct.isBestSeller}
-                        className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
-                      />
-                      <span>{t('admin.isBestSeller')}</span>
-                    </label>
                   </div>
 
                   <div className="flex justify-end space-x-4 pt-4 border-t">
@@ -658,11 +648,6 @@ const AdminDashboard = () => {
                           {product.isNew && (
                             <span className="ml-2 text-accent">
                               {t('admin.new')}
-                            </span>
-                          )}
-                          {product.isBestSeller && (
-                            <span className="ml-2 text-yellow-500">
-                              {t('admin.bestSeller')}
                             </span>
                           )}
                         </div>

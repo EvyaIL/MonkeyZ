@@ -75,6 +75,16 @@ const ProductPage = () => {
           const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
           return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
         });
+        // If no related products, show up to 4 random active products (excluding current)
+        if (filtered.length === 0) {
+          const activeProducts = adminProducts.filter(p => p && p.id !== product.id && p.active !== false);
+          // Shuffle and take up to 4
+          for (let i = activeProducts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [activeProducts[i], activeProducts[j]] = [activeProducts[j], activeProducts[i]];
+          }
+          filtered = activeProducts.slice(0, 4);
+        }
       }
       setRelatedProducts(filtered.slice(0, 4));
     } catch (err) {

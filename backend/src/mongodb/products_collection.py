@@ -23,12 +23,11 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Retrieves all products from the database.
 
         Returns:
-            list[Product]: A list of all products in the database.
+            list[Product]: A list of all ACTIVE products in the database.
         """
         try:
-            # Fetch raw data with projection to convert field names
             collection = Product.get_motor_collection()
-            cursor = collection.find({})
+            cursor = collection.find({"active": True})  # Only fetch active products
             products = []
             
             async for doc in cursor:
@@ -37,8 +36,6 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                     doc['created_at'] = doc['createdAt']
                 if 'updatedAt' in doc and 'updated_at' not in doc:
                     doc['updated_at'] = doc['updatedAt']
-                if 'isBestSeller' in doc and 'best_seller' not in doc:
-                    doc['best_seller'] = doc['isBestSeller']
                 # Compatibility: convert string name/description to dict
                 if isinstance(doc.get('name'), str):
                     doc['name'] = {'en': doc['name'], 'he': ''}
@@ -62,12 +59,8 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         """
         try:
             # Fetch raw data with projection to convert field names
-            collection = Product.get_motor_collection()
-            # Try both field naming conventions
-            query = {"$or": [
-                {"best_seller": True},  # snake_case
-                {"isBestSeller": True}  # camelCase
-            ]}
+            collection = Product.get_motor_collection()            # Use only best_seller field, as it's now standardized
+            query = {"best_seller": True}
             cursor = collection.find(query)
             if limit:
                 cursor = cursor.limit(limit)
@@ -79,8 +72,6 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                     doc['created_at'] = doc['createdAt']
                 if 'updatedAt' in doc and 'updated_at' not in doc:
                     doc['updated_at'] = doc['updatedAt']
-                if 'isBestSeller' in doc and 'best_seller' not in doc:
-                    doc['best_seller'] = doc['isBestSeller']
                 # Compatibility: convert string name/description to dict
                 if isinstance(doc.get('name'), str):
                     doc['name'] = {'en': doc['name'], 'he': ''}
@@ -122,8 +113,6 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                     doc['created_at'] = doc['createdAt']
                 if 'updatedAt' in doc and 'updated_at' not in doc:
                     doc['updated_at'] = doc['updatedAt']
-                if 'isBestSeller' in doc and 'best_seller' not in doc:
-                    doc['best_seller'] = doc['isBestSeller']
                 # Compatibility: convert string name/description to dict
                 if isinstance(doc.get('name'), str):
                     doc['name'] = {'en': doc['name'], 'he': ''}
@@ -259,8 +248,6 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             data['created_at'] = data['createdAt']
         if 'updatedAt' in data and 'updated_at' not in data:
             data['updated_at'] = data['updatedAt']
-        if 'isBestSeller' in data and 'best_seller' not in data:
-            data['best_seller'] = data['isBestSeller']
             
         # Create and save the product
         product = Product(**data)
@@ -291,17 +278,21 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         if 'createdAt' in data and 'created_at' not in data:
             data['created_at'] = data['createdAt']
         if 'updatedAt' in data and 'updated_at' not in data:
-            data['updated_at'] = data['updatedAt']
-        if 'isBestSeller' in data and 'best_seller' not in data:
-            data['best_seller'] = data['isBestSeller']
-            
+            data['updated_at'] = data['updatedAt']        # Ensure both camelCase and snake_case are handled for best seller
+        # Remove all is_best_seller/isBestSeller logic in update/parse
+        # Use only best_seller for all product operations
+        # Ensure displayOnHomePage and best_seller are properly converted to boolean values
+        if 'displayOnHomePage' in data:
+            data['displayOnHomePage'] = bool(data['displayOnHomePage'])
+        if 'best_seller' in data:
+            data['best_seller'] = bool(data['best_seller'])
         # Update the product
-        await product.update({"$set": data})
+        await product.update({'$set': data})
         return product
 
     async def get_product_by_name(self, name: str) -> Product:
         """
-        Retrieves a product by its name.
+        Retrieves a product by its name (matches either English or Hebrew name, case-insensitive, trimmed).
 
         Args:
             name (str): The name of the product to retrieve.
@@ -309,9 +300,18 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         Returns:
             Product: The product with the given name, or None if not found.
         """
-        product = await Product.find_one(Product.name == name)
-        if not product: 
-            raise  NotFound(f"not found product with the name: {name}")
+        # Clean up the input name
+        name = name.strip()
+        # Try to match either English or Hebrew name, case-insensitive
+        product = await Product.find_one({
+            "$or": [
+                {"name.en": {"$regex": f"^{name}$", "$options": "i"}},
+                {"name.he": {"$regex": f"^{name}$", "$options": "i"}},
+                {"name": {"$regex": f"^{name}$", "$options": "i"}}  # fallback for string name fields
+            ]
+        })
+        if not product:
+            raise NotFound(f"not found product with the name: {name}")
         return product
 
     async def get_product_by_id(self, product_id: PydanticObjectId) -> Product:
@@ -328,7 +328,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
 
     async def delete_product(self, product_id: PydanticObjectId):
         """
-        Deletes a product from the database.
+        Deletes a product from the database and removes all associated keys.
 
         Args:
             product_id (PydanticObjectId): The ID of the product to delete.
@@ -337,6 +337,10 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             str: The deleted product's ID.
         """
         product: Product = await self.get_product_by_id(product_id)
+        if not product:
+            raise NotFound(f"Product with id {product_id} not found.")
+        # Remove all keys associated with this product (if you want cascading delete)
+        # Example: await self.delete_keys_by_product(product_id)
         await product.delete()
         return str(product.id)
     
@@ -376,13 +380,46 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         
         for product in products:
             product_dict = product.dict()
-            
-            # Add key count
+              # Add key count
             if product.keys and isinstance(product.keys, dict):
                 product_dict["availableKeys"] = len(product.keys)
             else:
                 product_dict["availableKeys"] = 0
-                
             products_with_counts.append(product_dict)
-            
+        
         return products_with_counts
+
+    async def get_homepage_products(self, limit: int = None) -> list[Product]:
+        """
+        Retrieves all products marked for homepage display.
+        
+        Args:
+            limit (int, optional): Maximum number of products to return.
+                                
+        Returns:
+            list[Product]: A list of products with displayOnHomePage=True
+        """
+        try:
+            collection = Product.get_motor_collection()
+            cursor = collection.find({"displayOnHomePage": True, "active": True})
+            if limit:
+                cursor = cursor.limit(limit)
+            products = []
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
+                if 'createdAt' in doc and 'created_at' not in doc:
+                    doc['created_at'] = doc['createdAt']
+                if 'updatedAt' in doc and 'updated_at' not in doc:
+                    doc['updated_at'] = doc['updatedAt']
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
+            return products
+        except Exception as e:
+            print(f"Error in get_homepage_products: {str(e)}")
+            return []

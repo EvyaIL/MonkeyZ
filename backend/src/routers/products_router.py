@@ -30,7 +30,7 @@ product_router = APIRouter(prefix=f"/product",tags=["products"], lifespan=lifesp
 
 @product_router.get("/all", response_model=list[ProductResponse])
 async def get_all_product(products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_all_products() 
+   products = await products_controller.get_all_products() 
    return products
 
 
@@ -55,6 +55,11 @@ async def get_product(product_id:PydanticObjectId, products_controller:ProductsC
    products = await products_controller.product_collection.get_product_by_id(product_id) 
    return products
 
+
+@product_router.get("/homepage", response_model=list[ProductResponse])
+async def get_homepage_products(limit:int = 6, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   products = await products_controller.get_homepage_products(limit=limit)
+   return products
 
 @product_router.get("/{name_product}", response_model=ProductResponse)
 async def get_product(name_product:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):

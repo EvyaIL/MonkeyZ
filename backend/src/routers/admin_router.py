@@ -21,7 +21,8 @@ class ProductBase(BaseModel):
     metadata: Optional[dict] = None  # Stores translations and other metadata
     is_new: bool = False  # New tag
     percent_off: int = 0  # Discount percentage
-    is_best_seller: bool = False  # Best Seller tag
+    best_seller: bool = False  # Best Seller tag
+    displayOnHomePage: bool = False  # Homepage display flag
 
 class ProductCreate(ProductBase):
     pass
@@ -138,8 +139,7 @@ async def get_products(
     try:
         # Get real products from database
         products = await user_controller.admin_product_collection.get_all_products()
-        
-        # Convert backend model to frontend format for each product
+          # Convert backend model to frontend format for each product
         result = []
         for product in products:
             try:
@@ -153,10 +153,25 @@ async def get_products(
                     product_dict["id"] = str(product_dict.pop("_id"))
                 elif "_id" in product_dict:
                     product_dict.pop("_id")
-                    
-                # Convert ObjectId to string if it exists
+                      # Convert ObjectId to string if it exists
                 if "id" in product_dict and isinstance(product_dict["id"], ObjectId):
                     product_dict["id"] = str(product_dict["id"])
+                
+                # Convert snake_case to camelCase fields
+                if "created_at" in product_dict and "createdAt" not in product_dict:
+                    product_dict["createdAt"] = product_dict.pop("created_at")
+                if "updated_at" in product_dict and "updatedAt" not in product_dict:
+                    product_dict["updatedAt"] = product_dict.pop("updated_at")
+                
+                # Ensure required fields exist with default values
+                if "imageUrl" not in product_dict:
+                    product_dict["imageUrl"] = product_dict.get("image", "")  # Use image if available, otherwise empty
+                    
+                # Add current time to createdAt/updatedAt if missing
+                if "createdAt" not in product_dict:
+                    product_dict["createdAt"] = datetime.utcnow()
+                if "updatedAt" not in product_dict:
+                    product_dict["updatedAt"] = datetime.utcnow()
                 
                 result.append(product_dict)
             except Exception as e:
@@ -228,7 +243,49 @@ async def update_product(
 ):
     await verify_admin(user_controller, current_user)
     updated_product = await user_controller.update_admin_product(product_id, product.dict())
-    return updated_product
+    # Ensure sync to public collection after update
+    await user_controller.sync_products()
+    # --- SERIALIZATION FIX START ---    # Convert to dict to ensure proper serialization
+    product_dict = updated_product.dict() if hasattr(updated_product, 'dict') else (
+        updated_product.model_dump() if hasattr(updated_product, 'model_dump') else updated_product
+    )
+    # Ensure id is a string
+    if "_id" in product_dict and "id" not in product_dict:
+        product_dict["id"] = str(product_dict.pop("_id"))
+    elif "id" in product_dict and not isinstance(product_dict["id"], str):
+        product_dict["id"] = str(product_dict["id"])
+          # Convert snake_case to camelCase fields
+    if "created_at" in product_dict and "createdAt" not in product_dict:
+        product_dict["createdAt"] = product_dict.pop("created_at")
+    if "updated_at" in product_dict and "updatedAt" not in product_dict:
+        product_dict["updatedAt"] = product_dict.pop("updated_at")
+    
+    # Ensure required fields exist with default values
+    if "imageUrl" not in product_dict:
+        product_dict["imageUrl"] = product_dict.get("image", "")  # Use image if available, otherwise empty
+        
+    # Add current time to createdAt/updatedAt if missing
+    if "createdAt" not in product_dict:
+        product_dict["createdAt"] = datetime.utcnow()
+    if "updatedAt" not in product_dict:
+        product_dict["updatedAt"] = datetime.utcnow()
+        
+    # Ensure metadata is a plain dict (not a Pydantic model)
+    if "metadata" in product_dict and hasattr(product_dict["metadata"], "dict"):
+        product_dict["metadata"] = product_dict["metadata"].dict()
+    # Defensive: if metadata is still a Pydantic model, convert recursively    import pydantic    def to_dict(obj):
+        if isinstance(obj, dict):
+            return {k: to_dict(v) for k, v in obj.items()}
+        elif hasattr(obj, 'dict'):
+            return obj.dict()
+        elif isinstance(obj, list):
+            return [to_dict(i) for i in obj]
+        return obj
+        
+    if "metadata" in product_dict and not isinstance(product_dict["metadata"], dict):
+        product_dict["metadata"] = to_dict(product_dict["metadata"])
+    # --- SERIALIZATION FIX END ---
+    return product_dict
 
 @admin_router.delete("/products/{product_id}")
 async def delete_product(
@@ -238,6 +295,8 @@ async def delete_product(
 ):
     await verify_admin(user_controller, current_user)
     await user_controller.delete_admin_product(product_id)
+    # Ensure sync to public collection after delete
+    await user_controller.sync_products()
     return {"message": "Product deleted successfully"}
 
 @admin_router.post("/products/{product_id}/keys")

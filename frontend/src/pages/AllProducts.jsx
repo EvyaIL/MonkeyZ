@@ -76,12 +76,11 @@ const AllProducts = () => {
   // Update document title
   useEffect(() => {
     document.title = t("all_products") + " | MonkeyZ";
-  }, [t, lang]);
-  const fetchAllProducts = async () => {
+  }, [t, lang]);  const fetchAllProducts = async () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      const { data, error } = await apiService.get("/admin/products");
+      const { data, error } = await apiService.get("/product/all");
       if (error) {
         setErrorMsg(t("failed_to_load_products", "Failed to load products. Please try again later."));
         setLoading(false);
@@ -89,12 +88,8 @@ const AllProducts = () => {
         return;
       }
       if (data && data.length > 0) {
-        // Ensure products have categories
-        const productsWithCategories = data.map(p => ({
-          ...p, 
-          category: p.category || getDemoCategories()[Math.floor(Math.random() * getDemoCategories().length)]
-        }));
-        processProductData(productsWithCategories);
+        // Do not assign demo categories; use only real categories from the database
+        processProductData(data);
       } else {
         processProductData([]);
       }
@@ -290,9 +285,9 @@ const AllProducts = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
-                {filteredProducts.map((product) => (
+                {filteredProducts.map((product, idx) => (
                   <ProductCard
-                    key={product.id}
+                    key={product.id || product._id || idx}
                     product={product}
                   />
                 ))}

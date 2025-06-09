@@ -38,7 +38,9 @@ export interface IProduct {
   };
   is_new?: boolean;
   percent_off?: number;
-  is_best_seller?: boolean;
+  best_seller?: boolean;
+  displayOnHomePage?: boolean;
+  display_on_homepage?: boolean;
 }
 
 export interface IKey {
