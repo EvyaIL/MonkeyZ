@@ -76,7 +76,7 @@ class ProductsController:
     async def get_all_products(self) -> list[Product]:
         """Get all products from admin collection (for public display). Only active products are returned."""
         products = await self.admin_product_collection.get_all_products()
-        return [p for p in products if getattr(p, "active", True)]
+        return [p for p in products if getattr(p, 'active', True)]
     
     async def create_product(self, product: Product) -> Product:
         """Create a new product in main collection.
@@ -220,8 +220,7 @@ class ProductsController:
             Product if found
         """
         return await self.product_collection.get_product(product_id)
-    
-    async def get_best_sellers(self, limit: int = 4) -> list[Product]:
+      async def get_best_sellers(self, limit: int = 4) -> list[Product]:
         """Get best selling products.
         
         Args:
@@ -231,8 +230,7 @@ class ProductsController:
             List of best selling products
         """
         return await self.product_collection.get_best_sellers(limit)
-    
-    async def get_recent_products(self, limit: int = 4) -> list[Product]:
+      async def get_recent_products(self, limit: int = 4) -> list[Product]:
         """Get recently added products.
         
         Args:
@@ -251,4 +249,3 @@ class ProductsController:
         except Exception as e:
             print(f"Error getting homepage products: {e}")
             return []
-

@@ -100,6 +100,13 @@ class UserController(ControllerInterface):
         """Delegate to product_collection for creating admin products."""
         if not self.product_collection:
             raise ValueError("Product collection not initialized")
+            
+        # Ensure boolean fields are properly converted to boolean values
+        if 'displayOnHomePage' in product_data:
+            product_data['displayOnHomePage'] = bool(product_data['displayOnHomePage'])
+        if 'best_seller' in product_data:
+            product_data['best_seller'] = bool(product_data['best_seller'])
+            
         return await self.product_collection.create_product(product_data)
         
     async def update_admin_product(self, product_id, product_data):
