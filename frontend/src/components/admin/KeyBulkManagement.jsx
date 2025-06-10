@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Dialog,
   DialogTitle,
@@ -20,7 +20,7 @@ import {
   TextField,
   InputAdornment,
 } from '@mui/material';
-import { apiService } from '../../../lib/apiService';
+import { apiService } from '../../../src/lib/apiService';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import KeyIcon from '@mui/icons-material/VpnKey';
@@ -36,13 +36,7 @@ const KeyBulkManagement = ({ open, onClose, productId, productName, keyFormat })
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedKey, setCopiedKey] = useState(null);
 
-  useEffect(() => {
-    if (open && productId) {
-      loadKeys();
-    }
-  }, [open, productId]);
-
-  const loadKeys = async () => {
+  const loadKeys = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -61,7 +55,13 @@ const KeyBulkManagement = ({ open, onClose, productId, productName, keyFormat })
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    if (open && productId) {
+      loadKeys();
+    }
+  }, [open, productId, loadKeys]);
 
   const handleDeleteKey = async (keyId) => {
     if (!window.confirm('Are you sure you want to delete this key?')) {
