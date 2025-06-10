@@ -85,21 +85,21 @@ const ProductCard = ({ product, otherStyle }) => {
             }}
           />
           
-          {/* Tags Container */}
-          <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
+          {/* Tags Container - Top Right */}
+          <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 z-10">
             {product.is_new && (
-              <span className="px-2 py-0.5 bg-green-500 text-white text-[10px] font-semibold rounded-full shadow-md">
+              <span className="bg-emerald-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-md">
                 {t("new", "NEW")}
               </span>
             )}
             {product.percent_off > 0 && (
-              <span className="px-2 py-0.5 bg-red-500 text-white text-[10px] font-semibold rounded-full shadow-md">
+              <span className="bg-rose-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-md">
                 {product.percent_off}% {t("off", "OFF")}
               </span>
             )}
           </div>
 
-          {/* Price Tag - moved to top-left */}
+          {/* Price Tag - Top Left */}
           <div className="absolute top-2 left-2 bg-accent text-white px-2 py-1 rounded-md font-semibold shadow-md text-sm" dir={lang === "he" ? "rtl" : "ltr"}>
             ₪{product.price.toFixed(2)}
           </div>

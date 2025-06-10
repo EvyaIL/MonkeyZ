@@ -300,18 +300,18 @@ const ProductPage = () => {
                 </div>
 
                 <div className="flex-1 text-white">
-                  <h1 className="text-start text-accent font-bold text-2xl mb-4">
+                  <h1 className="text-start text-accent font-bold text-2xl mb-2">
                     {displayName}
                   </h1>
                   
                   <div className="flex items-center gap-2 mb-4">
                     {product.is_new && (
-                      <span className="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm font-semibold rounded-full">
+                      <span className="bg-emerald-500 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
                         {t("new", "NEW")}
                       </span>
                     )}
                     {product.percent_off > 0 && (
-                      <span className="px-3 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-sm font-semibold rounded-full">
+                      <span className="bg-rose-500 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
                         {product.percent_off}% {t("off", "OFF")}
                       </span>
                     )}
