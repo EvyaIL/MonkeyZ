@@ -99,6 +99,12 @@ class MongoDb:
         """ Returns the MongoDB client. """
         return self.client
 
+    async def get_database(self) -> AsyncIOMotorDatabase:
+        """Returns the database instance after ensuring connection."""
+        if not self.is_connected:
+            await self.connection()
+        return self.db
+
     async def add_new_collection(self, collection_name: str) -> AsyncIOMotorDatabase:
         """ Adds a new collection with the given name and returns it. """
         db = self.client.get_database(collection_name)

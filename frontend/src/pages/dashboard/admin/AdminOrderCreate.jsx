@@ -6,10 +6,6 @@ import {
   TextField,
   Button,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   FormControl,
   InputLabel,
   Select,
@@ -150,7 +146,9 @@ export default function AdminOrderCreate() {
         }
       }
       
-      const response = await apiService.post('/admin/orders', order);
+      // const response = await apiService.post('/admin/orders', order);
+      // Use the general /orders endpoint, which is admin-protected for POST
+      const response = await apiService.post('/orders', order);
       
       if (response.error) {
         throw new Error(response.error);
