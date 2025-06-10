@@ -7,128 +7,18 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 import { addStructuredData } from "../lib/seo-helper";
 
-const fallbackProducts = [
-  {
-    id: 1,
-    name: { en: "MonkeyZ Pro Key", he: "מפתח פרו של MonkeyZ" },
-    description: {
-      en: "Unlock premium features with the MonkeyZ Pro Key. Perfect for power users and businesses.",
-      he: "פתחו תכונות פרימיום עם מפתח הפרו של MonkeyZ. מושלם למשתמשים מתקדמים ולעסקים.",
-    },
-    image: "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80",
-    price: 49.99,
-    discountPercentage: 10,
-    isNew: false,
-    inStock: true,
-    best_seller: true
-  },
-  {
-    id: 2,
-    name: { en: "MonkeyZ Cloud Storage", he: "אחסון ענן של MonkeyZ" },
-    description: {
-      en: "Secure, fast, and reliable cloud storage for all your important files.",
-      he: "אחסון ענן מאובטח, מהיר ואמין לכל הקבצים החשובים שלך.",
-    },
-    image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-    price: 19.99,
-    discountPercentage: 0,
-    isNew: true,
-    inStock: true
-  },
-  {
-    id: 3,
-    name: { en: "MonkeyZ VPN", he: "VPN של MonkeyZ" },
-    description: {
-      en: "Browse safely and anonymously with our high-speed VPN service.",
-      he: "גלשו בבטחה ובאנונימיות עם שירות ה-VPN המהיר שלנו.",
-    },
-    image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-    price: 9.99,
-    discountPercentage: 15,
-    isNew: false,
-    inStock: true,
-    best_seller: true
-  },
-  {
-    id: 4,
-    name: { en: "MonkeyZ Antivirus", he: "אנטי וירוס של MonkeyZ" },
-    description: {
-      en: "Protect your devices from malware and viruses with real-time protection.",
-      he: "הגנו על המכשירים שלכם מתוכנות זדוניות ווירוסים עם הגנה בזמן אמת.",
-    },
-    image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=400&q=80",
-    price: 14.99,
-    discountPercentage: 0,
-    isNew: false,
-    inStock: true
-  },
-  {
-    id: 5,
-    name: { en: "MonkeyZ Office Suite", he: "חבילת אופיס של MonkeyZ" },
-    description: {
-      en: "All-in-one office suite for productivity and collaboration.",
-      he: "חבילת אופיס כוללת לכלי פרודוקטיביות ושיתוף פעולה.",
-    },
-    image: "https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=400&q=80",
-    price: 29.99,
-    discountPercentage: 0,
-    isNew: false,
-    inStock: false
-  },
-  {
-    id: 6,
-    name: { en: "MonkeyZ Password Manager", he: "מנהל סיסמאות של MonkeyZ" },
-    description: {
-      en: "Keep your passwords safe and secure with our easy-to-use manager.",
-      he: "שמרו על הסיסמאות שלכם בטוחות ומאובטחות עם מנהל הסיסמאות הידידותי שלנו.",
-    },
-    image: "https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&fit=crop&w=400&q=80",
-    price: 7.99,
-    discountPercentage: 0,
-    isNew: true,
-    inStock: true,
-    best_seller: true
-  },
-  {
-    id: 7,
-    name: { en: "MonkeyZ Photo Editor", he: "עורך תמונות של MonkeyZ" },
-    description: {
-      en: "Edit your photos like a pro with advanced tools and filters.",
-      he: "ערכו את התמונות שלכם כמו מקצוענים עם כלים ופילטרים מתקדמים.",
-    },
-    image: "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?auto=format&fit=crop&w=400&q=80",
-    price: 12.99,
-    discountPercentage: 20,
-    isNew: true,
-    inStock: true
-  },
-  {
-    id: 8,
-    name: { en: "MonkeyZ Music Studio", he: "אולפן מוזיקה של MonkeyZ" },
-    description: {
-      en: "Create, mix, and share your music with our powerful studio suite.",
-      he: "צרו, ערכו ושתפו מוזיקה עם חבילת האולפן העוצמתית שלנו.",
-    },
-    image: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=400&q=80",
-    price: 24.99,
-    discountPercentage: 0,
-    isNew: false,
-    inStock: true
-  },
-];
-
 const Home = () => {
   const [bestSellers, setBestSellers] = useState([]);
-  const [recent, setRecent] = useState([]);
+  const [homeProducts, setHomeProducts] = useState([]);
   const [loadingBest, setLoadingBest] = useState(true);
-  const [loadingRecent, setLoadingRecent] = useState(true);
+  const [loadingHome, setLoadingHome] = useState(true);
   const [errorBest, setErrorBest] = useState("");
-  const [errorRecent, setErrorRecent] = useState("");
+  const [errorHome, setErrorHome] = useState("");
   const { t } = useTranslation();
 
   useEffect(() => {
     getBestSellers();
-    getRecent();
+    getHomeProducts();
     
     // Add structured data for the homepage
     const websiteSchema = {
@@ -152,54 +42,38 @@ const Home = () => {
       const script = document.getElementById('structured-data');
       if (script) script.remove();
     };
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {
     document.title = t("home");
-  }, [t]);
-
-  const mergeUniqueProducts = (apiProducts, fallback) => {
-    const ids = new Set(apiProducts.map((p) => p.id));
-    return [...apiProducts, ...fallback.filter((p) => !ids.has(p.id))];
-  };
-
-  const getBestSellers = async () => {
+  }, [t]);  const getBestSellers = async () => {
     setLoadingBest(true);
     setErrorBest("");
     const { data, error } = await apiService.get("/product/best-sellers");
-    if (error || !data || !Array.isArray(data) || data.length === 0) {
-      console.log("Using fallback products for best sellers");
-      setErrorBest(error ? t("failed_to_load_best_sellers") : "");
-      // Filter fallback products to only include those marked as best_seller
-      const bestSellerFallbacks = fallbackProducts.filter(p => p.best_seller === true);
-      setBestSellers(bestSellerFallbacks.length > 0 ? bestSellerFallbacks : fallbackProducts.slice(0, 5));
+    if (error) {
+      console.error("Failed to load best sellers:", error);
+      setErrorBest(t("failed_to_load_best_sellers"));
+    } else if (!data || !Array.isArray(data) || data.length === 0) {
+      setErrorBest(t("no_best_sellers_found"));
     } else {
-      // If we have fewer than 3 products from API, enhance with fallback best seller products
-      if (data.length < 3) {
-        // Filter fallback products to only include those marked as best_seller
-        const bestSellerFallbacks = fallbackProducts.filter(p => p.best_seller === true);
-        const enhancedProducts = mergeUniqueProducts(data, bestSellerFallbacks);
-        setBestSellers(enhancedProducts.slice(0, 5)); // Limit to 5 products
-      } else {
-        setBestSellers(data);
-      }
+      setBestSellers(data);
     }
     setLoadingBest(false);
   };
 
-  const getRecent = async () => {
-    setLoadingRecent(true);
-    setErrorRecent("");
-    const params = { limit: 8 };
-    const { data, error } = await apiService.get("/product/recent", params);
+  const getHomeProducts = async () => {
+    setLoadingHome(true);
+    setErrorHome("");
+    const { data, error } = await apiService.get("/product/homepage", { limit: 8 });
     if (error) {
-      setErrorRecent("Failed to load recent products.");
-      setRecent(fallbackProducts);
+      console.error("Failed to load home products:", error);
+      setErrorHome(t("failed_to_load_products"));
+    } else if (!data || !Array.isArray(data) || data.length === 0) {
+      setErrorHome(t("no_products_found"));
     } else {
-      setRecent(mergeUniqueProducts(data || [], fallbackProducts));
+      setHomeProducts(data);
     }
-    setLoadingRecent(false);
+    setLoadingHome(false);
   };
 
   return (
@@ -223,7 +97,8 @@ const Home = () => {
         <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
           {t("home")}
         </h1>
 
@@ -236,34 +111,36 @@ const Home = () => {
             <p className="text-error text-center bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700" role="alert">
               {errorBest}
             </p>
-          ) : (
-            <>
-              <ProductShowcase products={bestSellers} title={t("best_sellers")} />
-            </>
-          )}
+          ) : bestSellers.length > 0 ? (
+            <ProductShowcase products={bestSellers} title={t("best_sellers")} />
+          ) : null}
         </section>
 
         <section
           className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-12 backdrop-blur-sm"
-          aria-label={t("new_products")}
+          aria-label={t("featured_products")}
         >
           <h2 className="text-center text-accent font-bold text-3xl mb-8">
-            {t("new_products")}
+            {t("featured_products")}
           </h2>
-          {loadingRecent ? (
+          {loadingHome ? (
             <div className="flex justify-center py-8">
               <Spinner />
             </div>
-          ) : errorRecent ? (
+          ) : errorHome ? (
             <p className="text-error text-center text-lg p-4" role="alert">
-              {errorRecent}
+              {errorHome}
             </p>
-          ) : (
+          ) : homeProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {recent.map((product) => (
+              {homeProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
+          ) : (
+            <p className="text-center text-gray-600 dark:text-gray-400 py-8">
+              {t("no_products_available")}
+            </p>
           )}
         </section>
       </div>
