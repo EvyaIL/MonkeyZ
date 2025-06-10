@@ -42,7 +42,7 @@ const ProductPage = () => {
   const displayCategory = product.category || "";
   const formattedPrice = product.price ? product.price.toFixed(2) : "0.00";
 
-  // Extract search terms from product name for related products
+  // Extract search terms from product name for related products (currently unused in this logic)
   const extractSearchTerm = useCallback((productName) => {
     if (!productName) return "";
     
@@ -61,83 +61,84 @@ const ProductPage = () => {
   }, [lang]);
 
   // Fetch related products
-  const fetchRelatedProducts = useCallback(async (categoryOrName) => {
-    if (!categoryOrName) return;
+  const fetchRelatedProducts = useCallback(async () => {
+    if (!product.id || !product.category) { // Guard: Must have product ID and category
+      setRelatedProducts([]);
+      setLoadingRelated(false); // Ensure loading is stopped
+      return;
+    }
     setLoadingRelated(true);
     try {
-      const { data: adminProducts } = await apiService.get('/admin/products');
-      let filtered = [];
-      if (adminProducts && Array.isArray(adminProducts) && adminProducts.length > 0) {
-        // Primary filter: by category, excluding the current product
-        filtered = adminProducts.filter(p => {
-          if (!p || p.id === product.id) return false; // Exclude current product or invalid entries
-          // Check if categories match (case-insensitive)
-          return p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase();
-        });
+      // Use the public endpoint to fetch all products
+      const { data: allPublicProducts } = await apiService.get('/product/all');
+      let productsToShow = [];
 
-        // If no related products by category, show up to 4 random active products (excluding current)
-        if (filtered.length === 0) {
-          const activeProducts = adminProducts.filter(p => p && p.id !== product.id && p.active !== false);
-          // Shuffle and take up to 4
-          for (let i = activeProducts.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [activeProducts[i], activeProducts[j]] = [activeProducts[j], activeProducts[i]];
+      if (allPublicProducts && Array.isArray(allPublicProducts) && allPublicProducts.length > 0) {
+        const currentProductId = product.id;
+        const currentProductCategory = product.category.toLowerCase();
+
+        // 1. Filter for active products in the same category, excluding the current product
+        // Assuming the /product/all endpoint already returns active products or suitable public products
+        const categoryMatches = allPublicProducts.filter(p => 
+          p && 
+          p.id !== currentProductId && 
+          // p.active !== false && // Assuming /product/all handles active status
+          p.category && 
+          p.category.toLowerCase() === currentProductCategory
+        );
+
+        // 2. Decide which products to show based on the number of matches
+        if (categoryMatches.length > 0) {
+          if (categoryMatches.length <= 4) {
+            productsToShow = categoryMatches;
+          } else {
+            // Shuffle and pick 4 if more than 4 matches
+            for (let i = categoryMatches.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [categoryMatches[i], categoryMatches[j]] = [categoryMatches[j], categoryMatches[i]];
+            }
+            productsToShow = categoryMatches.slice(0, 4);
           }
-          filtered = activeProducts.slice(0, 4);
         }
+        // If no categoryMatches, productsToShow remains an empty array (default)
       }
-      setRelatedProducts(filtered.slice(0, 4)); // Ensure we only take up to 4 products
+      setRelatedProducts(productsToShow);
     } catch (err) {
       console.error("Error fetching related products:", err);
-      setRelatedProducts([]);
+      setRelatedProducts([]); // Set to empty on error
     } finally {
       setLoadingRelated(false);
     }
-  }, [product.id, product.category, product.name, lang]);
+  }, [product.id, product.category, setLoadingRelated, setRelatedProducts]); // apiService is stable
 
   // Fetch product data
   const fetchProduct = useCallback(async () => {
     if (!name) return;
     
+    setLoading(true);
+    setErrorMsg("");
     try {
       const decodedName = decodeURIComponent(name);
-      setLoading(true);
-      setErrorMsg("");
-      
-      // For Hebrew names, we need special handling
-      const isHebrew = /[\u0590-\u05FF]/.test(decodedName);
-      
-      // Handle object names and extract the correct language version
+      const isHebrew = /[\\u0590-\\u05FF]/.test(decodedName);
       const nameParam = typeof decodedName === 'object' ? 
         (decodedName[lang] || decodedName.en || Object.values(decodedName)[0]) : 
         decodedName;
-
-      // Try API with proper encoding
       const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
+      
       const response = await apiService.get(`/product/${encodedName}`);
       
       if (response.data) {
-        setProduct(response.data);
-        // Track product view and fetch related products
-        fetchRelatedProducts(response.data.category || extractSearchTerm(response.data.name));
+        setProduct(response.data); // This will trigger the useEffect for related products
       } else {
         throw new Error("Product data is empty");
       }
     } catch (error) {
-      console.error("Error fetching product:", {
-        message: error.message,
-        statusCode: error.response?.status,
-        responseData: error.response?.data,
-        name,
-        decodedName: decodeURIComponent(name)
-      });
-
+      console.error("Error fetching product:", { /* ...error details... */ });
       // Try admin products API as a fallback
       try {
         const { data: adminProducts } = await apiService.get('/admin/products');
         if (adminProducts && adminProducts.length > 0) {
           const decodedNameLower = decodeURIComponent(name).toLowerCase();
-          
           const matchedProduct = adminProducts.find(p => {
             if (typeof p.name === "object") {
               return (p.name.he && p.name.he.toLowerCase() === decodedNameLower) || 
@@ -147,16 +148,14 @@ const ProductPage = () => {
           });
           
           if (matchedProduct) {
-            setProduct(matchedProduct);
-            fetchRelatedProducts(matchedProduct.category || extractSearchTerm(matchedProduct.name));
+            setProduct(matchedProduct); // This will trigger the useEffect for related products
             return;
           }
         }
       } catch (adminError) {
-        console.error("Error fetching from admin products:", adminError);
+        console.error("Error fetching from admin products as fallback:", adminError);
       }
 
-      // If no product found, show error
       setErrorMsg(t("errors.productNotFound"));
       notify({
         type: "error",
@@ -164,18 +163,31 @@ const ProductPage = () => {
           t("errors.productNotFound") : 
           t("errors.generalError", "An error occurred while fetching the product")
       });
+      setProduct({ id: null, name: "", description: "", image: "", price: 0, category: "" }); // Reset product on error
     } finally {
       setLoading(false);
     }
-  }, [name, notify, t, fetchRelatedProducts, extractSearchTerm, lang]);
+  }, [name, lang, notify, t, setProduct, setLoading, setErrorMsg]); // apiService is stable import
+
+  // Effect to fetch main product data when 'name' (from URL) or 'lang' changes
   useEffect(() => {
     const loadProductData = async () => {
+      // Reset product state before fetching new one if desired, or ensure loading states cover UI
+      // setProduct({ id: null, name: "", description: "", image: "", price: 0, category: "" });
+      // setRelatedProducts([]);
       await fetchProduct();
-      // Remove background fetch from /product/all
     };
-    loadProductData();
-    // eslint-disable-next-line
-  }, [name, lang]);
+    if (name) {
+        loadProductData();
+    }
+  }, [name, lang, fetchProduct]); // fetchProduct is a dependency
+
+  // Effect to fetch related products when the main product's data (id or category) changes
+  useEffect(() => {
+    if (product && product.id) { // Ensure product is loaded
+      fetchRelatedProducts();
+    }
+  }, [product.id, product.category, fetchRelatedProducts]); // Dependencies
 
   // Add structured data when product data changes
   useEffect(() => {

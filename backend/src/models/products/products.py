@@ -16,6 +16,7 @@ class Product(Document):
     best_seller: bool = False  # Best Seller tag
     displayOnHomePage: bool = False  # New field for homepage display
     slug: Optional[str] = None  # Unique URL-friendly identifier
+    category: Optional[str] = None # Product category
 
 class ProductRequest(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -28,5 +29,6 @@ class ProductRequest(BaseModel):
     best_seller: bool = False
     displayOnHomePage: bool = False  # New field for homepage display
     slug: Optional[str] = None  # Unique URL-friendly identifier
+    category: Optional[str] = None # Product category
 
 
