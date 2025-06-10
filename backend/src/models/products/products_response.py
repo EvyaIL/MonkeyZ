@@ -3,12 +3,15 @@ from pydantic import BaseModel
 from bson import ObjectId
 from typing import Optional
 from src.models.key.key import KeyRespond
+from datetime import datetime # Add this import
 
 class ProductResponse(BaseModel):
+    id: PydanticObjectId # Add this field
     name: dict  # {'en': str, 'he': str}
     description: dict  # {'en': str, 'he': str}
     price: int
     active: bool
+    created_at: datetime # Add this field
     is_new: bool = False
     percent_off: int = 0
     best_seller: bool = False

@@ -60,7 +60,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         try:
             # Fetch raw data with projection to convert field names
             collection = Product.get_motor_collection()            # Use only best_seller field, as it's now standardized
-            query = {"best_seller": True}
+            query = {"best_seller": True, "active": True}  # Also filter for active products
             cursor = collection.find(query)
             if limit:
                 cursor = cursor.limit(limit)

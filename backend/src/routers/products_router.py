@@ -36,7 +36,7 @@ async def get_all_product(products_controller:ProductsController = Depends(get_p
 
 @product_router.get("/best-sellers", response_model=list[ProductResponse])
 async def get_best_sellers(products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.get_best_sellers() 
+   products = await products_controller.product_collection.get_best_sellers() 
    return products
 
 @product_router.get("/recent", response_model=list[ProductResponse])
