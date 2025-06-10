@@ -12,4 +12,11 @@ async def list_products():
         print(f"name: {p.get('name')}, displayOnHomePage: {p.get('displayOnHomePage')}, active: {p.get('active')}")
 
 if __name__ == "__main__":
-    asyncio.run(list_products())
+    print("Starting list_products.py script...")
+    try:
+        asyncio.run(list_products())
+        print("Script completed successfully!")
+    except Exception as e:
+        print(f"Error running script: {e}")
+        import traceback
+        traceback.print_exc()
