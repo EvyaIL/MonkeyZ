@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import SecondaryButton from "../buttons/SecondaryButton";
 import PrimaryButton from "../buttons/PrimaryButton";
-import PointButton from "../buttons/PointButton";
+import PointButton from "../buttons/PointButton"; // Corrected import
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
@@ -270,9 +270,9 @@ const ProductShowcase = ({ products, title }) => {
                       <p className="text-lg font-semibold text-accent">
                         ₪{priceToDisplay}
                       </p>
-                      {p.discountPercentage > 0 && (
+                      {p.percent_off > 0 && (
                         <span className="px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-xs font-semibold rounded">
-                          {p.discountPercentage}% {t("off", "OFF")}
+                          {p.percent_off}% {t("off", "OFF")}
                         </span>
                       )}
                       {p.inStock === false && (
@@ -280,7 +280,7 @@ const ProductShowcase = ({ products, title }) => {
                           {t("out_of_stock", "Out of Stock")}
                         </span>
                       )}
-                      {p.isNew && (
+                      {p.is_new && ( // Ensured is_new is used
                         <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-semibold rounded">
                           {t("new", "NEW")}
                         </span>

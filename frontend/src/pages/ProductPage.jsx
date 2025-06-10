@@ -286,7 +286,7 @@ const ProductPage = () => {
               </nav>
 
               <div className="flex flex-col md:flex-row gap-6 items-start p-4">
-                <div className="w-full md:w-1/2 h-[300px] md:h-[350px] rounded-lg border border-accent/10 dark:border-accent/10 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300 hover:border-accent/30 group">
+                <div className="w-full md:w-1/2 h-[300px] md:h-[350px] rounded-lg border border-accent/10 dark:border-accent/10 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300 hover:border-accent/30 group relative">
                   {product.image ? (
                     <img
                       src={product.image}
@@ -304,6 +304,19 @@ const ProductPage = () => {
                     {displayName}
                   </h1>
                   
+                  <div className="flex items-center gap-2 mb-4">
+                    {product.is_new && (
+                      <span className="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-sm font-semibold rounded-full">
+                        {t("new", "NEW")}
+                      </span>
+                    )}
+                    {product.percent_off > 0 && (
+                      <span className="px-3 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-sm font-semibold rounded-full">
+                        {product.percent_off}% {t("off", "OFF")}
+                      </span>
+                    )}
+                  </div>
+
                   {displayCategory && (
                     <Link 
                       to={`/products?category=${displayCategory}`}
