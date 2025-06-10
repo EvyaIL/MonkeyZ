@@ -68,14 +68,14 @@ const ProductPage = () => {
       const { data: adminProducts } = await apiService.get('/admin/products');
       let filtered = [];
       if (adminProducts && Array.isArray(adminProducts) && adminProducts.length > 0) {
+        // Primary filter: by category, excluding the current product
         filtered = adminProducts.filter(p => {
-          if (!p || p.id === product.id) return false;
-          if (p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase()) return true;
-          const pName = typeof p.name === "object" ? (p.name[lang] || p.name.en) : p.name;
-          const prodName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-          return pName && prodName && pName !== prodName && pName.toLowerCase().includes(prodName.toLowerCase());
+          if (!p || p.id === product.id) return false; // Exclude current product or invalid entries
+          // Check if categories match (case-insensitive)
+          return p.category && product.category && p.category.toLowerCase() === product.category.toLowerCase();
         });
-        // If no related products, show up to 4 random active products (excluding current)
+
+        // If no related products by category, show up to 4 random active products (excluding current)
         if (filtered.length === 0) {
           const activeProducts = adminProducts.filter(p => p && p.id !== product.id && p.active !== false);
           // Shuffle and take up to 4
@@ -86,7 +86,7 @@ const ProductPage = () => {
           filtered = activeProducts.slice(0, 4);
         }
       }
-      setRelatedProducts(filtered.slice(0, 4));
+      setRelatedProducts(filtered.slice(0, 4)); // Ensure we only take up to 4 products
     } catch (err) {
       console.error("Error fetching related products:", err);
       setRelatedProducts([]);

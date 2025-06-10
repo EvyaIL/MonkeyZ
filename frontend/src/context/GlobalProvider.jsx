@@ -299,11 +299,15 @@ const GlobalProvider = ({ children }) => {
         setNotification,
         theme,
         toggleTheme,
+        logout,
+        setUserAndToken,
+        addItemToCart,
+        removeItemFromCart,
+        deleteItemFromCart,
+        clearCart,
         notify,
         showError,
-        showSuccess,
-        setUserAndToken,
-        logout
+        showSuccess
       }}
     >
       {children}
