@@ -381,7 +381,7 @@ function AdminOrdersSimple() {
         </Box>
       </Paper>
 
-      {/* Order Analytics Section */}\
+      {/* Order Analytics Section */}
       {analyticsData && !loadingOrders && (
         <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
           <Typography variant="h5" gutterBottom sx={{ mb: 2, display: 'flex', alignItems: 'center', color: 'text.primary' }}>
@@ -414,9 +414,9 @@ function AdminOrdersSimple() {
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <PeopleAltOutlinedIcon sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.uniqueCustomers', 'Unique Customers')}</Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'secondary.dark' }}>{analyticsData.uniqueCustomersCount}</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'secondary.dark', mb: 0.5 }}>{analyticsData.uniqueCustomersCount}</Typography>
                   {/* Button removed, card is now clickable */}
-                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.withNonCancelledOrders', '(non-cancelled orders)')}</Typography>
+                  <Typography variant="caption" sx={{ mt: 0, display: 'block', lineHeight: 'normal' }}>{t('admin.analytics.withNonCancelledOrders', '(non-cancelled orders)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -430,10 +430,10 @@ function AdminOrdersSimple() {
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <AttachMoneyOutlinedIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalRevenueOriginal', 'Total Revenue (Original)')}</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.dark' }}>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.dark', mb: 0.5 }}>
                     ₪{analyticsData.totalOriginalAmount.toFixed(2)}
                   </Typography>
-                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
+                  <Typography variant="caption" sx={{ mt: 0, display: 'block', lineHeight: 'normal' }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -447,10 +447,10 @@ function AdminOrdersSimple() {
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <AttachMoneyOutlinedIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalRevenueFinal', 'Total Revenue (Final)')}</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.dark' }}>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.dark', mb: 0.5 }}>
                     ₪{analyticsData.totalFinalAmount.toFixed(2)}
                   </Typography>
-                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
+                  <Typography variant="caption" sx={{ mt: 0, display: 'block', lineHeight: 'normal' }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -461,8 +461,8 @@ function AdminOrdersSimple() {
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <ShoppingCartOutlinedIcon sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalUnitsSold', 'Total Units Sold')}</Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'info.dark' }}>{analyticsData.totalProductsSoldCount}</Typography>
-                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.inNonCancelledOrders', '(non-cancelled orders)')}</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'info.dark', mb: 0.5 }}>{analyticsData.totalProductsSoldCount}</Typography>
+                  <Typography variant="caption" sx={{ mt: 0, display: 'block', lineHeight: 'normal' }}>{t('admin.analytics.inNonCancelledOrders', '(non-cancelled orders)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -538,17 +538,17 @@ function AdminOrdersSimple() {
       {!loadingOrders && filteredOrders.length > 0 && (
         <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
           <Table sx={{ minWidth: 750 }} aria-label="simple table"> {/* Increased minWidth */}
-            <TableHead sx={{ backgroundColor: (theme) => theme.palette.grey[200]}}>
+            <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.grey[700] : theme.palette.grey[200]}}>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderId', 'Order ID')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderCustomer', 'Customer')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderDate', 'Date')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>{t('admin.orderOriginalTotal', 'Original Total')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>{t('admin.orderDiscount', 'Discount')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>{t('admin.orderTotal', 'Total')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderCoupon', 'Coupon')}</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>{t('admin.orderStatus', 'Status')}</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('admin.orderActions', 'Actions')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderId', 'Order ID')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderCustomer', 'Customer')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderDate', 'Date')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right', color: 'text.primary' }}>{t('admin.orderOriginalTotal', 'Original Total')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right', color: 'text.primary' }}>{t('admin.orderDiscount', 'Discount')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right', color: 'text.primary' }}>{t('admin.orderTotal', 'Total')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderCoupon', 'Coupon')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', color: 'text.primary' }}>{t('admin.orderStatus', 'Status')}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderActions', 'Actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -569,11 +569,11 @@ function AdminOrdersSimple() {
                     <Typography variant="caption" color="text.secondary">{order.email}</Typography>
                   </TableCell>
                   <TableCell>{new Date(order.date || order.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell sx={{ textAlign: 'right' }}>₪{order.original_total?.toFixed(2) || order.total?.toFixed(2)}</TableCell>
+                  <TableCell sx={{ textAlign: 'right' }}>{`₪${order.original_total?.toFixed(2) || order.total?.toFixed(2)}`}</TableCell>
                   <TableCell sx={{ textAlign: 'right', color: order.discount_amount > 0 ? 'error.main' : 'text.secondary' }}>
-                    -₪{order.discount_amount?.toFixed(2) || '0.00'}
+                    {`-₪${order.discount_amount?.toFixed(2) || '0.00'}`}
                   </TableCell>
-                  <TableCell sx={{ textAlign: 'right', fontWeight: 'bold' }}>₪{order.total?.toFixed(2)}</TableCell>
+                  <TableCell sx={{ textAlign: 'right', fontWeight: 'bold' }}>{`₪${order.total?.toFixed(2)}`}</TableCell>
                   <TableCell>{order.coupon_code || 'N/A'}</TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                      <Chip 
@@ -635,14 +635,14 @@ function AdminOrdersSimple() {
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>{t('admin.orderSummary', 'Order Summary')}</Typography>
                 <Typography><strong>{t('admin.orderDate', 'Date')}:</strong> {new Date(selectedOrderDetails.date || selectedOrderDetails.createdAt).toLocaleString()}</Typography>
-                <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> ₪{selectedOrderDetails.original_total?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}</Typography>
+                <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> {`₪${selectedOrderDetails.original_total?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}`}</Typography>
                 {selectedOrderDetails.coupon_code && (
                   <>
                     <Typography><strong>{t('admin.orderCoupon', 'Coupon Code')}:</strong> {selectedOrderDetails.coupon_code}</Typography>
-                    <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> <span style={{ color: 'red' }}>-₪{selectedOrderDetails.discount_amount?.toFixed(2)}</span></Typography>
+                    <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> <span style={{ color: 'red' }}>{`-₪${selectedOrderDetails.discount_amount?.toFixed(2)}`}</span></Typography>
                   </>
                 )}
-                <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> <span style={{ fontWeight: 'bold' }}>₪{selectedOrderDetails.total?.toFixed(2)}</span></Typography>
+                <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> <span style={{ fontWeight: 'bold' }}>{`₪${selectedOrderDetails.total?.toFixed(2)}`}</span></Typography>
                 <Typography><strong>{t('admin.orderStatus', 'Status')}:</strong> 
                   <Chip 
                     label={t(`admin.status${selectedOrderDetails.status}`, selectedOrderDetails.status)}
@@ -762,7 +762,7 @@ function AdminOrdersSimple() {
                     <TableRow hover key={key} sx={{ '&:nth-of-type(odd)': { backgroundColor: (theme) => theme.palette.action.hover }}}>
                       <TableCell>{value.name}</TableCell>
                       <TableCell align="right">{value.count}</TableCell>
-                      <TableCell align="right">₪{value.totalValue.toFixed(2)}</TableCell>
+                      <TableCell align="right">{`₪${value.totalValue.toFixed(2)}`}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

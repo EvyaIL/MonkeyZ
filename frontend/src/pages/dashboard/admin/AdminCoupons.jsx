@@ -366,18 +366,19 @@ function AdminCoupons() {
         },
         '& .MuiDataGrid-cell': {
           borderBottom: '1px solid #f0f0f0',
+          color: 'text.primary', // Ensure cell text uses theme color
         },
         '& .MuiDataGrid-columnHeaders': {
           backgroundColor: 'primary.main',
-          color: '#fff',
+          color: 'text.primary', // Changed from #fff to theme-aware color
           borderBottom: 'none',
         },
         '& .MuiDataGrid-virtualScroller': {
-          backgroundColor: '#fff',
+          backgroundColor: 'background.paper', // Use theme background
         },
         '& .MuiDataGrid-footerContainer': {
           borderTop: 'none',
-          backgroundColor: '#fafafa',
+          backgroundColor: 'background.default', // Use theme background
         },
         '& .MuiDataGrid-toolbarContainer .MuiButton-text': {
           color: 'primary.main',

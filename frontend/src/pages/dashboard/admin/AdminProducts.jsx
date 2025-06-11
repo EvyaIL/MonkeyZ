@@ -448,38 +448,38 @@ export default function AdminProducts() {
           <Grid container spacing={3}>
             {/* General Stats Card */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: '#e3f2fd' /* Light blue */ }}>
+              <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' /* Removed hardcoded backgroundColor */ }}>
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: '#0d47a1' /* Darker blue */}}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' /* Changed from hardcoded color */}}>
                     <InfoIcon sx={{ mr: 0.5 }} /> {t('admin.analytics.generalStats', 'General Stats')}
                   </Typography>
-                  <Typography variant="body1">{t('admin.analytics.totalProducts', 'Total Products')}: <strong>{analyticsData.totalProducts}</strong></Typography>
-                  <Typography variant="body1">{t('admin.analytics.newProducts', 'New Products')}: <strong>{analyticsData.newProducts}</strong></Typography>
-                  <Typography variant="body1">{t('admin.analytics.discountedProducts', 'Discounted')}: <strong>{analyticsData.discountedProducts}</strong></Typography>
+                  <Typography variant="body1" color="text.primary">{t('admin.analytics.totalProducts', 'Total Products')}: <strong>{analyticsData.totalProducts}</strong></Typography>
+                  <Typography variant="body1" color="text.primary">{t('admin.analytics.newProducts', 'New Products')}: <strong>{analyticsData.newProducts}</strong></Typography>
+                  <Typography variant="body1" color="text.primary">{t('admin.analytics.discountedProducts', 'Discounted')}: <strong>{analyticsData.discountedProducts}</strong></Typography>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Status & Visibility Card (Clickable) */}
             <Grid item xs={12} md={4}>
-              <Card onClick={() => handleOpenAnalyticsModal(t('admin.analytics.statusVisibilityTitle', 'Product Status & Visibility'), renderStatusVisibilityAnalytics)} sx={{ cursor: 'pointer', height: '100%', borderRadius: 2, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: '0.2s', backgroundColor: '#e8f5e9' /* Light green */ }}>
+              <Card onClick={() => handleOpenAnalyticsModal(t('admin.analytics.statusVisibilityTitle', 'Product Status & Visibility'), renderStatusVisibilityAnalytics)} sx={{ cursor: 'pointer', height: '100%', borderRadius: 2, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: '0.2s' /* Removed hardcoded backgroundColor */ }}>
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: '#1b5e20' /* Darker green */}}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' /* Changed from hardcoded color */ }}>
                     <CheckCircleIcon sx={{ mr: 0.5 }} /> {t('admin.analytics.statusVisibility', 'Status & Visibility')}
                   </Typography>
-                  <Typography variant="body1">{t('admin.analytics.active', 'Active')}: <strong>{analyticsData.activeProducts}</strong> / {t('admin.analytics.inactive', 'Inactive')}: <strong>{analyticsData.inactiveProducts}</strong></Typography>
-                  <Typography variant="body1">{t('admin.analytics.bestSellers', 'Best Sellers')}: <strong>{analyticsData.bestSellerProducts}</strong></Typography>
-                  <Typography variant="body1">{t('admin.analytics.onHomepage', 'On Homepage')}: <strong>{analyticsData.onHomepageProducts}</strong></Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>{t('common.clickToViewDetails', 'Click to see details')}</Typography>
+                  <Typography variant="body1" color="text.primary">{t('admin.analytics.active', 'Active')}: <strong>{analyticsData.activeProducts}</strong> / {t('admin.analytics.inactive', 'Inactive')}: <strong>{analyticsData.inactiveProducts}</strong></Typography>
+                  <Typography variant="body1" color="text.primary">{t('admin.analytics.bestSellers', 'Best Sellers')}: <strong>{analyticsData.bestSellerProducts}</strong></Typography>
+                  <Typography variant="body1" color="text.primary">{t('admin.analytics.onHomepage', 'On Homepage')}: <strong>{analyticsData.onHomepageProducts}</strong></Typography>
+                  <Typography variant="caption" color="primary.main" sx={{ mt: 1, display: 'block' }}>{t('common.clickToViewDetails', 'Click to see details')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Category Breakdown Card (Clickable) */}
             <Grid item xs={12} md={4}>
-              <Card onClick={() => handleOpenAnalyticsModal(t('admin.analytics.categoryBreakdownTitle', 'Products by Category'), renderCategoryAnalytics)} sx={{ cursor: 'pointer', height: '100%', borderRadius: 2, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: '0.2s', backgroundColor: '#fff3e0' /* Light orange */ }}>
+              <Card onClick={() => handleOpenAnalyticsModal(t('admin.analytics.categoryBreakdownTitle', 'Products by Category'), renderCategoryAnalytics)} sx={{ cursor: 'pointer', height: '100%', borderRadius: 2, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: '0.2s' /* Removed hardcoded backgroundColor */ }}>
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: '#e65100' /* Darker orange */}}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'text.primary' /* Changed from hardcoded color */ }}>
                     <CategoryIcon sx={{ mr: 0.5 }} /> {t('admin.analytics.categoryBreakdown', 'Category Breakdown')}
                   </Typography>
                   {analyticsData.categoriesCount && Object.keys(analyticsData.categoriesCount).length > 0 ? (
@@ -488,7 +488,7 @@ export default function AdminProducts() {
                         .sort(([, countA], [, countB]) => countB - countA)
                         .slice(0, 2)
                         .map(([category, count]) => (
-                          <Typography key={category} variant="body1">
+                          <Typography key={category} variant="body1" color="text.primary">
                             {category}: <strong>{count}</strong>
                           </Typography>
                         ))}
@@ -497,9 +497,9 @@ export default function AdminProducts() {
                       )}
                     </>
                   ) : (
-                    <Typography variant="body1">{t('admin.analytics.noCategoryData', 'No category data')}</Typography>
+                    <Typography variant="body1" color="text.primary">{t('admin.analytics.noCategoryData', 'No category data')}</Typography>
                   )}
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>{t('common.clickToViewAll', 'Click to see all categories')}</Typography>
+                  <Typography variant="caption" color="primary.main" sx={{ mt: 1, display: 'block' }}>{t('common.clickToViewAll', 'Click to see all categories')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
