@@ -82,6 +82,11 @@ function AdminOrdersSimple() {
   const [analyticsDetailData, setAnalyticsDetailData] = useState(null);
   const [analyticsDetailType, setAnalyticsDetailType] = useState(''); // 'customers' or 'products'
 
+  // State for revenue breakdown modal (placeholder for now)
+  const [showRevenueBreakdownModal, setShowRevenueBreakdownModal] = useState(false);
+  const [revenueBreakdownType, setRevenueBreakdownType] = useState(''); // 'original' or 'final'
+
+
   const handleOpenAnalyticsDetailModal = (title, data, type) => {
     setAnalyticsDetailTitle(title);
     setAnalyticsDetailData(data);
@@ -94,6 +99,24 @@ function AdminOrdersSimple() {
     setAnalyticsDetailTitle('');
     setAnalyticsDetailData(null);
     setAnalyticsDetailType('');
+  };
+
+  const handleOpenRevenueBreakdownModal = (type) => {
+    setRevenueBreakdownType(type);
+    setShowRevenueBreakdownModal(true);
+    // For now, using notify as a placeholder for the actual modal.
+    // The modal UI can be implemented in a subsequent step.
+    notify({ 
+      message: t('admin.analytics.revenueBreakdownClicked', `Revenue breakdown for ${type} revenue clicked. Details view pending.`), 
+      type: 'info' 
+    });
+    // Example: You might want to close it automatically if it's just a notification
+    // setTimeout(() => setShowRevenueBreakdownModal(false), 3000); 
+  };
+
+  const handleCloseRevenueBreakdownModal = () => {
+    setShowRevenueBreakdownModal(false);
+    setRevenueBreakdownType('');
   };
 
   const handleOpenStatusBreakdownModal = () => {
@@ -366,44 +389,74 @@ function AdminOrdersSimple() {
           </Typography>
           <Grid container spacing={3}> {/* Increased spacing */}
             {/* Total Orders Card - Clickable */}
-            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size for better fit */}
-              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+            <Grid item xs={12} sm={6} md={4}> {/* Adjusted grid size to md={4} */}
+              <Card 
+                onClick={handleOpenStatusBreakdownModal}
+                sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}
+              >
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <BarChartIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalOrders', 'Total Orders')}</Typography>
-                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.dark' }}>{analyticsData.statusCounts.Total}</Typography>
-                  <Button size="small" onClick={handleOpenStatusBreakdownModal} sx={{ mt: 1 }}>{t('admin.analytics.viewBreakdown', 'View Breakdown')}</Button>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.dark', mb: 2 }}> {/* Added mb to compensate for removed button */}
+                    {analyticsData.statusCounts.Total}
+                  </Typography>
+                  {/* Button removed, card is now clickable */}
                 </CardContent>
               </Card>
             </Grid>
 
-            {/* Unique Customers Card */}
-            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size */}
-              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+            {/* Unique Customers Card - Clickable */}
+            <Grid item xs={12} sm={6} md={4}> {/* Adjusted grid size to md={4} */}
+              <Card 
+                onClick={() => analyticsData.customerOrders && handleOpenAnalyticsDetailModal(t('admin.analytics.customerOrderDetailsTitle', 'Customer Order Details'), analyticsData.customerOrders, 'customers')}
+                sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}
+              >
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <PeopleAltOutlinedIcon sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.uniqueCustomers', 'Unique Customers')}</Typography>
                   <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'secondary.dark' }}>{analyticsData.uniqueCustomersCount}</Typography>
-                  <Button size="small" onClick={() => analyticsData.customerOrders && handleOpenAnalyticsDetailModal(t('admin.analytics.customerOrderDetailsTitle', 'Customer Order Details'), analyticsData.customerOrders, 'customers')} sx={{ mt: 1 }}>{t('admin.analytics.viewDetails', 'View Details')}</Button>
+                  {/* Button removed, card is now clickable */}
                   <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.withNonCancelledOrders', '(non-cancelled orders)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
             
-            {/* Total Revenue (Final) Card */}
-            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size */}
-              <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: 'success.lightest' }}>
+            {/* Total Revenue (Original) Card - Clickable */}
+            <Grid item xs={12} sm={6} md={4}> {/* Adjusted grid size to md={4} */}
+              <Card 
+                onClick={() => analyticsData && handleOpenRevenueBreakdownModal('original')}
+                sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: 'warning.lightest' }}
+              >
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
+                  <AttachMoneyOutlinedIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalRevenueOriginal', 'Total Revenue (Original)')}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'warning.dark' }}>
+                    ₪{analyticsData.totalOriginalAmount.toFixed(2)}
+                  </Typography>
+                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Total Revenue (Final) Card - Clickable */}
+            <Grid item xs={12} sm={6} md={6}> {/* Adjusted grid size to md={6} */}
+              <Card 
+                onClick={() => analyticsData && handleOpenRevenueBreakdownModal('final')}
+                sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: 'success.lightest' }}
+              >
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <AttachMoneyOutlinedIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
                   <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalRevenueFinal', 'Total Revenue (Final)')}</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.dark' }}>₪{analyticsData.totalFinalAmount.toFixed(2)}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.dark' }}>
+                    ₪{analyticsData.totalFinalAmount.toFixed(2)}
+                  </Typography>
                   <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Total Units Sold Card */}
-            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size */}
+            <Grid item xs={12} sm={6} md={6}> {/* Adjusted grid size to md={6} */}
               <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: 'info.lightest' }}>
                 <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
                   <ShoppingCartOutlinedIcon sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />

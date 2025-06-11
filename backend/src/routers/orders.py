@@ -93,8 +93,6 @@ async def create_order(
                 is_expired = False
                 if expires_at_str:
                     try:
-                        # Assuming expires_at_str is in ISO format 'YYYY-MM-DDTHH:MM:SS.ffffffZ' or similar
-                        # For MongoDB, it might be stored as ISODate directly.
                         # If it's a string, parse it. If it's already datetime, use it.
                         if isinstance(expires_at_str, str):
                             expires_at_dt = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
