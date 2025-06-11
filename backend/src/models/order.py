@@ -16,6 +16,7 @@ class StatusHistoryEntry(BaseModel):
 
 class Order(BaseModel):
     id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
+    user_id: Optional[str] = None
     customerName: str
     email: str
     phone: Optional[str] = None
@@ -32,3 +33,7 @@ class Order(BaseModel):
         json_encoders = {
             ObjectId: str
         }
+
+class OrderStatusUpdateRequest(BaseModel):
+    status: str
+    note: Optional[str] = None

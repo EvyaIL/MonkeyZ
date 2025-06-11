@@ -17,12 +17,13 @@ class MongoDb:
             Initializes the MongoDb class with no client initially connected.
         """
         self.client: AsyncIOMotorClient = None
-        self.db: AsyncIOMotorDatabase = None
+        self.db: AsyncIOMotorDatabase = None # Ensure self.db is initialized
         self.is_connected: bool = False
 
     async def connection(self) -> None:
         """
         Establishes a connection to the MongoDB server using the MONGODB_URI environment variable.
+        Sets self.client and self.db upon successful connection.
         """
         if self.is_connected:
             return
@@ -75,9 +76,20 @@ class MongoDb:
             self.client = AsyncIOMotorClient(mongo_uri, **connection_options)
             await self.client.admin.command('ping')
             logging.info("Successfully connected to MongoDB")
+            
+            # Set the database instance
+            db_name_from_env = os.getenv("MONGO_DB_NAME")
+            if db_name_from_env:
+                self.db = self.client[db_name_from_env]
+                logging.info(f"Using database: {db_name_from_env}")
+            else:
+                self.db = self.client.get_database() # Gets default from URI path, or a predefined default
+                logging.info(f"Using database: {self.db.name if self.db is not None else 'N/A (check URI or set MONGO_DB_NAME)'}")
+
             self.is_connected = True
         except Exception as e:
             self.is_connected = False
+            self.db = None # Ensure db is None if connection fails
             logging.error(f"Failed to connect to MongoDB: {str(e)}")
             raise ValueError(f"Failed to connect to MongoDB: {str(e)}")
 
@@ -97,7 +109,26 @@ class MongoDb:
 
     async def get_client(self) -> AsyncIOMotorClient:
         """ Returns the MongoDB client. """
+        if not self.is_connected or not self.client:
+            await self.connection()
+        if not self.client:
+            logging.error("MongoDB client is not initialized even after connection attempt.")
+            raise RuntimeError("MongoDB client is not initialized.")
         return self.client
+
+    async def get_db(self) -> AsyncIOMotorDatabase:
+        """
+        Ensures the database connection is active and returns the database instance.
+        """
+        if not self.is_connected or self.db is None:
+            logging.info("Not connected or self.db not set, attempting connection...")
+            await self.connection() # This will set self.client and self.db
+
+        if self.db is None: # If still not set after attempting connection
+            logging.error("Database instance (self.db) not set after connection attempt.")
+            raise RuntimeError("Failed to obtain database instance. Check MongoDB URI and connection.")
+            
+        return self.db
 
     async def add_new_collection(self, collection_name: str) -> AsyncIOMotorDatabase:
         """ Adds a new collection with the given name and returns it. """

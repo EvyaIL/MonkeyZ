@@ -28,14 +28,18 @@ def create_access_token(data:dict) -> str:
 
 def verify_token(token:str) -> TokenData:
     try:
-        paylaod =jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
-        username :str = paylaod.get("sub")
+        payload =jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
+        # Ensure that the key used here ("sub") matches what is put into the token during creation.
+        username :Optional[str] = payload.get("sub") 
         if username is None:
-            raise NotVaildTokenException("Could not validate credentials")
+            # If "sub" is not in payload, perhaps it's under "username"?
+            # For now, we stick to "sub" as per standard JWT practices.
+            # If your tokens are created with "username" key, change payload.get("sub") to payload.get("username")
+            raise NotVaildTokenException("Could not validate credentials, username (sub) missing from token")
         token_data= TokenData(username=username, access_token=token)
         return token_data
-    except JWTError:
-        raise NotVaildTokenException("Could not validate credentials")
+    except JWTError as e: # Catch specific JWTError
+        raise NotVaildTokenException(f"Could not validate credentials: {str(e)}")
 
 
 

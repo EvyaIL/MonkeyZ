@@ -15,6 +15,9 @@ from jose import jwt
 from src.lib.email_service import send_password_reset_email, send_otp_email, send_welcome_email # Import all email functions
 import os # Added for environment variables
 from src.lib.haseing import Hase
+from ..models.order import Order # ADDED
+from ..mongodb.mongodb import MongoDb # ADDED - Ensure MongoDb is imported
+from pymongo.database import Database # ADDED - Ensure Database is imported for type hinting
 
 # Load from environment variables with defaults
 SECRET_KEY = os.getenv("RESET_TOKEN_SECRET_KEY", "your-secret-key-please-change") 
@@ -192,3 +195,31 @@ async def reset_password(payload: PasswordResetConfirmPayload, user_controller: 
     await user.save()
 
     return {"message": "Password has been reset successfully"}
+
+# ADDED - Initialize MongoDB instance
+mongo_db = MongoDb()
+
+@users_router.get("/orders", response_model=list[Order])
+async def get_user_orders(
+    current_user_token: dict = Depends(get_current_user), # Assuming get_current_user returns a token payload with 'sub' as user_id
+    db: Database = Depends(mongo_db.get_db) # Re-use existing mongo_db instance or get a new one
+):
+    user_id = current_user_token.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Could not validate credentials or user ID missing")
+
+    # Fetch orders from the 'orders' collection where 'user_id' matches
+    # The frontend expects fields like: id (or _id), status, createdAt (or date), totalAmount
+    # The Order model in models.order.py has: _id (aliased to id), status, createdAt, total
+    
+    orders_cursor = db.orders.find({"user_id": user_id})
+    orders_list = []
+    for order_doc in await orders_cursor.to_list(length=None): # Fetch all matching orders
+        orders_list.append(Order(**order_doc))
+    
+    if not orders_list:
+        # It's better to return an empty list if no orders are found, 
+        # rather than a 404, so the frontend can display "No orders found".
+        return []
+        
+    return orders_list
