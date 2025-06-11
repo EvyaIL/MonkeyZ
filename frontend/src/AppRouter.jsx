@@ -1,6 +1,5 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import * as React from "react";
-import { Suspense } from "react";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -23,7 +22,6 @@ import Contact from "./pages/Contact";
 import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
-import UserDashboard from "./pages/UserDashboard";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
@@ -34,13 +32,6 @@ import AdminStock from "./pages/dashboard/admin/AdminStock";
 import AdminOrderCreate from "./pages/dashboard/admin/AdminOrderCreate";
 
 // Removed LazyComponentWrapper - now using direct imports with ErrorBoundary
-
-// Loading spinner component
-const LoadingSpinner = () => (
-  <div className="flex justify-center items-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-  </div>
-);
 
 function AppRouter() {
   const location = useLocation();
@@ -64,7 +55,6 @@ function AppRouter() {
         {/* Protected user routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/account" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
         
         {/* Protected admin routes */}
         <Route
