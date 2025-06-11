@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 from bson import ObjectId
+from enum import Enum
 
 class OrderItem(BaseModel):
     productId: str
@@ -41,3 +42,9 @@ class Order(BaseModel):
 class OrderStatusUpdateRequest(BaseModel):
     status: str
     note: Optional[str] = None
+
+class StatusEnum(str, Enum):
+    PENDING = "Pending"
+    PROCESSING = "Processing"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"

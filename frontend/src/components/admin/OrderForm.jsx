@@ -282,7 +282,6 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
               <select name="status" id="status" value={formData.status} onChange={handleInputChange} className={inputClass}>
                 <option value="Pending">{t('admin.orderStatus.pending', 'Pending')}</option>
                 <option value="Processing">{t('admin.orderStatus.processing', 'Processing')}</option>
-                <option value="Shipped">{t('admin.orderStatus.shipped', 'Shipped')}</option>
                 <option value="Completed">{t('admin.orderStatus.completed', 'Completed')}</option>
                 <option value="Cancelled">{t('admin.orderStatus.cancelled', 'Cancelled')}</option>
               </select>
@@ -375,7 +374,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
                   <div>
                     <p className="font-medium text-gray-800 dark:text-gray-200">{item.name || `${t('admin.orderForm.productIdFallback', 'Product ID')}: ${item.productId}`}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('admin.orderForm.itemQuantityPrice', '{quantity} x ₪{price, number, ::currency/ILS unit-width-narrow}', { quantity: item.quantity, price: item.price })}
+                      {/* Correctly display quantity and price */}
+                      {item.quantity} x ₪{typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}
                     </p>
                   </div>
                   <button type="button" onClick={() => handleRemoveItem(index)} className="text-red-500 hover:text-red-700 font-medium">

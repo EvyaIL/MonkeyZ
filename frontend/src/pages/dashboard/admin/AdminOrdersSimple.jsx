@@ -17,14 +17,18 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  TextField, // Added for coupon input
-  Dialog, // Added for delete confirmation
-  DialogActions, // Added
-  DialogContent, // Added
-  DialogContentText, // Added
-  DialogTitle // Added
+  TextField, 
+  Dialog, 
+  DialogActions, 
+  DialogContent, 
+  DialogContentText, 
+  DialogTitle,
+  Grid, 
+  Card, 
+  CardContent,
+  TableSortLabel // Added for sortable table in modal
 } from '@mui/material';
-import { Edit as EditIcon, Add as AddIcon, Visibility as VisibilityIcon, Delete as DeleteIcon } from '@mui/icons-material'; // Added DeleteIcon
+import { Edit as EditIcon, Add as AddIcon, Visibility as VisibilityIcon, Delete as DeleteIcon, Close as CloseIcon } from '@mui/icons-material'; // Added CloseIcon
 import { useNavigate } from 'react-router-dom'; // For navigation if needed, or for OrderForm
 import { useTranslation } from 'react-i18next'; // For i18n
 
@@ -43,17 +47,106 @@ function AdminOrdersSimple() {
   
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
-  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null); // For a details modal
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null); 
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
 
-  // State for products (needed for OrderForm)
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
-  // State for delete confirmation
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
 
+  const [analyticsData, setAnalyticsData] = useState(null); 
+
+  // State for analytics detail modal
+  const [showAnalyticsDetailModal, setShowAnalyticsDetailModal] = useState(false);
+  const [analyticsDetailTitle, setAnalyticsDetailTitle] = useState('');
+  const [analyticsDetailData, setAnalyticsDetailData] = useState(null);
+  const [analyticsDetailType, setAnalyticsDetailType] = useState(''); // 'customers' or 'products'
+
+  const handleOpenAnalyticsDetailModal = (title, data, type) => {
+    setAnalyticsDetailTitle(title);
+    setAnalyticsDetailData(data);
+    setAnalyticsDetailType(type);
+    setShowAnalyticsDetailModal(true);
+  };
+
+  const handleCloseAnalyticsDetailModal = () => {
+    setShowAnalyticsDetailModal(false);
+    setAnalyticsDetailTitle('');
+    setAnalyticsDetailData(null);
+    setAnalyticsDetailType('');
+  };
+
+  const calculateAnalytics = useCallback((ordersData) => {
+    if (!ordersData || ordersData.length === 0) {
+      return null;
+    }
+
+    const statusCounts = {
+      Pending: 0,
+      Processing: 0,
+      Completed: 0,
+      Cancelled: 0,
+      Total: ordersData.length,
+    };
+    let totalOriginalAmount = 0;
+    let totalFinalAmount = 0;
+    const customerOrders = {};
+    const productStats = {};
+    let totalProductsSoldCount = 0;
+
+    ordersData.forEach(order => {
+      statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+
+      if (order.status !== 'Cancelled') {
+        totalOriginalAmount += order.original_total || order.total || 0;
+        totalFinalAmount += order.total || 0;
+
+        const customerIdentifier = order.user_id || order.email || order.customerName;
+        if (customerIdentifier) {
+          if (!customerOrders[customerIdentifier]) {
+            customerOrders[customerIdentifier] = { count: 0, totalValue: 0, name: order.customerName || order.email };
+          }
+          customerOrders[customerIdentifier].count += 1;
+          customerOrders[customerIdentifier].totalValue += order.total || 0;
+        }
+
+        order.items.forEach(item => {
+          totalProductsSoldCount += item.quantity;
+          const productName = item.name || `Product ID: ${item.productId}`;
+          if (!productStats[productName]) {
+            productStats[productName] = { count: 0, quantity: 0, productId: item.productId };
+          }
+          productStats[productName].count += 1; // Number of times this product appears in orders
+          productStats[productName].quantity += item.quantity; // Total quantity sold of this product
+        });
+      }
+    });
+
+    const uniqueCustomersCount = Object.keys(customerOrders).length;
+    const uniqueProductsOrdered = Object.keys(productStats).length;
+
+    return {
+      statusCounts,
+      totalOriginalAmount,
+      totalFinalAmount,
+      customerOrders, // Detailed per customer
+      uniqueCustomersCount,
+      productStats, // Detailed per product
+      uniqueProductsOrdered,
+      totalProductsSoldCount,
+    };
+  }, []);
+
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      const data = calculateAnalytics(orders);
+      setAnalyticsData(data);
+    } else {
+      setAnalyticsData(null);
+    }
+  }, [orders, calculateAnalytics]);
 
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
@@ -78,6 +171,7 @@ function AdminOrdersSimple() {
       const response = await apiService.get('/api/orders');
       if (response.data) {
         setOrders(response.data);
+        // Analytics will be recalculated by useEffect watching 'orders'
       } else {
         setOrderError(response.error || t('admin.orders.loadError', 'Failed to load orders.'));
         notify({ message: t('admin.orders.loadError', 'Failed to load orders.'), type: 'error' });
@@ -216,11 +310,113 @@ function AdminOrdersSimple() {
           color="primary"
           startIcon={<AddIcon />}
           onClick={handleCreateNewOrder}
-          disabled={loadingProducts} // Disable if products are still loading for the form
+          disabled={loadingProducts} 
         >
           {t('admin.orders.createNew', 'Create New Order')}
         </Button>
       </Box>
+
+      {/* Analytics Section */}
+      {analyticsData && !loadingOrders && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
+            {t('admin.orders.analyticsTitle', 'Order Analytics')}
+          </Typography>
+          <Grid container spacing={2}>
+            {/* Row 1: Total Orders, Pending, Processing (md=4 each) */}
+            <Grid item xs={12} sm={6} md={4}> {/* Changed from md={3} */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.totalOrders', 'Total Orders')}</Typography>
+                  <Typography variant="h4">{analyticsData.statusCounts.Total}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}> {/* Changed from md={3} */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.pendingOrders', 'Pending')}</Typography>
+                  <Typography variant="h4" color="orange">{analyticsData.statusCounts.Pending || 0}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}> {/* Changed from md={3} */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.processingOrders', 'Processing')}</Typography>
+                  <Typography variant="h4" color="blue">{analyticsData.statusCounts.Processing || 0}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Row 2: Completed, Cancelled, Unique Customers (md=4 each) */}
+            <Grid item xs={12} sm={6} md={4}> {/* Changed from md={3} */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.completedOrders', 'Completed')}</Typography>
+                  <Typography variant="h4" color="green">{analyticsData.statusCounts.Completed || 0}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}> {/* Changed from md={3} */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.cancelledOrders', 'Cancelled')}</Typography>
+                  <Typography variant="h4" color="red">{analyticsData.statusCounts.Cancelled || 0}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}> {/* Changed from md={3} */}
+              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 6 } }} onClick={() => handleOpenAnalyticsDetailModal(t('admin.analytics.customerOrderDetailsTitle', 'Customer Order Details'), analyticsData.customerOrders, 'customers')}>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.uniqueCustomers', 'Unique Customers')}</Typography>
+                  <Typography variant="h4">{analyticsData.uniqueCustomersCount}</Typography>
+                   <Typography variant="caption">{t('admin.analytics.withNonCancelledOrders', '(with non-cancelled orders)')}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Row 3: Revenues, Total Units Sold, Unique Products (md=3 each) */}
+            <Grid item xs={12} sm={6} md={3}> {/* Was md={3}, kept md={3} and moved to this row */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.totalRevenueOriginal', 'Total Revenue (Original)')}</Typography>
+                  <Typography variant="h5">₪{analyticsData.totalOriginalAmount.toFixed(2)}</Typography>
+                  <Typography variant="caption">{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}> {/* Was md={3}, kept md={3} and moved to this row */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.totalRevenueFinal', 'Total Revenue (Final)')}</Typography>
+                  <Typography variant="h5">₪{analyticsData.totalFinalAmount.toFixed(2)}</Typography>
+                  <Typography variant="caption">{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            {/* New Card: Total Product Units Sold */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.totalUnitsSold', 'Total Units Sold')}</Typography>
+                  <Typography variant="h4">{analyticsData.totalProductUnitsSold}</Typography>
+                  <Typography variant="caption">{t('admin.analytics.inNonCancelledOrders', '(in non-cancelled orders)')}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}> {/* Changed from md={4} */}
+              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 6 } }} onClick={() => handleOpenAnalyticsDetailModal(t('admin.analytics.productOrderDetailsTitle', 'Product Order Details'), analyticsData.productStats, 'products')}>
+                <CardContent>
+                  <Typography variant="h6">{t('admin.analytics.uniqueProductsOrdered', 'Unique Products Ordered')}</Typography>
+                  <Typography variant="h4">{analyticsData.uniqueProductsOrdered}</Typography>
+                   <Typography variant="caption">{t('admin.analytics.inNonCancelledOrders', '(in non-cancelled orders)')}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       <Paper sx={{ p: 2, mt: 2, mb: 2 }}>
         <FormControl fullWidth size="small">
@@ -234,7 +430,6 @@ function AdminOrdersSimple() {
             <MenuItem value="all">{t('admin.statusAll', 'All')}</MenuItem>
             <MenuItem value="Pending">{t('admin.statusPending', 'Pending')}</MenuItem>
             <MenuItem value="Processing">{t('admin.statusProcessing', 'Processing')}</MenuItem>
-            <MenuItem value="Shipped">{t('admin.statusShipped', 'Shipped')}</MenuItem>
             <MenuItem value="Completed">{t('admin.statusCompleted', 'Completed')}</MenuItem>
             <MenuItem value="Cancelled">{t('admin.statusCancelled', 'Cancelled')}</MenuItem>
           </Select>
@@ -294,7 +489,6 @@ function AdminOrdersSimple() {
                           order.status === 'Completed' ? 'green' :
                           order.status === 'Pending' ? 'orange' :
                           order.status === 'Processing' ? 'blue' :
-                          order.status === 'Shipped' ? '#17a2b8' : // Bootstrap info color
                           order.status === 'Cancelled' ? 'red' :
                           'gray'
                      }}>
@@ -373,7 +567,6 @@ function AdminOrdersSimple() {
                 >
                   <MenuItem value="Pending">{t('admin.statusPending', 'Pending')}</MenuItem>
                   <MenuItem value="Processing">{t('admin.statusProcessing', 'Processing')}</MenuItem>
-                  <MenuItem value="Shipped">{t('admin.statusShipped', 'Shipped')}</MenuItem>
                   <MenuItem value="Completed">{t('admin.statusCompleted', 'Completed')}</MenuItem>
                   <MenuItem value="Cancelled">{t('admin.statusCancelled', 'Cancelled')}</MenuItem>
                 </Select>
@@ -408,6 +601,76 @@ function AdminOrdersSimple() {
           <Button onClick={handleDeleteOrder} color="error" autoFocus>
             {t('admin.deleteButton', 'Delete')}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Analytics Detail Modal */}
+      <Dialog open={showAnalyticsDetailModal} onClose={handleCloseAnalyticsDetailModal} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {analyticsDetailTitle}
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseAnalyticsDetailModal}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {analyticsDetailData && analyticsDetailType === 'customers' && (
+            <TableContainer component={Paper}>
+              <Table stickyHeader aria-label="customer analytics table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t('admin.analytics.modal.customerName', 'Customer Name/ID')}</TableCell>
+                    <TableCell align="right">{t('admin.analytics.modal.orderCount', 'Order Count')}</TableCell>
+                    <TableCell align="right">{t('admin.analytics.modal.totalSpent', 'Total Spent')}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Object.entries(analyticsDetailData).map(([key, value]) => (
+                    <TableRow hover key={key}>
+                      <TableCell>{value.name}</TableCell>
+                      <TableCell align="right">{value.count}</TableCell>
+                      <TableCell align="right">₪{value.totalValue.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+          {analyticsDetailData && analyticsDetailType === 'products' && (
+            <TableContainer component={Paper}>
+              <Table stickyHeader aria-label="product analytics table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t('admin.analytics.modal.productName', 'Product Name')}</TableCell>
+                    <TableCell>{t('admin.analytics.modal.productId', 'Product ID')}</TableCell>
+                    <TableCell align="right">{t('admin.analytics.modal.timesOrdered', 'Times Ordered')}</TableCell>
+                    <TableCell align="right">{t('admin.analytics.modal.totalQuantitySold', 'Total Quantity Sold')}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Object.entries(analyticsDetailData).map(([productName, stats]) => (
+                    <TableRow hover key={productName}>
+                      <TableCell>{productName}</TableCell>
+                      <TableCell>{stats.productId}</TableCell>
+                      <TableCell align="right">{stats.count}</TableCell>
+                      <TableCell align="right">{stats.quantity}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAnalyticsDetailModal}>{t('admin.buttons.close', 'Close')}</Button>
         </DialogActions>
       </Dialog>
     </Box>
