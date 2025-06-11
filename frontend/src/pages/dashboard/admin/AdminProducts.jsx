@@ -39,6 +39,8 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import KeyBulkManagement from '../../../components/admin/KeyBulkManagement';
 import KeyManagementSection from '../../../components/admin/KeyManagementSection';
+import AssessmentIcon from '@mui/icons-material/Assessment'; // For analytics
+import InfoIcon from '@mui/icons-material/Info'; // For info icons on cards
 
 export default function AdminProducts() {
   const { t } = useTranslation();
@@ -60,7 +62,15 @@ export default function AdminProducts() {
   const [keyReuse, setKeyReuse] = useState(false);
   const [keyExpiry, setKeyExpiry] = useState(false);
   const [autoGenerateKeys, setAutoGenerateKeys] = useState(false);
-  const [keyValidityDays, setKeyValidityDays] = useState(365);  const loadProducts = useCallback(async () => {
+  const [keyValidityDays, setKeyValidityDays] = useState(365);
+
+  // State for analytics
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [analyticsModalTitle, setAnalyticsModalTitle] = useState('');
+  const [analyticsModalContent, setAnalyticsModalContent] = useState(null);
+
+  const loadProducts = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -95,6 +105,7 @@ export default function AdminProducts() {
       
       setProducts(productsWithIds);
       console.log('Processed products:', productsWithIds);
+      calculateAnalytics(productsWithIds); // Calculate analytics after loading products
     } catch (err) {
       console.error('Error loading products:', err);
       setError(t('admin.loadError') || 'Failed to load products');
@@ -105,6 +116,75 @@ export default function AdminProducts() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  const calculateAnalytics = (currentProducts) => {
+    if (!currentProducts || currentProducts.length === 0) {
+      setAnalyticsData(null);
+      return;
+    }
+
+    const totalProducts = currentProducts.length;
+    const newProducts = currentProducts.filter(p => p.is_new).length;
+    const discountedProducts = currentProducts.filter(p => p.percent_off && p.percent_off > 0).length;
+    const bestSellerProducts = currentProducts.filter(p => p.best_seller).length;
+    const activeProducts = currentProducts.filter(p => p.active).length;
+    const inactiveProducts = totalProducts - activeProducts;
+    const onHomepageProducts = currentProducts.filter(p => p.displayOnHomePage).length;
+
+    const categoriesCount = currentProducts.reduce((acc, product) => {
+      const category = product.category || 'Uncategorized';
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {});
+
+    setAnalyticsData({
+      totalProducts,
+      newProducts,
+      discountedProducts,
+      bestSellerProducts,
+      activeProducts,
+      inactiveProducts,
+      onHomepageProducts,
+      categoriesCount,
+    });
+  };
+
+  const handleOpenAnalyticsModal = (title, dataRenderer) => {
+    setAnalyticsModalTitle(title);
+    setAnalyticsModalContent(dataRenderer);
+    setShowAnalyticsModal(true);
+  };
+
+  const renderCategoryAnalytics = () => {
+    if (!analyticsData || !analyticsData.categoriesCount) return null;
+    return (
+      <Box>
+        {Object.entries(analyticsData.categoriesCount)
+          .sort(([, countA], [, countB]) => countB - countA)
+          .map(([category, count]) => (
+            <Typography key={category} variant="body1">
+              {category}: {count}
+            </Typography>
+          ))}
+      </Box>
+    );
+  };
+
+  const renderStatusVisibilityAnalytics = () => {
+    if (!analyticsData) return null;
+    return (
+      <Box>
+        <Typography variant="h6" gutterBottom>Product Status</Typography>
+        <Typography variant="body1">Active: {analyticsData.activeProducts}</Typography>
+        <Typography variant="body1">Inactive: {analyticsData.inactiveProducts}</Typography>
+        <Divider sx={{ my: 2 }} />
+        <Typography variant="h6" gutterBottom>Visibility</Typography>
+        <Typography variant="body1">Best Sellers: {analyticsData.bestSellerProducts}</Typography>
+        <Typography variant="body1">Displayed on Homepage: {analyticsData.onHomepageProducts}</Typography>
+      </Box>
+    );
+  };
+
 
   // Sync state with editingProduct when it changes
   useEffect(() => {
@@ -336,6 +416,74 @@ export default function AdminProducts() {
           </Alert>
         )}
       </Box>
+
+      {/* Product Analytics Section */}
+      {analyticsData && (
+        <Box mb={4}>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+            <AssessmentIcon sx={{ mr: 1 }} /> Product Analytics
+          </Typography>
+          <Grid container spacing={2}>
+            {/* General Stats Card */}
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <InfoIcon sx={{ mr: 0.5, color: 'primary.main' }} /> General Stats
+                  </Typography>
+                  <Typography variant="body1">Total Products: {analyticsData.totalProducts}</Typography>
+                  <Typography variant="body1">New Products (last 30 days): {analyticsData.newProducts}</Typography>
+                  <Typography variant="body1">Products with Discount: {analyticsData.discountedProducts}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Status & Visibility Card (Clickable) */}
+            <Grid item xs={12} md={4}>
+              <Card onClick={() => handleOpenAnalyticsModal('Product Status & Visibility', renderStatusVisibilityAnalytics)} sx={{ cursor: 'pointer', height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <InfoIcon sx={{ mr: 0.5, color: 'primary.main' }} /> Status & Visibility
+                  </Typography>
+                  <Typography variant="body1">Active: {analyticsData.activeProducts} / Inactive: {analyticsData.inactiveProducts}</Typography>
+                  <Typography variant="body1">Best Sellers: {analyticsData.bestSellerProducts}</Typography>
+                  <Typography variant="body1">On Homepage: {analyticsData.onHomepageProducts}</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Click to see details</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Category Breakdown Card (Clickable) */}
+            <Grid item xs={12} md={4}>
+              <Card onClick={() => handleOpenAnalyticsModal('Products by Category', renderCategoryAnalytics)} sx={{ cursor: 'pointer', height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <InfoIcon sx={{ mr: 0.5, color: 'primary.main' }} /> Category Breakdown
+                  </Typography>
+                  {analyticsData.categoriesCount && Object.keys(analyticsData.categoriesCount).length > 0 ? (
+                    <>
+                      {Object.entries(analyticsData.categoriesCount)
+                        .sort(([, countA], [, countB]) => countB - countA)
+                        .slice(0, 2)
+                        .map(([category, count]) => (
+                          <Typography key={category} variant="body1">
+                            {category}: {count}
+                          </Typography>
+                        ))}
+                      {Object.keys(analyticsData.categoriesCount).length > 2 && (
+                        <Typography variant="body2" color="text.secondary">+ {Object.keys(analyticsData.categoriesCount).length - 2} more</Typography>
+                      )}
+                    </>
+                  ) : (
+                    <Typography variant="body1">No category data</Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Click to see all categories</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
 
       {/* Key Management Overview */}
       <Box mb={4}>
@@ -810,6 +958,22 @@ export default function AdminProducts() {
         onSuccess={loadProducts}
         t={t}
       />
+
+      {/* Analytics Modal */}
+      <Dialog open={showAnalyticsModal} onClose={() => setShowAnalyticsModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {analyticsModalTitle}
+          <IconButton onClick={() => setShowAnalyticsModal(false)} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {analyticsModalContent}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAnalyticsModal(false)}>{t('common.close')}</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
