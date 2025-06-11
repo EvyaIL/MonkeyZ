@@ -48,7 +48,8 @@ async def get_order(
         raise HTTPException(status_code=403, detail="Admin access required")
 
     db = await mongo_db.get_db()
-    order_from_db = db.orders.find_one({"_id": ObjectId(order_id)})
+    # Ensure find_one is awaited
+    order_from_db = await db.orders.find_one({"_id": ObjectId(order_id)})
     if not order_from_db:
         raise HTTPException(status_code=404, detail="Order not found")
     return Order(**order_from_db)
@@ -120,7 +121,7 @@ async def create_order(
 
         # 5. Database insertion
         db = await mongo_db.get_db()
-        insert_result = db.orders.insert_one(order_dict_for_db)
+        insert_result = await db.orders.insert_one(order_dict_for_db) # Added await
         
         if not insert_result.inserted_id:
             # This means MongoDB acknowledged the write but didn't return an _id, which is unusual for insert_one.
@@ -130,7 +131,7 @@ async def create_order(
 
         # 6. Retrieve and return the created order
         # Fetch using the ObjectId that was definitely used for insertion.
-        created_order_from_db = db.orders.find_one({"_id": order_dict_for_db["_id"]})
+        created_order_from_db = await db.orders.find_one({"_id": order_dict_for_db["_id"]}) # Added await
         
         if not created_order_from_db:
             # This would be very strange if insert_one succeeded.
@@ -189,7 +190,8 @@ async def update_order(
         raise HTTPException(status_code=403, detail="Admin access required")
 
     db = await mongo_db.get_db()
-    existing_order_doc = db.orders.find_one({"_id": ObjectId(order_id)})
+    # Ensure find_one is awaited
+    existing_order_doc = await db.orders.find_one({"_id": ObjectId(order_id)})
     if not existing_order_doc:
         raise HTTPException(status_code=404, detail="Order not found")
 
@@ -213,7 +215,8 @@ async def update_order(
             note=update_data.get("notes", f"Status changed to {update_data['status']} by admin") # Or a more specific note if provided
         ).model_dump()
         
-        result = db.orders.update_one(
+        # Ensure update_one is awaited
+        result = await db.orders.update_one(
             {"_id": ObjectId(order_id)},
             {
                 "$set": fields_to_set,
@@ -221,19 +224,16 @@ async def update_order(
             }
         )
     elif fields_to_set: # If other fields are being updated without status change, or status is same
-        result = db.orders.update_one(
+        # Ensure update_one is awaited
+        result = await db.orders.update_one(
             {"_id": ObjectId(order_id)},
             {"$set": fields_to_set}
         )
     else: # No actual changes to set, but maybe status history needs an update if notes were part of status change logic
         pass # Or return existing_order if no changes detected
 
-    if result and result.modified_count == 0 and not ("status" in update_data and update_data["status"] != existing_order.status and fields_to_set):
-        # If nothing was modified and it wasn't just a status history push for an existing status
-        # This condition might need refinement based on exact desired behavior for no-op updates
-        pass
-
-    updated_order_from_db = db.orders.find_one({"_id": ObjectId(order_id)})
+    # Ensure find_one is awaited
+    updated_order_from_db = await db.orders.find_one({"_id": ObjectId(order_id)})
     if not updated_order_from_db: 
         raise HTTPException(status_code=404, detail="Order not found after update attempt")
     return Order(**updated_order_from_db)
@@ -250,7 +250,8 @@ async def update_order_status_specific(
         raise HTTPException(status_code=403, detail="Admin access required")
 
     db = await mongo_db.get_db()
-    existing_order = db.orders.find_one({"_id": ObjectId(order_id)})
+    # Ensure find_one is awaited
+    existing_order = await db.orders.find_one({"_id": ObjectId(order_id)})
     if not existing_order:
         raise HTTPException(status_code=404, detail="Order not found")
 
@@ -265,7 +266,8 @@ async def update_order_status_specific(
         note=status_update.note or f"Status changed to {status_update.status} by admin"
     ).model_dump()
 
-    result = db.orders.update_one(
+    # Ensure update_one is awaited
+    result = await db.orders.update_one(
         {"_id": ObjectId(order_id)},
         {
             "$set": {"status": status_update.status, "updatedAt": datetime.utcnow()},
@@ -277,14 +279,16 @@ async def update_order_status_specific(
         # This might happen if the order was deleted just before this update
         # Or if the status was somehow already updated by another process to the target status
         # Re-fetch to be sure and to get the latest doc for the response
-        updated_order_check = db.orders.find_one({"_id": ObjectId(order_id)})
+        # Ensure find_one is awaited
+        updated_order_check = await db.orders.find_one({"_id": ObjectId(order_id)})
         if not updated_order_check:
              raise HTTPException(status_code=404, detail="Order not found after status update attempt.")
         # If it exists but wasn't modified by this operation (e.g. status was already as requested)
         # still return it as the state is consistent with the request.
         return Order(**updated_order_check)
 
-    updated_order_from_db = db.orders.find_one({"_id": ObjectId(order_id)})
+    # Ensure find_one is awaited
+    updated_order_from_db = await db.orders.find_one({"_id": ObjectId(order_id)})
     if not updated_order_from_db:
         # Should be extremely rare if modified_count was > 0
         raise HTTPException(status_code=404, detail="Order not found after successful status update.")

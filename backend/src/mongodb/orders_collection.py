@@ -37,3 +37,13 @@ class OrdersCollection(MongoDb, metaclass=Singleton):
         if order_doc:
             return Order(**order_doc)
         return None
+
+    async def get_orders_by_email(self, email: str) -> List[Order]:
+        db = await self.get_db()
+        orders_cursor = db.orders.find({"email": email})
+        orders_list = []
+        async for order_doc in orders_cursor:
+            if '_id' in order_doc and isinstance(order_doc['_id'], ObjectId):
+                order_doc['_id'] = str(order_doc['_id']) # Convert ObjectId to string
+            orders_list.append(Order(**order_doc))
+        return orders_list

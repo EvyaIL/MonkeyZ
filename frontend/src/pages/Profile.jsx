@@ -17,7 +17,7 @@ const Profile = () => {
       const fetchOrders = async () => {
         setOrdersLoading(true);
         try {
-          const response = await apiService.get("/user/orders");
+          const response = await apiService.get("/user/me/orders"); // Changed to /user/me/orders
           if (response.data) {
             setOrders(response.data);
           }
@@ -133,7 +133,25 @@ const Profile = () => {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
                     <p><span className="font-medium">{t("order_date_label", "Date:")}</span> {new Date(order.createdAt || order.date).toLocaleDateString()}</p>
-                    <p><span className="font-medium">{t("order_total_label", "Total:")}</span> ${order.totalAmount?.toFixed(2) || 'N/A'}</p>
+                    <p><span className="font-medium">{t("order_total_label", "Total:")}</span> ${order.total?.toFixed(2) || 'N/A'}</p> {/* Changed totalAmount to total */}
+                  </div>
+                  {/* Display Order Items */}
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t("order_items_label", "Items:")}</h4>
+                    {order.items && order.items.length > 0 ? (
+                      <ul className="space-y-2">
+                        {order.items.map((item, index) => (
+                          <li key={index} className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                            <span>
+                              {item.name} (x{item.quantity})
+                            </span>
+                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{t("no_items_in_order", "No items found in this order.")}</p>
+                    )}
                   </div>
                   {/* You could add a button/link here to view order details if you have a separate order details page */}
                   {/* e.g., <PrimaryButton title={t("view_details", "View Details")} onClick={() => navigate(`/order/${order.id}`)} otherStyle="mt-4 text-sm py-1.5 px-3" /> */}

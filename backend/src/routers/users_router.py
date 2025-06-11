@@ -235,3 +235,27 @@ async def get_current_user_details(
     # Exclude sensitive fields like password
     user_dict = user.dict(exclude={"password", "email_verified", "is_superuser"})
     return SelfResponse(**user_dict)
+
+@users_router.get("/me/orders", response_model=List[Order])
+async def get_my_orders(
+    current_user: TokenData = Depends(get_current_user),
+    orders_collection: OrdersCollection = Depends(get_order_collection_dependency),
+    user_controller: UserController = Depends(get_user_controller_dependency) # Added UserController dependency
+):
+    # Fetch the full user object to get the email
+    user = await user_controller.user_collection.get_user_by_username(current_user.username)
+    if not user or not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="User not found or email is missing for the authenticated user."
+        )
+
+    user_email = user.email # Use the email from the fetched user object
+    
+    if not user_email: # Should be redundant due to the check above, but good for safety
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email is missing for the user.")
+    
+    orders = await orders_collection.get_orders_by_email(user_email)
+    if not orders:
+        return [] 
+    return orders
