@@ -17,7 +17,6 @@ class Product(Document):
     displayOnHomePage: bool = False  # New field for homepage display
     slug: Optional[str] = None  # Unique URL-friendly identifier
     category: Optional[str] = None # Product category
-    imageUrl: Optional[str] = None # Product image URL
 
 class ProductRequest(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -31,6 +30,5 @@ class ProductRequest(BaseModel):
     displayOnHomePage: bool = False  # New field for homepage display
     slug: Optional[str] = None  # Unique URL-friendly identifier
     category: Optional[str] = None # Product category
-    imageUrl: Optional[str] = None # Product image URL
 
 

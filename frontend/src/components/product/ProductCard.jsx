@@ -1,46 +1,21 @@
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react"; // Added useEffect
+import { useState } from "react";
 import placeholderImage from '../../assets/placeholder-product.svg';
 
 const ProductCard = ({ product, otherStyle }) => {
   const navigate = useNavigate();
   const { addItemToCart, notify } = useGlobalProvider();
   const { t, i18n } = useTranslation();
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const lang = i18n.language || "he";
 
-  // Prioritize product.imageUrl, then product.image
-  const imageSourceFromProduct = product.imageUrl || product.image;
-
-  const [currentSrc, setCurrentSrc] = useState(imageSourceFromProduct || placeholderImage);
-  const [imageLoaded, setImageLoaded] = useState(false);
-
-  // Log product image details and derived source
-  useEffect(() => {
-    console.log(`ProductCard - Product: ${JSON.stringify(product.name)}, product.image: ${product.image}, product.imageUrl: ${product.imageUrl}, Effective source: ${imageSourceFromProduct || 'none'}, Initial currentSrc: ${currentSrc}`);
-  }, [product.name, product.image, product.imageUrl, imageSourceFromProduct, currentSrc]); // Added dependencies for comprehensive logging
-
-  // Effect to update image src and reset loaded state when product image fields change
-  useEffect(() => {
-    const newImageSource = product.imageUrl || product.image;
-    setImageLoaded(false); // Reset loaded state for the new image
-    setCurrentSrc(newImageSource || placeholderImage);
-  }, [product.image, product.imageUrl]); // Depend on both possible image fields
-
+  // Support both {en, he} object and plain string
   const displayName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
   const displayDesc = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
 
-  const handleImageError = () => {
-    console.log(`ProductCard - Image error for src: ${currentSrc}. Original intended src was: ${imageSourceFromProduct}`);
-    // If the current source (that failed) is not already the placeholder, switch to placeholder.
-    if (currentSrc !== placeholderImage) {
-      setCurrentSrc(placeholderImage);
-      setImageLoaded(false); // Allow placeholder to attempt loading (and show spinner)
-    }
-    // If placeholderImage itself fails, imageLoaded will remain false, and alt text will be important.
-  };
-  
   // Handle adding to cart
   const handleAddToCart = (e) => {
     e.stopPropagation();
@@ -89,25 +64,25 @@ const ProductCard = ({ product, otherStyle }) => {
         }}
       >
         <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-accent/5 dark:bg-gray-900 border border-accent/10 dark:border-accent/10 group-hover:border-accent/30 transition-colors duration-300">
-          {!imageLoaded && (
+          {!imageLoaded && !imageError && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="animate-pulse w-8 h-8 rounded-full bg-accent/50"></div>
             </div>
           )}
           
           <img
-            key={currentSrc} // Add key to help React re-render if src is set to the same value again
-            src={currentSrc}
+            src={product.image || placeholderImage}
             alt={displayName}
             loading="lazy"
             className={`w-full h-full object-contain transition-all duration-300 ${
-              imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
+              imageLoaded && !imageError ? "opacity-100 scale-100" : "opacity-0 scale-95"
             } group-hover:scale-105`}
-            onLoad={() => {
+            onLoad={() => setImageLoaded(true)}
+            onError={(e) => {
+              setImageError(true);
+              e.target.src = placeholderImage;
               setImageLoaded(true);
-              console.log(`ProductCard - Image loaded successfully: ${currentSrc}`); // Log on load
             }}
-            onError={handleImageError}
           />
           
           {/* Tags Container - Top Right */}
