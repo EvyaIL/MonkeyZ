@@ -159,7 +159,12 @@ const Navbar = () => {
                   >
                     {t("profile")}
                   </Link>
-                  {user.role === 0 && (
+                  <Link 
+                    to="/dashboard" 
+                    className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
+                  >
+                    {t("dashboard")}
+                  </Link>                  {user.role === 0 && (
                     <Link 
                       to="/dashboard/admin" 
                       className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"

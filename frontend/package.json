@@ -7,8 +7,7 @@
     "@emailjs/browser": "^4.4.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@heroicons/react": "^2.2.0",
-    "@mui/icons-material": "^5.15.13",
+    "@heroicons/react": "^2.2.0",    "@mui/icons-material": "^5.15.13",
     "@mui/material": "^5.15.13",
     "@mui/system": "^5.15.13",
     "@mui/utils": "^5.15.13",
@@ -39,7 +38,6 @@
     "react-i18next": "^15.5.1",
     "react-router-dom": "^7.2.0",
     "react-scripts": "^5.0.1",
-    "react-toastify": "^11.0.5",
     "reselect": "^4.1.8",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.8.3",
@@ -50,14 +48,12 @@
     "dotenv": "^16.4.5",
     "prettier": "^3.2.5",
     "react-app-rewired": "^2.2.1"
-  },
-  "scripts": {
+  },  "scripts": {
     "start": "set PORT=3000 && react-scripts start",
     "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "prod": "cross-env NODE_ENV=production node standalone-server.js",
     "start:debug": "cross-env NODE_DEBUG=http,fs node standalone-server.js"
-  },
-  "proxy": "http://localhost:8000",
+  },  "proxy": "http://localhost:8000",
   "engines": {
     "node": "20.x"
   },
@@ -66,8 +62,7 @@
       "react-app",
       "react-app/jest"
     ]
-  },
-  "browserslist": {
+  },  "browserslist": {
     "production": [
       ">0.2%",
       "not dead",

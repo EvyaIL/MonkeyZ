@@ -7,8 +7,6 @@ from ..deps.deps import get_user_controller_dependency
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional, List, Any
-from pymongo.database import Database
-from bson import ObjectId
 
 # Order Models
 class OrderItem(BaseModel):
@@ -36,43 +34,11 @@ class Order(BaseModel):
 
 # Get MongoDB instance
 mongo_db = MongoDb()
+from datetime import datetime
+from pymongo.database import Database
+from bson import ObjectId
 
 router = APIRouter()
-
-@router.get("/user/my-orders", response_model=List[Order])
-async def get_my_orders(
-    current_user: dict = Depends(get_current_user), # Changed to dict to match get_current_user return
-    db: Database = Depends(mongo_db.get_database) # Use dependency injection for db
-):
-    # current_user will contain user details including email, typically from the token's 'sub' field
-    # Assuming the 'sub' field of the token (current_user.username) stores the user's email
-    # or that user_controller can fetch email based on username.
-    # For now, let's assume current_user.username IS the email for simplicity,
-    # or we need to fetch the user object to get the email if 'sub' is just username.
-    
-    # If current_user.sub is username, we'd ideally fetch the user document to get their email.
-    # For this example, let's assume current_user.username is the email.
-    # If not, you would do:
-    # user_doc = await db.users.find_one({"username": current_user.username})
-    # if not user_doc:
-    #     raise HTTPException(status_code=404, detail="User not found")
-    # user_email = user_doc["email"]
-    
-    # Directly using current_user.username as email, adjust if 'sub' is not email
-    user_email = current_user.username 
-
-    orders_cursor = db.orders.find({"email": user_email})
-    orders_list = []
-    for order_doc in await orders_cursor.to_list(length=None): # Ensure to await to_list
-        order_doc["id"] = str(order_doc["_id"])
-        orders_list.append(Order(**order_doc))
-    
-    if not orders_list:
-        # It's better to return an empty list if no orders are found,
-        # rather than a 404, unless the user themselves shouldn't exist.
-        return []
-        
-    return orders_list
 
 @router.get("/orders", response_model=List[Order])
 async def get_orders(
