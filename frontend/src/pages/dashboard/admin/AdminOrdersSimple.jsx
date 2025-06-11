@@ -29,8 +29,25 @@ import {
   List, // Added
   ListItem, // Added
   ListItemText, // Added
+  InputAdornment, // For icons in select
+  Chip, // Added Chip import
 } from '@mui/material';
-import { Edit as EditIcon, Add as AddIcon, Visibility as VisibilityIcon, Delete as DeleteIcon, Close as CloseIcon } from '@mui/icons-material'; // Added CloseIcon
+import { 
+  Edit as EditIcon, 
+  Add as AddIcon, 
+  Visibility as VisibilityIcon, 
+  Delete as DeleteIcon, 
+  Close as CloseIcon,
+  AssessmentOutlined as AssessmentOutlinedIcon, // For Analytics Title
+  PeopleAltOutlined as PeopleAltOutlinedIcon, // For Unique Customers
+  AttachMoneyOutlined as AttachMoneyOutlinedIcon, // For Revenue
+  ShoppingCartOutlined as ShoppingCartOutlinedIcon, // For Units Sold
+  FilterList as FilterListIcon, // For Filter section
+  InfoOutlined as InfoOutlinedIcon, // For info icons or tooltips
+  ErrorOutline as ErrorOutlineIcon, // For error messages
+  CheckCircleOutline as CheckCircleOutlineIcon, // For success messages
+  BarChart as BarChartIcon, // For status breakdown icon
+} from '@mui/icons-material'; // Added CloseIcon
 import { useTranslation } from 'react-i18next'; // For i18n
 
 import { apiService } from '../../../lib/apiService'; // Adjusted path
@@ -39,7 +56,7 @@ import { useGlobalProvider } from '../../../context/GlobalProvider'; // For noti
 
 function AdminOrdersSimple() {
   const { t } = useTranslation();
-  const { notify } = useGlobalProvider();
+  const { notify, token } = useGlobalProvider(); // Added token
   
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -153,7 +170,7 @@ function AdminOrdersSimple() {
       const data = calculateAnalytics(orders);
       setAnalyticsData(data);
     } else {
-      setAnalyticsData(null);
+      setAnalyticsData(null); // Ensure analytics data is cleared if orders are empty
     }
   }, [orders, calculateAnalytics]);
 
@@ -174,6 +191,14 @@ function AdminOrdersSimple() {
   }, [notify, t]);
 
   const refreshOrders = useCallback(async () => {
+    if (!apiService.token && !token) { // Check both apiService.token and context token
+      setOrderError(t('admin.orders.loadErrorNotAuthenticated', 'Not authenticated. Please log in.'));
+      setLoadingOrders(false);
+      setOrders([]); 
+      setAnalyticsData(null); // Clear analytics data as well
+      return;
+    }
+
     setLoadingOrders(true);
     setOrderError(null);
     try {
@@ -193,12 +218,19 @@ function AdminOrdersSimple() {
     } finally {
       setLoadingOrders(false);
     }
-  }, [notify, t]);
+  }, [notify, t, token]); // Added token to dependency array
 
   useEffect(() => {
-    refreshOrders();
-    loadProducts(); // Load products when component mounts
-  }, [refreshOrders, loadProducts]);
+    if (token) { 
+      refreshOrders();
+      loadProducts();
+    } else {
+      setLoadingOrders(false);
+      setOrders([]);
+      setAnalyticsData(null);
+      setOrderError(t('admin.orders.loadErrorNotAuthenticated', 'Not authenticated. Please log in.')); // Show error if no token
+    }
+  }, [refreshOrders, loadProducts, token, t]); // Added t to dependency array
 
   const handleCreateNewOrder = () => {
     setEditingOrder(null);
@@ -227,13 +259,13 @@ function AdminOrdersSimple() {
     setLoadingOrders(true);
     try {
       await apiService.delete(`/api/orders/${orderToDelete.id || orderToDelete._id}`);
-      notify({ message: t('admin.orders.deletedSuccess', 'Order deleted successfully!'), type: 'success' });
+      notify({ message: t('admin.orders.deletedSuccess', 'Order deleted successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       await refreshOrders();
       handleCloseDeleteDialog();
     } catch (error) {
       console.error('Error deleting order:', error);
       const errorMessage = error.response?.data?.detail || t('admin.orders.deleteError', 'Failed to delete order.');
-      notify({ message: errorMessage, type: 'error' });
+      notify({ message: errorMessage, type: 'error', icon: <ErrorOutlineIcon /> });
       setOrderError(errorMessage); // Show error on the main page if needed
     } finally {
       setLoadingOrders(false);
@@ -246,12 +278,12 @@ function AdminOrdersSimple() {
     try {
       if (editingOrder?.id || editingOrder?._id) {
         await apiService.patch(`/api/orders/${editingOrder.id || editingOrder._id}`, orderData);
-        notify({ message: t('admin.orders.updatedSuccess', 'Order updated successfully!'), type: 'success' });
+        notify({ message: t('admin.orders.updatedSuccess', 'Order updated successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       } else {
         const payload = { ...orderData };
         if (payload.user_id === '') delete payload.user_id;
         await apiService.post('/api/orders', payload);
-        notify({ message: t('admin.orders.createdSuccess', 'Order created successfully!'), type: 'success' });
+        notify({ message: t('admin.orders.createdSuccess', 'Order created successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       }
       await refreshOrders();
       setShowOrderForm(false);
@@ -260,7 +292,7 @@ function AdminOrdersSimple() {
       console.error('Error saving order:', error);
       const errorMessage = error.response?.data?.detail || t('admin.orders.saveError', 'Failed to save order.');
       setOrderError(errorMessage); // Set error to be displayed on the form
-      notify({ message: errorMessage, type: 'error' });
+      notify({ message: errorMessage, type: 'error', icon: <ErrorOutlineIcon /> });
     } finally {
       setLoadingOrders(false); // Ensure loading is stopped
     }
@@ -275,11 +307,11 @@ function AdminOrdersSimple() {
       if (selectedOrderDetails && (selectedOrderDetails.id === orderId || selectedOrderDetails._id === orderId)) {
         setSelectedOrderDetails(prev => prev ? { ...prev, status: newStatus } : null);
       }
-      notify({ message: t('admin.orders.statusUpdatedSuccess', 'Order status updated!'), type: 'success' });
+      notify({ message: t('admin.orders.statusUpdatedSuccess', 'Order status updated!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
     } catch (error) {
       console.error('Error updating order status:', error);
       const errorMessage = error.response?.data?.detail || t('admin.orders.statusUpdateError', 'Failed to update order status.');
-      notify({ message: errorMessage, type: 'error' });
+      notify({ message: errorMessage, type: 'error', icon: <ErrorOutlineIcon /> });
     }
     setLoadingOrders(false);
   };
@@ -307,103 +339,113 @@ function AdminOrdersSimple() {
   }
 
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4" gutterBottom>
-          {t('admin.manageOrders', 'Manage Orders')}
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleCreateNewOrder}
-          disabled={loadingProducts} 
-        >
-          {t('admin.orders.createNew', 'Create New Order')}
-        </Button>
-      </Box>
-
-      {/* Order Analytics Section */}
-      {analyticsData && !loadingOrders && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h5" gutterBottom sx={{ mb: 2 }}>
-            {t('admin.orders.analyticsTitle', 'Order Analytics')}
+    <Box p={3} sx={{ backgroundColor: (theme) => theme.palette.background.default, minHeight: '100vh' }}>
+      <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+            {t('admin.manageOrders', 'Manage Orders')}
           </Typography>
-          <Grid container spacing={2}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleCreateNewOrder}
+            disabled={loadingProducts}
+            sx={{ borderRadius: 2, boxShadow: '0 3px 5px 2px rgba(0, 105, 217, .3)' }}
+          >
+            {t('admin.orders.createNew', 'Create New Order')}
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Order Analytics Section */}\
+      {analyticsData && !loadingOrders && (
+        <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+          <Typography variant="h5" gutterBottom sx={{ mb: 2, display: 'flex', alignItems: 'center', color: 'text.primary' }}>
+            <AssessmentOutlinedIcon sx={{ mr: 1, color: 'primary.main' }} /> {t('admin.orders.analyticsTitle', 'Order Analytics')}
+          </Typography>
+          <Grid container spacing={3}> {/* Increased spacing */}
             {/* Total Orders Card - Clickable */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 6 }, height: '100%' }} onClick={handleOpenStatusBreakdownModal}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                  <Typography variant="h6">{t('admin.analytics.totalOrders', 'Total Orders')}</Typography>
-                  <Typography variant="h4">{analyticsData.statusCounts.Total}</Typography>
+            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size for better fit */}
+              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
+                  <BarChartIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalOrders', 'Total Orders')}</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'primary.dark' }}>{analyticsData.statusCounts.Total}</Typography>
+                  <Button size="small" onClick={handleOpenStatusBreakdownModal} sx={{ mt: 1 }}>{t('admin.analytics.viewBreakdown', 'View Breakdown')}</Button>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Unique Customers Card */}
-            <Grid item xs={12} sm={6} md={4}>
-              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 6 }, height: '100%' }} onClick={() => analyticsData.customerOrders && handleOpenAnalyticsDetailModal(t('admin.analytics.customerOrderDetailsTitle', 'Customer Order Details'), analyticsData.customerOrders, 'customers')}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                  <Typography variant="h6">{t('admin.analytics.uniqueCustomers', 'Unique Customers')}</Typography>
-                  <Typography variant="h4">{analyticsData.uniqueCustomersCount}</Typography>
-                   <Typography variant="caption">{t('admin.analytics.withNonCancelledOrders', '(with non-cancelled orders)')}</Typography>
+            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size */}
+              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
+                  <PeopleAltOutlinedIcon sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.uniqueCustomers', 'Unique Customers')}</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'secondary.dark' }}>{analyticsData.uniqueCustomersCount}</Typography>
+                  <Button size="small" onClick={() => analyticsData.customerOrders && handleOpenAnalyticsDetailModal(t('admin.analytics.customerOrderDetailsTitle', 'Customer Order Details'), analyticsData.customerOrders, 'customers')} sx={{ mt: 1 }}>{t('admin.analytics.viewDetails', 'View Details')}</Button>
+                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.withNonCancelledOrders', '(non-cancelled orders)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
             
-            {/* Total Revenue (Original) Card */}
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                  <Typography variant="h6">{t('admin.analytics.totalRevenueOriginal', 'Total Revenue (Original)')}</Typography>
-                  <Typography variant="h5">₪{analyticsData.totalOriginalAmount.toFixed(2)}</Typography>
-                  <Typography variant="caption">{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
             {/* Total Revenue (Final) Card */}
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                  <Typography variant="h6">{t('admin.analytics.totalRevenueFinal', 'Total Revenue (Final)')}</Typography>
-                  <Typography variant="h5">₪{analyticsData.totalFinalAmount.toFixed(2)}</Typography>
-                  <Typography variant="caption">{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
+            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size */}
+              <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: 'success.lightest' }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
+                  <AttachMoneyOutlinedIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalRevenueFinal', 'Total Revenue (Final)')}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.dark' }}>₪{analyticsData.totalFinalAmount.toFixed(2)}</Typography>
+                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.excludingCancelled', '(Excluding Cancelled)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
+
             {/* Total Units Sold Card */}
-            <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                  <Typography variant="h6">{t('admin.analytics.totalUnitsSold', 'Total Units Sold')}</Typography>
-                  <Typography variant="h4">{analyticsData.totalProductsSoldCount}</Typography>
-                  <Typography variant="caption">{t('admin.analytics.inNonCancelledOrders', '(in non-cancelled orders)')}</Typography>
+            <Grid item xs={12} sm={6} md={3}> {/* Adjusted grid size */}
+              <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: 'info.lightest' }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
+                  <ShoppingCartOutlinedIcon sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.totalUnitsSold', 'Total Units Sold')}</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'info.dark' }}>{analyticsData.totalProductsSoldCount}</Typography>
+                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.inNonCancelledOrders', '(non-cancelled orders)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
-            {/* Unique Products Ordered Card */}
+            
+            {/* Unique Products Ordered Card - Can be added if space allows or combined */}
+            {/* 
             <Grid item xs={12} sm={6} md={3}>
-              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 6 }, height: '100%' }} onClick={() => analyticsData.productStats && handleOpenAnalyticsDetailModal(t('admin.analytics.productOrderDetailsTitle', 'Product Order Details'), analyticsData.productStats, 'products')}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                  <Typography variant="h6">{t('admin.analytics.uniqueProductsOrdered', 'Unique Products Ordered')}</Typography>
-                  <Typography variant="h4">{analyticsData.uniqueProductsOrdered}</Typography>
-                   <Typography variant="caption">{t('admin.analytics.inNonCancelledOrders', '(in non-cancelled orders)')}</Typography>
+              <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 8, transform: 'translateY(-2px)' }, transition: '0.2s', height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', textAlign: 'center' }}>
+                  <CategoryOutlinedIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 'medium' }}>{t('admin.analytics.uniqueProductsOrdered', 'Unique Products')}</Typography>
+                  <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'warning.dark' }}>{analyticsData.uniqueProductsOrdered}</Typography>
+                  <Button size="small" onClick={() => analyticsData.productStats && handleOpenAnalyticsDetailModal(t('admin.analytics.productOrderDetailsTitle', 'Product Order Details'), analyticsData.productStats, 'products')} sx={{ mt: 1 }}>{t('admin.analytics.viewDetails', 'View Details')}</Button>
+                  <Typography variant="caption" sx={{ mt: 0.5 }}>{t('admin.analytics.inNonCancelledOrders', '(non-cancelled orders)')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
+            */}
           </Grid>
         </Paper>
       )}
 
       {/* Status Filter Dropdown */}
-      <Paper sx={{ p: 2, mt: 2, mb: 2 }}>
-        <FormControl fullWidth size="small">
+      <Paper elevation={3} sx={{ p: 2, mt: 2, mb: 2, borderRadius: 2 }}>
+        <FormControl fullWidth variant="outlined"> {/* Changed to outlined */}
           <InputLabel id="order-status-filter-label">{t('admin.filterByStatus', 'Filter by Status')}</InputLabel>
           <Select
             labelId="order-status-filter-label"
             value={orderStatusFilter}
             label={t('admin.filterByStatus', 'Filter by Status')}
             onChange={(e) => setOrderStatusFilter(e.target.value)}
+            startAdornment={
+              <InputAdornment position="start">
+                <FilterListIcon />
+              </InputAdornment>
+            }
           >
             <MenuItem value="all">{t('admin.statusAll', 'All')}</MenuItem>
             <MenuItem value="Pending">{t('admin.statusPending', 'Pending')}</MenuItem>
@@ -417,71 +459,93 @@ function AdminOrdersSimple() {
       {loadingOrders && (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
           <CircularProgress />
+          <Typography sx={{ ml: 2 }}>{t('common.loadingOrders', 'Loading Orders...')}</Typography>
         </Box>
       )}
       {!loadingOrders && orderError && !showOrderForm && ( // Only show general error if not on form
-        <Alert severity="error" sx={{ mb: 2 }}>{orderError}</Alert>
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} icon={<ErrorOutlineIcon />}>
+          <AlertTitle>{t('common.error', 'Error')}</AlertTitle>
+          {orderError}
+        </Alert>
       )}
       
       {!loadingOrders && !orderError && filteredOrders.length === 0 && (
-         <Typography sx={{ textAlign: 'center', mt: 3 }}>{t('admin.noOrdersFound', 'No orders found.')}</Typography>
+         <Paper elevation={1} sx={{ p: 3, textAlign: 'center', mt: 3, borderRadius: 2, backgroundColor: 'grey.100' }}>
+            <InfoOutlinedIcon sx={{ fontSize: 48, color: 'grey.500', mb: 1 }} />
+            <Typography variant="h6" sx={{ color: 'grey.700' }}>{t('admin.noOrdersFound', 'No orders found.')}</Typography>
+            <Typography variant="body2" sx={{ color: 'grey.600' }}>
+              {orderStatusFilter === 'all' 
+                ? t('admin.noOrdersYet', 'There are no orders in the system yet.')
+                : t('admin.noOrdersMatchFilter', 'No orders match the current filter.')}
+            </Typography>
+         </Paper>
       )}
 
       {/* Orders Table */}
       {!loadingOrders && filteredOrders.length > 0 && (
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="simple table">
-            <TableHead>
+        <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
+          <Table sx={{ minWidth: 750 }} aria-label="simple table"> {/* Increased minWidth */}
+            <TableHead sx={{ backgroundColor: (theme) => theme.palette.grey[200]}}>
               <TableRow>
-                <TableCell>{t('admin.orderId', 'Order ID')}</TableCell>
-                <TableCell>{t('admin.orderCustomer', 'Customer')}</TableCell>
-                <TableCell>{t('admin.orderDate', 'Date')}</TableCell>
-                <TableCell>{t('admin.orderOriginalTotal', 'Original Total')}</TableCell>
-                <TableCell>{t('admin.orderDiscount', 'Discount')}</TableCell>
-                <TableCell>{t('admin.orderTotal', 'Total')}</TableCell>
-                <TableCell>{t('admin.orderCoupon', 'Coupon')}</TableCell>
-                <TableCell>{t('admin.orderStatus', 'Status')}</TableCell>
-                <TableCell align="right">{t('admin.orderActions', 'Actions')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderId', 'Order ID')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderCustomer', 'Customer')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderDate', 'Date')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>{t('admin.orderOriginalTotal', 'Original Total')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>{t('admin.orderDiscount', 'Discount')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'right' }}>{t('admin.orderTotal', 'Total')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.orderCoupon', 'Coupon')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>{t('admin.orderStatus', 'Status')}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('admin.orderActions', 'Actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order, index) => (
                 <TableRow
                   key={order.id || order._id}
-                  sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                  sx={{ 
+                    '&:last-child td, &:last-child th': { border: 0 },
+                    '&:nth-of-type(odd)': { backgroundColor: (theme) => theme.palette.action.hover },
+                    '&:hover': { backgroundColor: (theme) => theme.palette.action.selected }
+                  }}
                 >
                   <TableCell component="th" scope="row">
-                    {order.id || order._id}
+                    <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{order.id || order._id}</Typography>
                   </TableCell>
-                  <TableCell>{order.customerName} ({order.email})</TableCell>
-                  <TableCell>{new Date(order.date || order.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>₪{order.original_total?.toFixed(2) || order.total?.toFixed(2)}</TableCell>
-                  <TableCell>₪{order.discount_amount?.toFixed(2) || '0.00'}</TableCell>
-                  <TableCell>₪{order.total?.toFixed(2)}</TableCell>
-                  <TableCell>{order.coupon_code || 'N/A'}</TableCell>
                   <TableCell>
-                     <span style={{
-                        padding: '0.25em 0.5em',
-                        borderRadius: '0.25rem',
-                        color: 'white',
-                        backgroundColor: 
-                          order.status === 'Completed' ? 'green' :
-                          order.status === 'Pending' ? 'orange' :
-                          order.status === 'Processing' ? 'blue' :
-                          order.status === 'Cancelled' ? 'red' :
-                          'gray'
-                     }}>
-                        {t(`admin.status${order.status}`, order.status || 'Unknown')}
-                     </span>
+                    <Typography variant="body2">{order.customerName}</Typography>
+                    <Typography variant="caption" color="text.secondary">{order.email}</Typography>
+                  </TableCell>
+                  <TableCell>{new Date(order.date || order.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell sx={{ textAlign: 'right' }}>₪{order.original_total?.toFixed(2) || order.total?.toFixed(2)}</TableCell>
+                  <TableCell sx={{ textAlign: 'right', color: order.discount_amount > 0 ? 'error.main' : 'text.secondary' }}>
+                    -₪{order.discount_amount?.toFixed(2) || '0.00'}
+                  </TableCell>
+                  <TableCell sx={{ textAlign: 'right', fontWeight: 'bold' }}>₪{order.total?.toFixed(2)}</TableCell>
+                  <TableCell>{order.coupon_code || 'N/A'}</TableCell>
+                  <TableCell sx={{ textAlign: 'center' }}>
+                     <Chip 
+                        label={t(`admin.status${order.status}`, order.status || 'Unknown')}
+                        size="small"
+                        sx={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            backgroundColor: 
+                              order.status === 'Completed' ? 'success.main' :
+                              order.status === 'Pending' ? 'warning.main' :
+                              order.status === 'Processing' ? 'info.main' :
+                              order.status === 'Cancelled' ? 'error.main' :
+                              'grey.500'
+                        }}
+                     />
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton onClick={() => handleEditOrder(order)} color="primary" aria-label={t('admin.editButton', 'Edit')}>
+                    <IconButton onClick={() => handleEditOrder(order)} color="primary" aria-label={t('admin.editButton', 'Edit')} size="small">
                       <EditIcon />
                     </IconButton>
-                    <IconButton onClick={() => setSelectedOrderDetails(order)} color="secondary" aria-label={t('admin.viewDetailsButton', 'Details')}>
+                    <IconButton onClick={() => setSelectedOrderDetails(order)} color="secondary" aria-label={t('admin.viewDetailsButton', 'Details')} size="small">
                        <VisibilityIcon />
                     </IconButton>
-                    <IconButton onClick={() => handleOpenDeleteDialog(order)} color="error" aria-label={t('admin.deleteButton', 'Delete')}>
+                    <IconButton onClick={() => handleOpenDeleteDialog(order)} color="error" aria-label={t('admin.deleteButton', 'Delete')} size="small">
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -492,52 +556,81 @@ function AdminOrdersSimple() {
         </TableContainer>
       )}
 
-      {/* Order Details Modal (Overlay) */}
+      {/* Order Details Modal (Overlay) - Enhanced */}
       {selectedOrderDetails && (
-        <Box 
-          sx={{ 
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center', zIndex: 1300 
-          }}
-          onClick={() => setSelectedOrderDetails(null)}
+        <Dialog 
+          open={Boolean(selectedOrderDetails)} 
+          onClose={() => setSelectedOrderDetails(null)} 
+          maxWidth="sm" 
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 2 } }}
         >
-          <Paper sx={{ p: 3, width: '90%', maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}> 
-            <Typography variant="h5" gutterBottom>{t('admin.orderDetailsTitle', 'Order Details')} - {selectedOrderDetails.id || selectedOrderDetails._id}</Typography>
-            <Typography><strong>{t('admin.orderCustomer', 'Customer')}:</strong> {selectedOrderDetails.customerName} ({selectedOrderDetails.email})</Typography>
-            <Typography><strong>{t('admin.orderPhone', 'Phone')}:</strong> {selectedOrderDetails.phone || 'N/A'}</Typography>
-            <Typography><strong>{t('admin.orderDate', 'Date')}:</strong> {new Date(selectedOrderDetails.date || selectedOrderDetails.createdAt).toLocaleString()}</Typography>
+          <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
+            {t('admin.orderDetailsTitle', 'Order Details')} - {selectedOrderDetails.id || selectedOrderDetails._id}
+            <IconButton onClick={() => setSelectedOrderDetails(null)} size="small">
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>{t('admin.customerInfo', 'Customer Information')}</Typography>
+                <Typography><strong>{t('admin.orderCustomer', 'Customer')}:</strong> {selectedOrderDetails.customerName} ({selectedOrderDetails.email})</Typography>
+                <Typography><strong>{t('admin.orderPhone', 'Phone')}:</strong> {selectedOrderDetails.phone || 'N/A'}</Typography>
+                {selectedOrderDetails.user_id && <Typography><strong>{t('admin.orderUserId', 'User ID')}:</strong> {selectedOrderDetails.user_id}</Typography>}
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>{t('admin.orderSummary', 'Order Summary')}</Typography>
+                <Typography><strong>{t('admin.orderDate', 'Date')}:</strong> {new Date(selectedOrderDetails.date || selectedOrderDetails.createdAt).toLocaleString()}</Typography>
+                <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> ₪{selectedOrderDetails.original_total?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}</Typography>
+                {selectedOrderDetails.coupon_code && (
+                  <>
+                    <Typography><strong>{t('admin.orderCoupon', 'Coupon Code')}:</strong> {selectedOrderDetails.coupon_code}</Typography>
+                    <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> <span style={{ color: 'red' }}>-₪{selectedOrderDetails.discount_amount?.toFixed(2)}</span></Typography>
+                  </>
+                )}
+                <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> <span style={{ fontWeight: 'bold' }}>₪{selectedOrderDetails.total?.toFixed(2)}</span></Typography>
+                <Typography><strong>{t('admin.orderStatus', 'Status')}:</strong> 
+                  <Chip 
+                    label={t(`admin.status${selectedOrderDetails.status}`, selectedOrderDetails.status)}
+                    size="small"
+                    sx={{ ml:1, color: 'white', fontWeight: 'bold', backgroundColor: selectedOrderDetails.status === 'Completed' ? 'success.main' : selectedOrderDetails.status === 'Pending' ? 'warning.main' : selectedOrderDetails.status === 'Processing' ? 'info.main' : selectedOrderDetails.status === 'Cancelled' ? 'error.main' : 'grey.500' }}
+                  />
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mt:1 }}>{t('admin.orderItems', 'Items')}</Typography>
+                <List dense sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 1, p:1 }}>
+                  {selectedOrderDetails.items.map((item, index) => (
+                    <ListItem key={index} divider={index < selectedOrderDetails.items.length - 1}>
+                      <ListItemText 
+                        primary={`${item.name || `Product ID: ${item.productId}`}`}
+                        secondary={`${t('admin.orderForm.quantity', 'Qty')}: ${item.quantity} × ₪${item.price?.toFixed(2)} = ₪${(item.quantity * item.price).toFixed(2)}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Grid>
+              {selectedOrderDetails.notes && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mt:1 }}>{t('admin.orderNotes', 'Notes')}</Typography>
+                  <Paper variant="outlined" sx={{ p: 1.5, backgroundColor: 'grey.50' }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{selectedOrderDetails.notes}</Typography>
+                  </Paper>
+                </Grid>
+              )}
+            </Grid>
             
-            {/* Coupon and Total Details */}
-            <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> ₪{selectedOrderDetails.original_total?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}</Typography>
-            {selectedOrderDetails.coupon_code && (
-              <>
-                <Typography><strong>{t('admin.orderCoupon', 'Coupon Code')}:</strong> {selectedOrderDetails.coupon_code}</Typography>
-                <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> ₪{selectedOrderDetails.discount_amount?.toFixed(2)}</Typography>
-              </>
-            )}
-            <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> ₪{selectedOrderDetails.total?.toFixed(2)}</Typography>
-            
-            <Typography><strong>{t('admin.orderStatus', 'Status')}:</strong> {t(`admin.status${selectedOrderDetails.status}`, selectedOrderDetails.status)}</Typography>
-            {selectedOrderDetails.user_id && <Typography><strong>{t('admin.orderUserId', 'User ID')}:</strong> {selectedOrderDetails.user_id}</Typography>}
-            <Box mt={1}>
-              <strong>{t('admin.orderItems', 'Items')}:</strong>
-              <ul style={{ paddingLeft: '20px', margin: '5px 0' }}>
-                {selectedOrderDetails.items.map((item, index) => (
-                  <li key={index}>{item.name || `Product ID: ${item.productId}`} - {t('admin.orderForm.quantity', 'Qty')}: {item.quantity}, {t('admin.orderForm.pricePerItem', 'Price')}: ₪{item.price?.toFixed(2)}</li>
-                ))}
-              </ul>
-            </Box>
-            {selectedOrderDetails.notes && <Typography><strong>{t('admin.orderNotes', 'Notes')}:</strong> {selectedOrderDetails.notes}</Typography>}
-            
-            <Box mt={2}>
-              <FormControl fullWidth size="small">
+            <Box mt={3} borderTop={1} borderColor="divider" pt={2}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>{t('admin.updateStatusPrompt', 'Update Status')}</Typography>
+              <FormControl fullWidth variant="outlined">
                 <InputLabel>{t('admin.updateStatusPrompt', 'Update Status')}</InputLabel>
                 <Select
-                  defaultValue={selectedOrderDetails.status} // Changed to defaultValue for uncontrolled component behavior within modal
+                  defaultValue={selectedOrderDetails.status}
                   label={t('admin.updateStatusPrompt', 'Update Status')}
                   onChange={(e) => {
                     const newStatus = e.target.value;
+                    // Consider a more user-friendly confirmation, perhaps a small dialog
                     if (window.confirm(t('admin.orders.confirmStatusChange', `Change status to ${newStatus}?`))) {
                        handleOrderStatusUpdate(selectedOrderDetails.id || selectedOrderDetails._id, newStatus, `Status changed via details modal by admin.`);
                     }
@@ -551,69 +644,69 @@ function AdminOrdersSimple() {
                 </Select>
               </FormControl>
             </Box>
-
-            <Button onClick={() => setSelectedOrderDetails(null)} sx={{ mt: 2 }}>
+          </DialogContent>
+          <DialogActions sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
+            <Button onClick={() => setSelectedOrderDetails(null)} variant="outlined" color="secondary">
               {t('admin.closeButton', 'Close')}
             </Button>
-          </Paper>
-        </Box>
+          </DialogActions>
+        </Dialog>
       )}
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog - Enhanced */}
       <Dialog
         open={openDeleteDialog}
         onClose={handleCloseDeleteDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+        PaperProps={{ sx: { borderRadius: 2, p:1 } }}
       >
-        <DialogTitle id="alert-dialog-title">
+        <DialogTitle id="delete-dialog-title" sx={{ display: 'flex', alignItems: 'center' }}>
+          <ErrorOutlineIcon color="error" sx={{ mr: 1 }} />
           {t('admin.orders.confirmDeleteTitle', "Confirm Deletion")}
         </DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
+          <DialogContentText id="delete-dialog-description">
             {t('admin.orders.confirmDeleteText', `Are you sure you want to delete order ${orderToDelete?.id || orderToDelete?._id}? This action cannot be undone.`)}
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} color="primary">
+        <DialogActions sx={{ p:2 }}>
+          <Button onClick={handleCloseDeleteDialog} color="secondary" variant="outlined">
             {t('admin.cancelButton', 'Cancel')}
           </Button>
-          <Button onClick={handleDeleteOrder} color="error" autoFocus>
+          <Button onClick={handleDeleteOrder} color="error" variant="contained" autoFocus startIcon={<DeleteIcon />}>
             {t('admin.deleteButton', 'Delete')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Analytics Detail Modal (for Customers/Products) */}
-      <Dialog open={showAnalyticsDetailModal} onClose={handleCloseAnalyticsDetailModal} maxWidth="md" fullWidth>
-        <DialogTitle>
+      {/* Analytics Detail Modal (for Customers/Products) - Enhanced */}
+      <Dialog open={showAnalyticsDetailModal} onClose={handleCloseAnalyticsDetailModal} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
           {analyticsDetailTitle}
           <IconButton
             aria-label="close"
             onClick={handleCloseAnalyticsDetailModal}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500],
-            }}
+            size="small"
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
           {analyticsDetailData && analyticsDetailType === 'customers' && (
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} elevation={0} sx={{ maxHeight: 440 }}>
               <Table stickyHeader aria-label="customer analytics table">
-                <TableHead>
+                <TableHead sx={{ backgroundColor: (theme) => theme.palette.grey[100] }}>
                   <TableRow>
-                    <TableCell>{t('admin.analytics.modal.customerName', 'Customer Name/ID')}</TableCell>
-                    <TableCell align="right">{t('admin.analytics.modal.orderCount', 'Order Count')}</TableCell>
-                    <TableCell align="right">{t('admin.analytics.modal.totalSpent', 'Total Spent')}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.customerName', 'Customer Name/ID')}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.orderCount', 'Order Count')}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.totalSpent', 'Total Spent')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(analyticsDetailData).map(([key, value]) => (
-                    <TableRow hover key={key}>
+                  {Object.entries(analyticsDetailData)
+                    .sort(([, a], [, b]) => b.totalValue - a.totalValue) // Sort by total spent
+                    .map(([key, value]) => (
+                    <TableRow hover key={key} sx={{ '&:nth-of-type(odd)': { backgroundColor: (theme) => theme.palette.action.hover }}}>
                       <TableCell>{value.name}</TableCell>
                       <TableCell align="right">{value.count}</TableCell>
                       <TableCell align="right">₪{value.totalValue.toFixed(2)}</TableCell>
@@ -624,19 +717,21 @@ function AdminOrdersSimple() {
             </TableContainer>
           )}
           {analyticsDetailData && analyticsDetailType === 'products' && (
-            <TableContainer component={Paper}>
+            <TableContainer component={Paper} elevation={0} sx={{ maxHeight: 440 }}>
               <Table stickyHeader aria-label="product analytics table">
-                <TableHead>
+                <TableHead sx={{ backgroundColor: (theme) => theme.palette.grey[100] }}>
                   <TableRow>
-                    <TableCell>{t('admin.analytics.modal.productName', 'Product Name')}</TableCell>
-                    <TableCell>{t('admin.analytics.modal.productId', 'Product ID')}</TableCell>
-                    <TableCell align="right">{t('admin.analytics.modal.timesOrdered', 'Times Ordered')}</TableCell>
-                    <TableCell align="right">{t('admin.analytics.modal.totalQuantitySold', 'Total Quantity Sold')}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.productName', 'Product Name')}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.productId', 'Product ID')}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.timesOrdered', 'Times Ordered')}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>{t('admin.analytics.modal.totalQuantitySold', 'Total Quantity Sold')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(analyticsDetailData).map(([productName, stats]) => (
-                    <TableRow hover key={productName}>
+                  {Object.entries(analyticsDetailData)
+                    .sort(([, a], [, b]) => b.quantity - a.quantity) // Sort by quantity sold
+                    .map(([productName, stats]) => (
+                    <TableRow hover key={productName} sx={{ '&:nth-of-type(odd)': { backgroundColor: (theme) => theme.palette.action.hover }}}>
                       <TableCell>{productName}</TableCell>
                       <TableCell>{stats.productId}</TableCell>
                       <TableCell align="right">{stats.count}</TableCell>
@@ -648,19 +743,19 @@ function AdminOrdersSimple() {
             </TableContainer>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseAnalyticsDetailModal}>{t('admin.buttons.close', 'Close')}</Button>
+        <DialogActions sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
+          <Button onClick={handleCloseAnalyticsDetailModal} variant="outlined">{t('admin.buttons.close', 'Close')}</Button>
         </DialogActions>
       </Dialog>
 
-      {/* Status Breakdown Modal */}
-      <Dialog open={showStatusBreakdownModal} onClose={handleCloseStatusBreakdownModal} maxWidth="xs" fullWidth>
-        <DialogTitle>
+      {/* Status Breakdown Modal - Enhanced */}
+      <Dialog open={showStatusBreakdownModal} onClose={handleCloseStatusBreakdownModal} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
           {t('admin.analytics.statusBreakdownTitle', 'Order Status Breakdown')}
           <IconButton
             aria-label="close"
             onClick={handleCloseStatusBreakdownModal}
-            sx={{ position: 'absolute', right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
+            size="small"
           >
             <CloseIcon />
           </IconButton>
@@ -668,25 +763,28 @@ function AdminOrdersSimple() {
         <DialogContent dividers>
           {analyticsData && analyticsData.statusCounts ? (
             <List dense>
-              <ListItem>
-                <ListItemText primary={`${t('admin.orders.status.Pending', 'Pending')}: ${analyticsData.statusCounts.Pending || 0}`} />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary={`${t('admin.orders.status.Processing', 'Processing')}: ${analyticsData.statusCounts.Processing || 0}`} />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary={`${t('admin.orders.status.Completed', 'Completed')}: ${analyticsData.statusCounts.Completed || 0}`} />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary={`${t('admin.orders.status.Cancelled', 'Cancelled')}: ${analyticsData.statusCounts.Cancelled || 0}`} />
+              {Object.entries(analyticsData.statusCounts)
+                .filter(([key]) => key !== 'Total') // Exclude 'Total' from this list
+                .map(([status, count]) => (
+                <ListItem key={status} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <ListItemText primary={t(`admin.orders.status.${status}`, status)} />
+                  <Chip label={count} size="small" sx={{ fontWeight: 'bold' }}/>
+                </ListItem>
+              ))}
+              <ListItem sx={{ display: 'flex', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider', mt:1, pt:1 }}>
+                <ListItemText primary={t('admin.orders.status.Total', 'Total Orders')} sx={{ fontWeight: 'bold' }} />
+                <Chip label={analyticsData.statusCounts.Total} size="small" color="primary" sx={{ fontWeight: 'bold' }}/>
               </ListItem>
             </List>
           ) : (
-            <Typography>{t('common.loading', 'Loading...')}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p:2 }}>
+              <CircularProgress size={24} sx={{ mr: 1 }} />
+              <Typography>{t('common.loading', 'Loading...')}</Typography>
+            </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseStatusBreakdownModal}>{t('common.close', 'Close')}</Button>
+        <DialogActions sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
+          <Button onClick={handleCloseStatusBreakdownModal} variant="outlined">{t('common.close', 'Close')}</Button>
         </DialogActions>
       </Dialog>
     </Box>

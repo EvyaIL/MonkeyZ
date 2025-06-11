@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { apiService } from '../../lib/apiService'; // For fetching users if needed
+import React, { useState, useEffect, useCallback } from 'react';
 
 const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], loading, error, t }) => {
   // const { t } = useTranslation(); // t is now passed as a prop
@@ -19,7 +18,9 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     notes: '',
   });
 
-  const [users, setUsers] = useState([]); // For user selection dropdown
+  const [users, /* setUsers */] = useState([]); // Commented out setUsers
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [coupons, setCoupons] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
   

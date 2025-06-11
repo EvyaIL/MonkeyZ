@@ -28,29 +28,41 @@ import {
   InputLabel,
   FormControl,
   InputAdornment,
-  Divider
+  Divider,
+  Paper
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import KeyIcon from '@mui/icons-material/VpnKey';
+// import KeyIcon from '@mui/icons-material/VpnKey'; // No longer used directly here
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import CancelIcon from '@mui/icons-material/Cancel';
-// import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'; // Removed if only for keys
-// import KeyBulkManagement from '../../../components/admin/KeyBulkManagement'; // Removed
-// import KeyManagementSection from '../../../components/admin/KeyManagementSection'; // Removed
 import AssessmentIcon from '@mui/icons-material/Assessment'; // For analytics
 import InfoIcon from '@mui/icons-material/Info'; // For info icons on cards
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'; // For Add Product button
+import SearchIcon from '@mui/icons-material/Search'; // For Search Bar
+import FilterListIcon from '@mui/icons-material/FilterList'; // For Filter Dropdowns
+import NewReleasesIcon from '@mui/icons-material/NewReleases'; // For New Tag
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // For Active status
+import HighlightOffIcon from '@mui/icons-material/HighlightOff'; // For Inactive status
+import StarIcon from '@mui/icons-material/Star'; // For Best Seller
+import HomeIcon from '@mui/icons-material/Home'; // For Display on Homepage
+import CategoryIcon from '@mui/icons-material/Category'; // For Category icon
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'; // For error messages
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For success messages
 
 export default function AdminProducts() {
   const { t } = useTranslation();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [productError, setProductError] = useState(null);
+  const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
   const [showDialog, setShowDialog] = useState(false);
@@ -217,7 +229,6 @@ export default function AdminProducts() {
     const formData = new FormData(event.target);
     
     // Format the data to match the backend model structure
-    const isBestSellerValue = formData.get('best_seller') === 'on';
     const productData = {
       name: {
         en: formData.get('name_en') || '',
@@ -392,79 +403,84 @@ export default function AdminProducts() {
   }, [editingProduct]);
 
   return (
-    <Box p={3}>
-      {/* Header section with actions */}      <Box mb={3}>
+    <Box p={3} sx={{ backgroundColor: (theme) => theme.palette.background.default, minHeight: '100vh' }}>
+      {/* Header section with actions */}      
+      <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h4" component="h1">
-            {t('admin.products')}
+          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+            {t('admin.products', 'Manage Products')}
           </Typography>
           <Button
             variant="contained"
             color="primary"
+            startIcon={<AddCircleOutlineIcon />}
             onClick={() => {
               setEditingProduct(null);
               setShowDialog(true);
             }}
+            sx={{ borderRadius: 2, boxShadow: '0 3px 5px 2px rgba(0, 105, 217, .3)' }}
           >
-            {t('admin.addProduct')}
+            {t('admin.addProduct', 'Add New Product')}
           </Button>
         </Box>
 
         {showSuccessMessage && (
-          <Alert severity="success" sx={{ mt: 2 }}>
-            {t('admin.operationSuccess')}
+          <Alert severity="success" sx={{ mt: 2, borderRadius: 1.5 }} icon={<CheckCircleOutlineIcon />}>
+            <AlertTitle>{t('common.success', 'Success')}</AlertTitle>
+            {t('admin.operationSuccess', 'Operation completed successfully.')}
           </Alert>
         )}
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
+          <Alert severity="error" sx={{ mt: 2, borderRadius: 1.5 }} icon={<ErrorOutlineIcon />}>
+            <AlertTitle>{t('common.error', 'Error')}</AlertTitle>
             {error}
           </Alert>
         )}
-      </Box>
+      </Paper>
 
       {/* Product Analytics Section */}
       {analyticsData && (
-        <Box mb={4}>
-          <Typography variant="h5" component="h2" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-            <AssessmentIcon sx={{ mr: 1 }} /> Product Analytics
+        <Paper elevation={3} sx={{ p:2, mb: 4, borderRadius: 2 }}>
+          <Typography variant="h5" component="h2" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: 'text.primary', mb: 2 }}>
+            <AssessmentIcon sx={{ mr: 1, color: 'primary.main' }} /> {t('admin.products.analyticsTitle', 'Product Analytics')}
           </Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             {/* General Stats Card */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    <InfoIcon sx={{ mr: 0.5, color: 'primary.main' }} /> General Stats
+              <Card sx={{ height: '100%', borderRadius: 2, display: 'flex', flexDirection: 'column', backgroundColor: '#e3f2fd' /* Light blue */ }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: '#0d47a1' /* Darker blue */}}>
+                    <InfoIcon sx={{ mr: 0.5 }} /> {t('admin.analytics.generalStats', 'General Stats')}
                   </Typography>
-                  <Typography variant="body1">Total Products: {analyticsData.totalProducts}</Typography>
-                  <Typography variant="body1">New Products (last 30 days): {analyticsData.newProducts}</Typography>
-                  <Typography variant="body1">Products with Discount: {analyticsData.discountedProducts}</Typography>
+                  <Typography variant="body1">{t('admin.analytics.totalProducts', 'Total Products')}: <strong>{analyticsData.totalProducts}</strong></Typography>
+                  <Typography variant="body1">{t('admin.analytics.newProducts', 'New Products')}: <strong>{analyticsData.newProducts}</strong></Typography>
+                  <Typography variant="body1">{t('admin.analytics.discountedProducts', 'Discounted')}: <strong>{analyticsData.discountedProducts}</strong></Typography>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Status & Visibility Card (Clickable) */}
             <Grid item xs={12} md={4}>
-              <Card onClick={() => handleOpenAnalyticsModal('Product Status & Visibility', renderStatusVisibilityAnalytics)} sx={{ cursor: 'pointer', height: '100%' }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    <InfoIcon sx={{ mr: 0.5, color: 'primary.main' }} /> Status & Visibility
+              <Card onClick={() => handleOpenAnalyticsModal(t('admin.analytics.statusVisibilityTitle', 'Product Status & Visibility'), renderStatusVisibilityAnalytics)} sx={{ cursor: 'pointer', height: '100%', borderRadius: 2, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: '0.2s', backgroundColor: '#e8f5e9' /* Light green */ }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: '#1b5e20' /* Darker green */}}>
+                    <CheckCircleIcon sx={{ mr: 0.5 }} /> {t('admin.analytics.statusVisibility', 'Status & Visibility')}
                   </Typography>
-                  <Typography variant="body1">Active: {analyticsData.activeProducts} / Inactive: {analyticsData.inactiveProducts}</Typography>
-                  <Typography variant="body1">Best Sellers: {analyticsData.bestSellerProducts}</Typography>
-                  <Typography variant="body1">On Homepage: {analyticsData.onHomepageProducts}</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Click to see details</Typography>
+                  <Typography variant="body1">{t('admin.analytics.active', 'Active')}: <strong>{analyticsData.activeProducts}</strong> / {t('admin.analytics.inactive', 'Inactive')}: <strong>{analyticsData.inactiveProducts}</strong></Typography>
+                  <Typography variant="body1">{t('admin.analytics.bestSellers', 'Best Sellers')}: <strong>{analyticsData.bestSellerProducts}</strong></Typography>
+                  <Typography variant="body1">{t('admin.analytics.onHomepage', 'On Homepage')}: <strong>{analyticsData.onHomepageProducts}</strong></Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>{t('common.clickToViewDetails', 'Click to see details')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* Category Breakdown Card (Clickable) */}
             <Grid item xs={12} md={4}>
-              <Card onClick={() => handleOpenAnalyticsModal('Products by Category', renderCategoryAnalytics)} sx={{ cursor: 'pointer', height: '100%' }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    <InfoIcon sx={{ mr: 0.5, color: 'primary.main' }} /> Category Breakdown
+              <Card onClick={() => handleOpenAnalyticsModal(t('admin.analytics.categoryBreakdownTitle', 'Products by Category'), renderCategoryAnalytics)} sx={{ cursor: 'pointer', height: '100%', borderRadius: 2, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: '0.2s', backgroundColor: '#fff3e0' /* Light orange */ }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', color: '#e65100' /* Darker orange */}}>
+                    <CategoryIcon sx={{ mr: 0.5 }} /> {t('admin.analytics.categoryBreakdown', 'Category Breakdown')}
                   </Typography>
                   {analyticsData.categoriesCount && Object.keys(analyticsData.categoriesCount).length > 0 ? (
                     <>
@@ -473,182 +489,224 @@ export default function AdminProducts() {
                         .slice(0, 2)
                         .map(([category, count]) => (
                           <Typography key={category} variant="body1">
-                            {category}: {count}
+                            {category}: <strong>{count}</strong>
                           </Typography>
                         ))}
                       {Object.keys(analyticsData.categoriesCount).length > 2 && (
-                        <Typography variant="body2" color="text.secondary">+ {Object.keys(analyticsData.categoriesCount).length - 2} more</Typography>
+                        <Typography variant="body2" color="text.secondary">+ {Object.keys(analyticsData.categoriesCount).length - 2} {t('common.more', 'more')}</Typography>
                       )}
                     </>
                   ) : (
-                    <Typography variant="body1">No category data</Typography>
+                    <Typography variant="body1">{t('admin.analytics.noCategoryData', 'No category data')}</Typography>
                   )}
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>Click to see all categories</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>{t('common.clickToViewAll', 'Click to see all categories')}</Typography>
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
-        </Box>
+        </Paper>
       )}
-
-      {/* Key Management Overview */}
-      {/* <Box mb={4}>
-        <KeyManagementSection />
-      </Box> */} {/* Removed KeyManagementSection component */}
 
       {/* Filters and search */}
-      <Grid container spacing={2} mb={3}>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            label={t('admin.search')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            variant="outlined"
-            size="small"
-          />
+      <Paper elevation={3} sx={{ p: 2, mb: 3, borderRadius: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={5}>
+            <TextField
+              fullWidth
+              label={t('admin.searchProducts', 'Search Products')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              variant="outlined"
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3.5}>
+            <FormControl fullWidth size="small" variant="outlined">
+              <InputLabel>{t('admin.category', 'Category')}</InputLabel>
+              <Select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                label={t('admin.category', 'Category')}
+                startAdornment={
+                  <InputAdornment position="start">
+                    <FilterListIcon />
+                  </InputAdornment>
+                }
+              >
+                <MenuItem value="all">{t('admin.allCategories', 'All Categories')}</MenuItem>
+                {categories.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3.5}>
+            <FormControl fullWidth size="small" variant="outlined">
+              <InputLabel>{t('admin.sort', 'Sort By')}</InputLabel>
+              <Select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                label={t('admin.sort', 'Sort By')}
+                 startAdornment={
+                  <InputAdornment position="start">
+                    <FilterListIcon />
+                  </InputAdornment>
+                }
+              >
+                <MenuItem value="newest">{t('admin.newest', 'Newest First')}</MenuItem>
+                <MenuItem value="oldest">{t('admin.oldest', 'Oldest First')}</MenuItem>
+                <MenuItem value="price-high">{t('admin.priceHigh', 'Price: High to Low')}</MenuItem>
+                <MenuItem value="price-low">{t('admin.priceLow', 'Price: Low to High')}</MenuItem>
+                <MenuItem value="name-asc">{t('admin.nameAsc', 'Name: A-Z')}</MenuItem>
+                <MenuItem value="name-desc">{t('admin.nameDesc', 'Name: Z-A')}</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
         </Grid>
-        <Grid item xs={12} sm={4}>
-          <FormControl fullWidth size="small">
-            <InputLabel>{t('admin.category')}</InputLabel>
-            <Select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              label={t('admin.category')}
-            >
-              <MenuItem value="all">{t('admin.allCategories')}</MenuItem>
-              {categories.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <FormControl fullWidth size="small">
-            <InputLabel>{t('admin.sort')}</InputLabel>
-            <Select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              label={t('admin.sort')}
-            >
-              <MenuItem value="newest">{t('admin.newest')}</MenuItem>
-              <MenuItem value="oldest">{t('admin.oldest')}</MenuItem>
-              <MenuItem value="price-high">{t('admin.priceHigh')}</MenuItem>
-              <MenuItem value="price-low">{t('admin.priceLow')}</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-      </Grid>
-
-      {/* Success/Error messages */}
-      {showSuccessMessage && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {t('admin.productSaved')}
-        </Alert>
-      )}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+      </Paper>
 
       {/* Products grid */}
       {isLoading ? (
-        <Box display="flex" justifyContent="center" my={4}>
+        <Box display="flex" justifyContent="center" alignItems="center" my={4} minHeight="200px">
           <CircularProgress />
+          <Typography sx={{ ml: 2 }}>{t('common.loadingProducts', 'Loading Products...')}</Typography>
         </Box>
+      ) : filteredProducts.length === 0 ? (
+        <Paper elevation={1} sx={{ p: 3, textAlign: 'center', mt: 3, borderRadius: 2, backgroundColor: 'grey.100' }}>
+            <InfoIcon sx={{ fontSize: 48, color: 'grey.500', mb: 1 }} />
+            <Typography variant="h6" sx={{ color: 'grey.700' }}>{t('admin.noProductsFound', 'No products found.')}</Typography>
+            <Typography variant="body2" sx={{ color: 'grey.600' }}>
+              {searchTerm || filterCategory !== 'all'
+                ? t('admin.noProductsMatchFilter', 'No products match your current search or filter criteria.')
+                : t('admin.noProductsYet', 'There are no products in the system yet. Try adding some!')}
+            </Typography>
+         </Paper>
       ) : (
         <Grid container spacing={3}>
           {filteredProducts.map((product) => (
-            <Grid item xs={12} sm={6} md={4} key={product.id}>
-              <Card>
+            <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}> {/* Added lg breakpoint */}
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 2, transition: 'box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out', '&:hover': { boxShadow: 6, transform: 'translateY(-4px)' } }}>
                 <Box
                   sx={{
                     position: 'relative',
-                    pt: '100%', // 1:1 Aspect ratio
-                    overflow: 'hidden',
+                    width: '100%',
+                    paddingTop: '75%' // Aspect ratio for product images (e.g., 4:3)
                   }}
                 >
                   <img
-                    src={product.imageUrl}
-                    alt={product.name}
+                    src={product.imageUrl || 'https://via.placeholder.com/300x225.png?text=No+Image'} // Fallback image
+                    alt={typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "Product") : product.name}
                     style={{
                       position: 'absolute',
                       top: 0,
+                      left: 0,
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
                     }}
                   />
-                </Box>
-                <CardContent>                  <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                    <Box>
-                      <Typography variant="h6" noWrap gutterBottom>
-                        {typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {product.category}
-                      </Typography>
-                    </Box>
-                    <Box textAlign="right">
-                      <Typography variant="subtitle1" color="primary" fontWeight="bold">
-                        ₪{product.price.toFixed(2)}
-                      </Typography>
-                      {/* <Chip // Removed key/stock related chip
-                        size=\"small\"
-                        label={`${product.availableKeys || 0} keys`}
-                        color={product.availableKeys > (product.minStockAlert || 10) ? \"success\" : \"error\"}
-                        sx={{ mt: 0.5 }}
-                      /> */}
-                    </Box>
-                  </Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      mb: 1,
-                      mt: 1
-                    }}
-                  >
-                    {typeof product.description === "object" ? (product.description.en || Object.values(product.description)[0] || "") : product.description}
-                  </Typography>
-                  
-                  {/* <Box mt={1}> // Removed key format and validity display
-                    <Typography variant=\"caption\" display=\"block\" color=\"text.secondary\">
-                      Key Format: {product.keyFormat || \"Standard\"}
-                    </Typography>
-                    {product.keyExpiry && (
-                      <Typography variant=\"caption\" display=\"block\" color=\"text.secondary\">
-                        Validity: {product.keyValidityDays || 365} days
-                      </Typography>
-                    )}
-                  </Box> */}
-                  <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
-                    <Chip
+                  {product.is_new && (
+                    <Chip 
+                      icon={<NewReleasesIcon />}
+                      label={t('admin.newTag', 'NEW')}
+                      color="secondary"
                       size="small"
-                      label={product.category}
-                      color="default"
+                      sx={{ position: 'absolute', top: 8, left: 8, fontWeight: 'bold' }}
                     />
+                  )}
+                  {product.percent_off > 0 && (
+                     <Chip 
+                      label={`${product.percent_off}% OFF`}
+                      color="error"
+                      size="small"
+                      sx={{ position: 'absolute', top: 8, right: 8, fontWeight: 'bold' }}
+                    />
+                  )}
+                </Box>
+                <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 2 }}>                  
+                  <Box flexGrow={1}>
+                    <Typography variant="h6" component="div" noWrap gutterBottom sx={{ fontWeight: 'medium' }}>
+                      {typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || t('common.untitled', 'Untitled Product')) : product.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        minHeight: '40px', // Ensure consistent height for description area
+                        mb: 1,
+                      }}
+                    >
+                      {typeof product.description === "object" ? (product.description.en || Object.values(product.description)[0] || t('common.noDescription', 'No description available.')) : product.description}
+                    </Typography>
+                  </Box>
+
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mt={1} mb={1.5}>
+                    <Chip 
+                      icon={<CategoryIcon fontSize="small"/>}
+                      label={product.category || t('common.uncategorized', 'Uncategorized')}
+                      size="small"
+                      variant="outlined"
+                    />
+                    <Typography variant="h5" color="primary.main" fontWeight="bold">
+                      ₪{product.price.toFixed(2)}
+                    </Typography>
+                  </Box>
+
+                  <Grid container spacing={1} sx={{ mb: 1.5 }}>
+                    {product.best_seller && (
+                      <Grid item>
+                        <Tooltip title={t('admin.bestSellerTooltip', 'This product is a best seller')}>
+                          <Chip icon={<StarIcon />} label={t('admin.bestSellerShort', 'Best Seller')} size="small" color="warning" variant="outlined" />
+                        </Tooltip>
+                      </Grid>
+                    )}
+                    {product.displayOnHomePage && (
+                      <Grid item>
+                        <Tooltip title={t('admin.onHomepageTooltip', 'Displayed on home page')}>
+                          <Chip icon={<HomeIcon />} label={t('admin.onHomepageShort', 'Homepage')} size="small" color="info" variant="outlined" />
+                        </Tooltip>
+                      </Grid>
+                    )}
+                  </Grid>
+                  
+                  <Divider sx={{ my: 1 }} />
+
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                     <Chip 
+                        icon={product.active ? <CheckCircleIcon /> : <HighlightOffIcon />}
+                        label={product.active ? t('admin.activeStatus', 'Active') : t('admin.inactiveStatus', 'Inactive')}
+                        color={product.active ? "success" : "default"}
+                        size="small"
+                        variant="outlined"
+                      />
                     <Box>
-                      <Tooltip title={t('admin.edit')}>
+                      <Tooltip title={t('admin.editProductTooltip', 'Edit Product')}>
                         <IconButton
                           size="small"
                           onClick={() => {
                             setEditingProduct(product);
                             setShowDialog(true);
                           }}
+                          color="primary"
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title={t('admin.delete')}>
+                      <Tooltip title={t('admin.deleteProductTooltip', 'Delete Product')}>
                         <IconButton
                           size="small"
                           color="error"
@@ -666,79 +724,97 @@ export default function AdminProducts() {
         </Grid>
       )}
 
-      {/* Product Edit/Create Dialog */}
-      <Dialog open={showDialog} onClose={() => setShowDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingProduct?.id ? t('admin.editProduct') : t('admin.newProduct')}
+      {/* Product Edit/Create Dialog - Enhanced */}
+      <Dialog open={showDialog} onClose={() => { setShowDialog(false); setEditingProduct(null); setError(""); }} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
+          {editingProduct?.id ? t('admin.editProduct', 'Edit Product') : t('admin.newProduct', 'Create New Product')}
+          <IconButton onClick={() => { setShowDialog(false); setEditingProduct(null); setError(""); }} size="small">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <form onSubmit={handleProductSubmit}>
-          <DialogContent>
-            <Grid container spacing={2}>
+          <DialogContent dividers>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: 1.5 }} icon={<ErrorOutlineIcon />}>
+                {error}
+              </Alert>
+            )}
+            <Grid container spacing={3}>
               {/* Basic Information */}
               <Grid item xs={12}>
-                <Typography variant="subtitle1" sx={{ mb: 2 }}>
-                  Basic Information
+                <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>
+                  {t('admin.dialog.basicInfo', 'Basic Information')}
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label={t('admin.productNameEn')}
+                      label={t('admin.productNameEn', 'Product Name (English)')}
                       name="name_en"
                       defaultValue={editingProduct?.name?.en || editingProduct?.name || ''}
                       required
+                      variant="outlined"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label={t('admin.productNameHe')}
+                      label={t('admin.productNameHe', 'Product Name (Hebrew)')}
                       name="name_he"
                       defaultValue={editingProduct?.name?.he || ''}
                       dir="rtl"
+                      variant="outlined"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label={t('admin.descriptionEn')}
+                      label={t('admin.descriptionEn', 'Description (English)')}
                       name="description_en"
                       multiline
-                      rows={4}
+                      rows={3}
                       defaultValue={editingProduct?.description?.en || editingProduct?.description || ''}
                       required
+                      variant="outlined"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label={t('admin.descriptionHe')}
+                      label={t('admin.descriptionHe', 'Description (Hebrew)')}
                       name="description_he"
                       multiline
-                      rows={4}
+                      rows={3}
                       defaultValue={editingProduct?.description?.he || ''}
                       dir="rtl"
+                      variant="outlined"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
+                  <Grid item xs={12} sm={6} md={4}>
                     <TextField
                       fullWidth
-                      label={t('admin.price')}
+                      label={t('admin.price', 'Price')}
                       name="price"
                       type="number"
-                      inputProps={{ min: 0, step: "0.01" }}
+                      InputProps={{
+                        startAdornment: <InputAdornment position="start">₪</InputAdornment>,
+                        inputProps: { min: 0, step: "0.01" }
+                      }}
                       defaultValue={editingProduct?.price || 0}
                       required
+                      variant="outlined"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>{t('admin.category')}</InputLabel>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <FormControl fullWidth variant="outlined">
+                      <InputLabel>{t('admin.category', 'Category')}</InputLabel>
                       <Select
                         name="category"
                         defaultValue={editingProduct?.category || ''}
-                        label={t('admin.category')}
+                        label={t('admin.category', 'Category')}
+                        required
                       >
+                        <MenuItem value=""></MenuItem> {/* Allow unselecting or prompt selection */}
                         <MenuItem value="Windows">Windows</MenuItem>
                         <MenuItem value="Office">Microsoft Office</MenuItem>
                         <MenuItem value="Security">Security Software</MenuItem>
@@ -750,60 +826,79 @@ export default function AdminProducts() {
                       </Select>
                     </FormControl>
                   </Grid>
+                   <Grid item xs={12} sm={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label={t('admin.percent_off', 'Discount (%)')}
+                      name="percent_off"
+                      type="number"
+                      InputProps={{
+                        endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                        inputProps: { min: 0, max: 100, step: 1 }
+                      }}
+                      defaultValue={editingProduct?.percent_off || 0}
+                      variant="outlined"
+                    />
+                  </Grid>
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
-                      label={t('admin.imageUrl')}
+                      label={t('admin.imageUrl', 'Image URL')}
                       name="imageUrl"
                       defaultValue={editingProduct?.imageUrl || editingProduct?.image || ''}
                       required
+                      variant="outlined"
                     />
-                  </Grid>                  <Grid item xs={12} sm={4}>
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* Attributes & Visibility */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mt: 2, mb: 1, color: 'text.secondary' }}>
+                  {t('admin.dialog.attributesVisibility', 'Attributes & Visibility')}
+                </Typography>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={6} sm={4} md={3}>
                     <FormControlLabel
                       control={
                         <Switch 
                           name="is_new" 
                           checked={isNewProduct}
                           onChange={e => setIsNewProduct(e.target.checked)}
+                          color="secondary"
                         />
                       }
                       label={t('admin.new_tag', 'New Tag')}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label={t('admin.percent_off', 'Percent Off (%)')}
-                      name="percent_off"
-                      type="number"
-                      inputProps={{ min: 0, max: 100 }}
-                      defaultValue={editingProduct?.percent_off || 0}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={6} sm={4} md={3}>
                     <FormControlLabel
-                      control={<Switch name="best_seller" checked={bestSeller} onChange={e => setBestSeller(e.target.checked)} />}
+                      control={<Switch name="best_seller" checked={bestSeller} onChange={e => setBestSeller(e.target.checked)} color="warning" />}
                       label={t('admin.best_seller', 'Best Seller')}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={6} sm={4} md={3}>
                     <FormControlLabel
                       control={
                         <Switch
                           name="displayOnHomePage"
                           checked={displayOnHomePage}
                           onChange={e => setDisplayOnHomePage(e.target.checked)}
+                          color="info"
                         />
                       }
-                      label={t('admin.display_on_homepage', 'Display on Home Page')}
+                      label={t('admin.display_on_homepage', 'On Homepage')}
                     />
                   </Grid>
-                  <Grid item xs={12} sm={4}>                    <FormControlLabel
+                  <Grid item xs={6} sm={4} md={3}>                    
+                    <FormControlLabel
                       control={
                         <Switch 
                           name="active"
-                          checked={isActive}
-                          onChange={e => setIsActive(e.target.checked)}
+                          checked={isActive} // This should be isActive from state
+                          onChange={e => setIsActive(e.target.checked)} // This should update isActive state
+                          color="success"
                         />
                       }
                       label={t('admin.active', 'Active')}
@@ -811,157 +906,38 @@ export default function AdminProducts() {
                   </Grid>
                 </Grid>
               </Grid>
-
-              {/* Key Management Section */} {/* This whole section in the dialog is removed */}
-              {/* <Grid item xs={12}> 
-                <Typography variant=\"subtitle1\" sx={{ mt: 2, mb: 1 }}>
-                  Key Management
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label=\"Key Format\"
-                      name=\"keyFormat\"
-                      defaultValue={editingProduct?.keyFormat || \"XXXXX-XXXXX-XXXXX-XXXXX-XXXXX\"}
-                      helperText=\"Use X for characters, 0-9 for numbers only\"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label=\"Minimum Stock Alert\"
-                      name=\"minStockAlert\"
-                      type=\"number\"
-                      defaultValue={editingProduct?.minStockAlert || 10}
-                      InputProps={{ inputProps: { min: 0 } }}
-                      helperText=\"Get notified when available keys fall below this number\"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Key Validation Method</InputLabel>
-                      <Select
-                        name=\"keyValidation\"
-                        defaultValue={editingProduct?.keyValidation || \"format\"}
-                      >
-                        <MenuItem value=\"format\">Format Only</MenuItem>
-                        <MenuItem value=\"api\">External API</MenuItem>
-                        <MenuItem value=\"custom\">Custom Validation</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name=\"keyReuse\"
-                          checked={keyReuse}
-                          onChange={e => setKeyReuse(e.target.checked)}
-                        />
-                      }
-                      label=\"Allow key reuse\"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name=\"keyExpiry\"
-                          checked={keyExpiry}
-                          onChange={e => setKeyExpiry(e.target.checked)}
-                        />
-                      }
-                      label=\"Keys expire\"
-                    />
-                  </Grid>
-                  {keyExpiry && (
-                    <Grid item xs={12} sm={6}>
-                      <TextField
-                        fullWidth
-                        label=\"Key Validity (days)\"
-                        name=\"keyValidityDays\"
-                        value={keyValidityDays}
-                        onChange={(e) => setKeyValidityDays(parseInt(e.target.value) || 365)}
-                        defaultValue={editingProduct?.keyValidityDays || 365}
-                        InputProps={{ inputProps: { min: 1 } }}
-                      />
-                    </Grid>
-                  )}
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          name=\"autoGenerateKeys\"
-                          checked={autoGenerateKeys}
-                          onChange={e => setAutoGenerateKeys(e.target.checked)}
-                        />
-                      }
-                      label=\"Auto-generate keys when stock is low\"
-                    />
-                  </Grid>
-                </Grid>
-              </Grid> */} 
             </Grid>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => {
-              setShowDialog(false);
-              setEditingProduct(null);
-            }}>
-              {t('common.cancel')}
+          <DialogActions sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
+            <Button onClick={() => { setShowDialog(false); setEditingProduct(null); setError(""); }} variant="outlined" color="secondary" startIcon={<CancelIcon />}>
+              {t('common.cancel', 'Cancel')}
             </Button>
             <Button 
               type="submit"
               variant="contained"
               color="primary"
               disabled={isLoading}
+              startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
             >
-              {isLoading ? <CircularProgress size={24} /> : editingProduct?.id ? t('admin.saveChanges') : t('admin.addProduct')}
+              {editingProduct?.id ? t('admin.saveChanges', 'Save Changes') : t('admin.addProduct', 'Add Product')}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
 
-      {/* Key Management Dialog */} {/* Removed KeyBulkManagement component */}
-      {/* {selectedProduct && (
-        <KeyBulkManagement
-          open={showKeyManagement}
-          onClose={() => {
-            setShowKeyManagement(false);
-            setSelectedProduct(null);
-            loadProducts();
-          }}
-          productId={selectedProduct.id}
-          productName={selectedProduct.name.en || selectedProduct.name}
-          keyFormat={selectedProduct.keyFormat}
-        />
-      )} */}
-        {/* Add Keys Dialog using our new component */} {/* Removed KeyDialog component */}
-      {/* <KeyDialog 
-        open={showKeyDialog}
-        onClose={() => {
-          setShowKeyDialog(false);
-          setSelectedProduct(null);
-        }}
-        product={selectedProduct}
-        onSuccess={loadProducts}
-        t={t}
-      /> */}
-
-      {/* Analytics Modal */}
-      <Dialog open={showAnalyticsModal} onClose={() => setShowAnalyticsModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Analytics Modal - Enhanced */}
+      <Dialog open={showAnalyticsModal} onClose={() => setShowAnalyticsModal(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
           {analyticsModalTitle}
           <IconButton onClick={() => setShowAnalyticsModal(false)} size="small">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ p:2 }}>
           {analyticsModalContent}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowAnalyticsModal(false)}>{t('common.close')}</Button>
+        <DialogActions sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
+          <Button onClick={() => setShowAnalyticsModal(false)} variant="outlined">{t('common.close', 'Close')}</Button>
         </DialogActions>
       </Dialog>
     </Box>

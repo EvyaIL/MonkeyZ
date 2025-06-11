@@ -264,6 +264,10 @@ async def update_order(
     if not existing_order_doc:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    # Convert ObjectId to string for Pydantic validation before creating the Order model instance
+    if '_id' in existing_order_doc and isinstance(existing_order_doc['_id'], ObjectId):
+        existing_order_doc['_id'] = str(existing_order_doc['_id'])
+    
     existing_order = Order(**existing_order_doc)
     
     # Get the raw update dictionary, exclude_unset=True is important
@@ -426,6 +430,7 @@ async def update_order(
     updated_order_from_db = await db.orders.find_one({"_id": ObjectId(order_id)})
     if not updated_order_from_db: 
         raise HTTPException(status_code=404, detail="Order not found after update attempt")
+    
     return Order(**updated_order_from_db)
 
 @router.put("/orders/{order_id}/status", response_model=Order)
