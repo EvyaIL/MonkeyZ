@@ -13,6 +13,7 @@ class ProductResponse(BaseModel):
     active: bool
     created_at: datetime # Add this field
     image: Optional[str] = None
+    imageUrl: Optional[str] = None # Add this field
     category: Optional[str] = None # Product category
     is_new: Optional[bool] = False
     percent_off: Optional[int] = 0

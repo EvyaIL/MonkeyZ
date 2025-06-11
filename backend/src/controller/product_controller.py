@@ -48,6 +48,9 @@ class ProductsController:
                 if 'best_seller' in product_dict:
                     product_dict['best_seller'] = bool(product_dict['best_seller'])
                 
+                # Ensure imageUrl is included
+                product_dict['imageUrl'] = getattr(admin_product, 'imageUrl', None)
+
                 try:
                     # Try to update the product in main collection
                     await self.product_collection.update_product_from_dict(admin_product.id, product_dict)
@@ -103,6 +106,8 @@ class ProductsController:
         
         # Convert to dictionary format for main collection
         product_dict = created_admin_product.model_dump()
+        # Ensure imageUrl is included
+        product_dict['imageUrl'] = getattr(created_admin_product, 'imageUrl', None)
         
         try:
             # Create in main products collection
@@ -141,6 +146,8 @@ class ProductsController:
         
         # Convert to dictionary format for main collection
         product_dict = updated_admin_product.model_dump()
+        # Ensure imageUrl is included
+        product_dict['imageUrl'] = getattr(updated_admin_product, 'imageUrl', None)
         
         try:
             # Update in main products collection
