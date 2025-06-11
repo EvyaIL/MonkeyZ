@@ -2,7 +2,7 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
-import KeyDialog from '../../../components/admin/KeyDialog';
+// import KeyDialog from '../../../components/admin/KeyDialog'; // Removed
 import {
   Box,
   Card,
@@ -36,9 +36,9 @@ import KeyIcon from '@mui/icons-material/VpnKey';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
 import CancelIcon from '@mui/icons-material/Cancel';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import KeyBulkManagement from '../../../components/admin/KeyBulkManagement';
-import KeyManagementSection from '../../../components/admin/KeyManagementSection';
+// import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'; // Removed if only for keys
+// import KeyBulkManagement from '../../../components/admin/KeyBulkManagement'; // Removed
+// import KeyManagementSection from '../../../components/admin/KeyManagementSection'; // Removed
 import AssessmentIcon from '@mui/icons-material/Assessment'; // For analytics
 import InfoIcon from '@mui/icons-material/Info'; // For info icons on cards
 
@@ -54,15 +54,18 @@ export default function AdminProducts() {
   const [filterCategory, setFilterCategory] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
   const [showDialog, setShowDialog] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);  const [showKeyDialog, setShowKeyDialog] = useState(false);
-  const [showKeyManagement, setShowKeyManagement] = useState(false);  const [categories, setCategories] = useState([]);
-  const [displayOnHomePage, setDisplayOnHomePage] = useState(false);  const [bestSeller, setBestSeller] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  // const [showKeyDialog, setShowKeyDialog] = useState(false); // Removed
+  // const [showKeyManagement, setShowKeyManagement] = useState(false); // Removed
+  const [categories, setCategories] = useState([]);
+  const [displayOnHomePage, setDisplayOnHomePage] = useState(false);
+  const [bestSeller, setBestSeller] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [isNewProduct, setIsNewProduct] = useState(false);
-  const [keyReuse, setKeyReuse] = useState(false);
-  const [keyExpiry, setKeyExpiry] = useState(false);
-  const [autoGenerateKeys, setAutoGenerateKeys] = useState(false);
-  const [keyValidityDays, setKeyValidityDays] = useState(365);
+  // const [keyReuse, setKeyReuse] = useState(false); // Removed
+  // const [keyExpiry, setKeyExpiry] = useState(false); // Removed
+  // const [autoGenerateKeys, setAutoGenerateKeys] = useState(false); // Removed
+  // const [keyValidityDays, setKeyValidityDays] = useState(365); // Removed
 
   // State for analytics
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -189,21 +192,23 @@ export default function AdminProducts() {
   // Sync state with editingProduct when it changes
   useEffect(() => {
     if (editingProduct) {
-      setBestSeller(editingProduct?.best_seller ?? false);      setDisplayOnHomePage(editingProduct?.displayOnHomePage ?? editingProduct?.display_on_homepage ?? false);
+      setBestSeller(editingProduct?.best_seller ?? false);
+      setDisplayOnHomePage(editingProduct?.displayOnHomePage ?? editingProduct?.display_on_homepage ?? false);
       setIsActive(editingProduct?.active ?? true);
-      setIsNewProduct(editingProduct?.is_new ?? false);      setKeyReuse(editingProduct?.keyReuse ?? false);
-      setKeyExpiry(editingProduct?.keyExpiry ?? false);
-      setAutoGenerateKeys(editingProduct?.autoGenerateKeys ?? false);
-      setKeyValidityDays(editingProduct?.keyValidityDays || 365);
+      setIsNewProduct(editingProduct?.is_new ?? false);
+      // setKeyReuse(editingProduct?.keyReuse ?? false); // Removed
+      // setKeyExpiry(editingProduct?.keyExpiry ?? false); // Removed
+      // setAutoGenerateKeys(editingProduct?.autoGenerateKeys ?? false); // Removed
+      // setKeyValidityDays(editingProduct?.keyValidityDays || 365); // Removed
     } else {
       setBestSeller(false);
       setDisplayOnHomePage(false);
       setIsActive(true);
       setIsNewProduct(false);
-      setKeyReuse(false);
-      setKeyExpiry(false);
-      setAutoGenerateKeys(false);
-      setKeyValidityDays(365);
+      // setKeyReuse(false); // Removed
+      // setKeyExpiry(false); // Removed
+      // setAutoGenerateKeys(false); // Removed
+      // setKeyValidityDays(365); // Removed
     }
   }, [editingProduct]);
 
@@ -226,15 +231,16 @@ export default function AdminProducts() {
       imageUrl: formData.get('imageUrl') || formData.get('image') || '',
       category: formData.get('category') || '',
       active: isActive,
-      inStock: true,      keyManagement: {
-        format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
-        minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
-        autoGenerateKeys: autoGenerateKeys,
-        validationMethod: formData.get('keyValidation') || 'format',
-        allowReuse: keyReuse,
-        keyExpiry: keyExpiry,
-        validityDays: keyValidityDays
-      },
+      inStock: true, // This might need re-evaluation or removal if stock is entirely separate
+      // keyManagement: { // Removed
+      //   format: formData.get('keyFormat') || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
+      //   minStockAlert: parseInt(formData.get('minStockAlert')) || 10,
+      //   autoGenerateKeys: autoGenerateKeys,
+      //   validationMethod: formData.get('keyValidation') || 'format',
+      //   allowReuse: keyReuse,
+      //   keyExpiry: keyExpiry,
+      //   validityDays: keyValidityDays
+      // },
       metadata: {
         translations: {
           name: {
@@ -375,10 +381,10 @@ export default function AdminProducts() {
   };  // Key management is now handled in KeyDialog component
   // Key generation is now handled in KeyDialog component
 
-  const handleKeyManagement = (product) => {
-    setSelectedProduct(product);
-    setShowKeyManagement(true);
-  };
+  // const handleKeyManagement = (product) => { // Removed
+  //   setSelectedProduct(product);
+  //   setShowKeyManagement(true);
+  // };
 
   // When editingProduct changes (dialog opens), sync bestSeller state
   useEffect(() => {
@@ -486,9 +492,9 @@ export default function AdminProducts() {
       )}
 
       {/* Key Management Overview */}
-      <Box mb={4}>
+      {/* <Box mb={4}>
         <KeyManagementSection />
-      </Box>
+      </Box> */} {/* Removed KeyManagementSection component */}
 
       {/* Filters and search */}
       <Grid container spacing={2} mb={3}>
@@ -590,12 +596,12 @@ export default function AdminProducts() {
                       <Typography variant="subtitle1" color="primary" fontWeight="bold">
                         ₪{product.price.toFixed(2)}
                       </Typography>
-                      <Chip
-                        size="small"
+                      {/* <Chip // Removed key/stock related chip
+                        size=\"small\"
                         label={`${product.availableKeys || 0} keys`}
-                        color={product.availableKeys > (product.minStockAlert || 10) ? "success" : "error"}
+                        color={product.availableKeys > (product.minStockAlert || 10) ? \"success\" : \"error\"}
                         sx={{ mt: 0.5 }}
-                      />
+                      /> */}
                     </Box>
                   </Box>
                   <Typography
@@ -614,34 +620,23 @@ export default function AdminProducts() {
                     {typeof product.description === "object" ? (product.description.en || Object.values(product.description)[0] || "") : product.description}
                   </Typography>
                   
-                  <Box mt={1}>
-                    <Typography variant="caption" display="block" color="text.secondary">
-                      Key Format: {product.keyFormat || "Standard"}
+                  {/* <Box mt={1}> // Removed key format and validity display
+                    <Typography variant=\"caption\" display=\"block\" color=\"text.secondary\">
+                      Key Format: {product.keyFormat || \"Standard\"}
                     </Typography>
                     {product.keyExpiry && (
-                      <Typography variant="caption" display="block" color="text.secondary">
+                      <Typography variant=\"caption\" display=\"block\" color=\"text.secondary\">
                         Validity: {product.keyValidityDays || 365} days
                       </Typography>
                     )}
-                  </Box>                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                  </Box> */}
+                  <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
                     <Chip
                       size="small"
                       label={product.category}
                       color="default"
                     />
                     <Box>
-                      <Tooltip title="Add Keys">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => {
-                            setSelectedProduct(product);
-                            setShowKeyDialog(true);
-                          }}
-                        >
-                          <KeyIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
                       <Tooltip title={t('admin.edit')}>
                         <IconButton
                           size="small"
@@ -660,14 +655,6 @@ export default function AdminProducts() {
                           onClick={() => onDeleteProduct(product.id)}
                         >
                           <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title={t('admin.manageKeys')}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleKeyManagement(product)}
-                        >
-                          <KeyIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </Box>
@@ -825,93 +812,96 @@ export default function AdminProducts() {
                 </Grid>
               </Grid>
 
-              {/* Key Management Section */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+              {/* Key Management Section */} {/* This whole section in the dialog is removed */}
+              {/* <Grid item xs={12}> 
+                <Typography variant=\"subtitle1\" sx={{ mt: 2, mb: 1 }}>
                   Key Management
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Key Format"
-                      name="keyFormat"
-                      defaultValue={editingProduct?.keyFormat || "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
-                      helperText="Use X for characters, 0-9 for numbers only"
+                      label=\"Key Format\"
+                      name=\"keyFormat\"
+                      defaultValue={editingProduct?.keyFormat || \"XXXXX-XXXXX-XXXXX-XXXXX-XXXXX\"}
+                      helperText=\"Use X for characters, 0-9 for numbers only\"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
-                      label="Minimum Stock Alert"
-                      name="minStockAlert"
-                      type="number"
+                      label=\"Minimum Stock Alert\"
+                      name=\"minStockAlert\"
+                      type=\"number\"
                       defaultValue={editingProduct?.minStockAlert || 10}
                       InputProps={{ inputProps: { min: 0 } }}
-                      helperText="Get notified when available keys fall below this number"
+                      helperText=\"Get notified when available keys fall below this number\"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth>
                       <InputLabel>Key Validation Method</InputLabel>
                       <Select
-                        name="keyValidation"
-                        defaultValue={editingProduct?.keyValidation || "format"}
+                        name=\"keyValidation\"
+                        defaultValue={editingProduct?.keyValidation || \"format\"}
                       >
-                        <MenuItem value="format">Format Only</MenuItem>
-                        <MenuItem value="api">External API</MenuItem>
-                        <MenuItem value="custom">Custom Validation</MenuItem>
+                        <MenuItem value=\"format\">Format Only</MenuItem>
+                        <MenuItem value=\"api\">External API</MenuItem>
+                        <MenuItem value=\"custom\">Custom Validation</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} sm={6}>                    <FormControlLabel
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
                       control={
                         <Switch
-                          name="keyReuse"
+                          name=\"keyReuse\"
                           checked={keyReuse}
                           onChange={e => setKeyReuse(e.target.checked)}
                         />
                       }
-                      label="Allow key reuse"
+                      label=\"Allow key reuse\"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>                    <FormControlLabel
+                  <Grid item xs={12} sm={6}>
+                    <FormControlLabel
                       control={
                         <Switch
-                          name="keyExpiry"
+                          name=\"keyExpiry\"
                           checked={keyExpiry}
                           onChange={e => setKeyExpiry(e.target.checked)}
                         />
                       }
-                      label="Keys expire"
+                      label=\"Keys expire\"
                     />
                   </Grid>
                   {keyExpiry && (
                     <Grid item xs={12} sm={6}>
                       <TextField
                         fullWidth
-                        label="Key Validity (days)"
-                        name="keyValidityDays"
+                        label=\"Key Validity (days)\"
+                        name=\"keyValidityDays\"
                         value={keyValidityDays}
                         onChange={(e) => setKeyValidityDays(parseInt(e.target.value) || 365)}
                         defaultValue={editingProduct?.keyValidityDays || 365}
                         InputProps={{ inputProps: { min: 1 } }}
                       />
                     </Grid>
-                  )}                  <Grid item xs={12}>
+                  )}
+                  <Grid item xs={12}>
                     <FormControlLabel
                       control={
                         <Switch
-                          name="autoGenerateKeys"
+                          name=\"autoGenerateKeys\"
                           checked={autoGenerateKeys}
                           onChange={e => setAutoGenerateKeys(e.target.checked)}
                         />
                       }
-                      label="Auto-generate keys when stock is low"
+                      label=\"Auto-generate keys when stock is low\"
                     />
                   </Grid>
                 </Grid>
-              </Grid>
+              </Grid> */} 
             </Grid>
           </DialogContent>
           <DialogActions>
@@ -933,8 +923,8 @@ export default function AdminProducts() {
         </form>
       </Dialog>
 
-      {/* Key Management Dialog */}
-      {selectedProduct && (
+      {/* Key Management Dialog */} {/* Removed KeyBulkManagement component */}
+      {/* {selectedProduct && (
         <KeyBulkManagement
           open={showKeyManagement}
           onClose={() => {
@@ -946,9 +936,9 @@ export default function AdminProducts() {
           productName={selectedProduct.name.en || selectedProduct.name}
           keyFormat={selectedProduct.keyFormat}
         />
-      )}
-        {/* Add Keys Dialog using our new component */}
-      <KeyDialog 
+      )} */}
+        {/* Add Keys Dialog using our new component */} {/* Removed KeyDialog component */}
+      {/* <KeyDialog 
         open={showKeyDialog}
         onClose={() => {
           setShowKeyDialog(false);
@@ -957,7 +947,7 @@ export default function AdminProducts() {
         product={selectedProduct}
         onSuccess={loadProducts}
         t={t}
-      />
+      /> */}
 
       {/* Analytics Modal */}
       <Dialog open={showAnalyticsModal} onClose={() => setShowAnalyticsModal(false)} maxWidth="sm" fullWidth>

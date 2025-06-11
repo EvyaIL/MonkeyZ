@@ -107,57 +107,6 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     calculateAndSetTotals(formData.items, formData.coupon_code, formData.discount_amount);
   }, [formData.items, formData.coupon_code, formData.discount_amount, calculateAndSetTotals]);
 
-  // Helper function to fetch user name if editing an order with a user_id
-  const fetchUserName = async (userId) => {
-    // This function assumes you might need to fetch user details if only ID is present
-    // For now, if users array is populated, we try to find it there.
-    // This might need adjustment based on how `initialOrder` is populated.
-    const existingUser = users.find(u => u.id === userId || u._id === userId);
-    if (existingUser) {
-      return `${existingUser.username} (${existingUser.email})`;
-    }
-    // Optionally, fetch from API if not in local list:
-    // try {
-    //   const response = await apiService.get(`/admin/users/${userId}`);
-    //   if (response.data) {
-    //     return `${response.data.username} (${response.data.email})`;
-    //   }
-    // } catch (err) {
-    //   console.error("Failed to fetch user name:", err);
-    // }
-    return userId; // Fallback to ID if name not found
-  };
-
-  useEffect(() => {
-    // Fetch users for the dropdown (optional feature)
-    const fetchUsers = async () => {
-      try {
-        const response = await apiService.get('/admin/users'); // Assuming an endpoint to get users
-        if (response.data) {
-          setUsers(response.data);
-          setFilteredUsers(response.data);
-        }
-      } catch (err) {
-        console.error("Failed to fetch users:", err);
-        // Handle error (e.g., notify admin)
-      }
-    };
-    // fetchUsers(); // Uncomment if you have the /admin/users endpoint
-  }, []);
-
-  useEffect(() => {
-    if (searchTerm === '') {
-      setFilteredUsers(users);
-    } else {
-      setFilteredUsers(
-        users.filter(user =>
-          (user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-      );
-    }
-  }, [searchTerm, users]);
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));

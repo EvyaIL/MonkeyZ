@@ -15,22 +15,22 @@ import {
   IconButton,
   Select,
   MenuItem,
-  FormControl,
   InputLabel,
-  TextField, 
-  Dialog, 
-  DialogActions, 
-  DialogContent, 
-  DialogContentText, 
+  FormControl,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText, // Added
   DialogTitle,
-  Grid, 
-  Card, 
+  Grid,
+  Card,
   CardContent,
-  TableSortLabel, // Added for sortable table in modal
-  List, ListItem, ListItemText // Added for Status Breakdown Modal
+  AlertTitle,
+  List, // Added
+  ListItem, // Added
+  ListItemText, // Added
 } from '@mui/material';
 import { Edit as EditIcon, Add as AddIcon, Visibility as VisibilityIcon, Delete as DeleteIcon, Close as CloseIcon } from '@mui/icons-material'; // Added CloseIcon
-import { useNavigate } from 'react-router-dom'; // For navigation if needed, or for OrderForm
 import { useTranslation } from 'react-i18next'; // For i18n
 
 import { apiService } from '../../../lib/apiService'; // Adjusted path
@@ -40,8 +40,7 @@ import { useGlobalProvider } from '../../../context/GlobalProvider'; // For noti
 function AdminOrdersSimple() {
   const { t } = useTranslation();
   const { notify } = useGlobalProvider();
-  const navigate = useNavigate(); // Initialize navigate
-
+  
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [orderError, setOrderError] = useState(null);
