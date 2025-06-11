@@ -301,6 +301,7 @@ function AdminOrdersSimple() {
           setEditingOrder(null);
         }}
         formError={orderError}
+        t={t} // Pass the t function
       />
     );
   }
