@@ -16,9 +16,15 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  TextField, // Added for coupon input
+  Dialog, // Added for delete confirmation
+  DialogActions, // Added
+  DialogContent, // Added
+  DialogContentText, // Added
+  DialogTitle // Added
 } from '@mui/material';
-import { Edit as EditIcon, Add as AddIcon, Visibility as VisibilityIcon } from '@mui/icons-material'; // Added icons
+import { Edit as EditIcon, Add as AddIcon, Visibility as VisibilityIcon, Delete as DeleteIcon } from '@mui/icons-material'; // Added DeleteIcon
 import { useNavigate } from 'react-router-dom'; // For navigation if needed, or for OrderForm
 import { useTranslation } from 'react-i18next'; // For i18n
 
@@ -43,6 +49,10 @@ function AdminOrdersSimple() {
   // State for products (needed for OrderForm)
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // State for delete confirmation
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
 
 
   const loadProducts = useCallback(async () => {
@@ -98,6 +108,35 @@ function AdminOrdersSimple() {
     setShowOrderForm(true);
     setOrderError(null); // Clear previous errors
   };
+
+  const handleOpenDeleteDialog = (order) => {
+    setOrderToDelete(order);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+    setOrderToDelete(null);
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    setLoadingOrders(true);
+    try {
+      await apiService.delete(`/api/orders/${orderToDelete.id || orderToDelete._id}`);
+      notify({ message: t('admin.orders.deletedSuccess', 'Order deleted successfully!'), type: 'success' });
+      await refreshOrders();
+      handleCloseDeleteDialog();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      const errorMessage = error.response?.data?.detail || t('admin.orders.deleteError', 'Failed to delete order.');
+      notify({ message: errorMessage, type: 'error' });
+      setOrderError(errorMessage); // Show error on the main page if needed
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
   const handleOrderSubmit = async (orderData) => {
     setLoadingOrders(true);
     setOrderError(null);
@@ -160,6 +199,8 @@ function AdminOrdersSimple() {
         allProducts={products} // Pass all products
         loading={loadingOrders || loadingProducts} // Combined loading state
         error={orderError} // Pass error to be displayed on the form
+        // Pass t function for translations within OrderForm if it uses it
+        t={t} 
       />
     );
   }
@@ -221,7 +262,10 @@ function AdminOrdersSimple() {
                 <TableCell>{t('admin.orderId', 'Order ID')}</TableCell>
                 <TableCell>{t('admin.orderCustomer', 'Customer')}</TableCell>
                 <TableCell>{t('admin.orderDate', 'Date')}</TableCell>
+                <TableCell>{t('admin.orderOriginalTotal', 'Original Total')}</TableCell>
+                <TableCell>{t('admin.orderDiscount', 'Discount')}</TableCell>
                 <TableCell>{t('admin.orderTotal', 'Total')}</TableCell>
+                <TableCell>{t('admin.orderCoupon', 'Coupon')}</TableCell>
                 <TableCell>{t('admin.orderStatus', 'Status')}</TableCell>
                 <TableCell align="right">{t('admin.orderActions', 'Actions')}</TableCell>
               </TableRow>
@@ -237,7 +281,10 @@ function AdminOrdersSimple() {
                   </TableCell>
                   <TableCell>{order.customerName} ({order.email})</TableCell>
                   <TableCell>{new Date(order.date || order.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>₪{order.original_total?.toFixed(2) || order.total?.toFixed(2)}</TableCell>
+                  <TableCell>₪{order.discount_amount?.toFixed(2) || '0.00'}</TableCell>
                   <TableCell>₪{order.total?.toFixed(2)}</TableCell>
+                  <TableCell>{order.coupon_code || 'N/A'}</TableCell>
                   <TableCell>
                      <span style={{
                         padding: '0.25em 0.5em',
@@ -261,6 +308,9 @@ function AdminOrdersSimple() {
                     <IconButton onClick={() => setSelectedOrderDetails(order)} color="secondary" aria-label={t('admin.viewDetailsButton', 'Details')}>
                        <VisibilityIcon />
                     </IconButton>
+                    <IconButton onClick={() => handleOpenDeleteDialog(order)} color="error" aria-label={t('admin.deleteButton', 'Delete')}>
+                      <DeleteIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -269,7 +319,7 @@ function AdminOrdersSimple() {
         </TableContainer>
       )}
 
-      {/* Basic Order Details Modal (Example) */}
+      {/* Basic Order Details Modal */}
       {selectedOrderDetails && (
         <Box 
           sx={{ 
@@ -279,12 +329,22 @@ function AdminOrdersSimple() {
           }}
           onClick={() => setSelectedOrderDetails(null)} // Close on backdrop click
         >
-          <Paper sx={{ p: 3, width: '90%', maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}> {/* Prevent closing when clicking inside modal */}
+          <Paper sx={{ p: 3, width: '90%', maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}> 
             <Typography variant="h5" gutterBottom>{t('admin.orderDetailsTitle', 'Order Details')} - {selectedOrderDetails.id || selectedOrderDetails._id}</Typography>
             <Typography><strong>{t('admin.orderCustomer', 'Customer')}:</strong> {selectedOrderDetails.customerName} ({selectedOrderDetails.email})</Typography>
             <Typography><strong>{t('admin.orderPhone', 'Phone')}:</strong> {selectedOrderDetails.phone || 'N/A'}</Typography>
             <Typography><strong>{t('admin.orderDate', 'Date')}:</strong> {new Date(selectedOrderDetails.date || selectedOrderDetails.createdAt).toLocaleString()}</Typography>
-            <Typography><strong>{t('admin.orderTotal', 'Total')}:</strong> ₪{selectedOrderDetails.total?.toFixed(2)}</Typography>
+            
+            {/* Coupon and Total Details */}
+            <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> ₪{selectedOrderDetails.original_total?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}</Typography>
+            {selectedOrderDetails.coupon_code && (
+              <>
+                <Typography><strong>{t('admin.orderCoupon', 'Coupon Code')}:</strong> {selectedOrderDetails.coupon_code}</Typography>
+                <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> ₪{selectedOrderDetails.discount_amount?.toFixed(2)}</Typography>
+              </>
+            )}
+            <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> ₪{selectedOrderDetails.total?.toFixed(2)}</Typography>
+            
             <Typography><strong>{t('admin.orderStatus', 'Status')}:</strong> {t(`admin.status${selectedOrderDetails.status}`, selectedOrderDetails.status)}</Typography>
             {selectedOrderDetails.user_id && <Typography><strong>{t('admin.orderUserId', 'User ID')}:</strong> {selectedOrderDetails.user_id}</Typography>}
             <Box mt={1}>
@@ -326,6 +386,30 @@ function AdminOrdersSimple() {
           </Paper>
         </Box>
       )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleCloseDeleteDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {t('admin.orders.confirmDeleteTitle', "Confirm Deletion")}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            {t('admin.orders.confirmDeleteText', `Are you sure you want to delete order ${orderToDelete?.id || orderToDelete?._id}? This action cannot be undone.`)}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="primary">
+            {t('admin.cancelButton', 'Cancel')}
+          </Button>
+          <Button onClick={handleDeleteOrder} color="error" autoFocus>
+            {t('admin.deleteButton', 'Delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

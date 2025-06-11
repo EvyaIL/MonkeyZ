@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { apiService } from '../../lib/apiService'; // For fetching users if needed
 
-const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], loading, error }) => {
-  const { t } = useTranslation();
+const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], loading, error, t }) => {
+  // const { t } = useTranslation(); // t is now passed as a prop
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',
     phone: '',
-    user_id: '', // Optional: ID of an existing user
-    selectedUserName: '', // Added to store the name of the linked user for display
+    user_id: '', 
+    selectedUserName: '', 
     status: 'Pending',
     items: [],
-    total: 0,
+    // Values related to coupons and totals
+    coupon_code: '', // New field for coupon code
+    original_total: 0, // Will be calculated from items, or from initialOrder
+    discount_amount: 0, // From initialOrder, or 0
+    total: 0, // final total: original_total - discount_amount
     notes: '',
   });
 
@@ -32,6 +35,24 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     return items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
   }, []);
 
+  const calculateAndSetTotals = useCallback((items, couponCode = formData.coupon_code, discountAmount = formData.discount_amount) => {
+    const currentOriginalTotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    // For now, discount_amount is primarily managed by backend logic after submission.
+    // The form will display it if initialOrder has it, or if we implement client-side preview later.
+    // For simplicity, if a coupon code is present but discount is 0 (e.g. new coupon entered),
+    // we don't calculate discount here. Backend does it.
+    // If editing, discountAmount comes from initialOrder.
+    const currentDiscountAmount = initialOrder?.coupon_code === couponCode ? initialOrder?.discount_amount || 0 : (couponCode ? discountAmount : 0) ;
+    const currentFinalTotal = currentOriginalTotal - currentDiscountAmount;
+
+    setFormData(prev => ({
+      ...prev,
+      original_total: currentOriginalTotal,
+      discount_amount: currentDiscountAmount, // Keep existing discount if coupon code hasn't changed
+      total: currentFinalTotal,
+    }));
+  }, [initialOrder, formData.coupon_code, formData.discount_amount]); // Dependencies for recalculation logic
+
   useEffect(() => {
     const initForm = async () => {
       if (initialOrder) {
@@ -50,6 +71,11 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
             userNameToDisplay = initialOrder.user_id;
           }
         }
+        const items = initialOrder.items || [];
+        const originalTotal = initialOrder.original_total !== undefined ? initialOrder.original_total : calculateTotal(items);
+        const discountAmount = initialOrder.discount_amount || 0;
+        const finalTotal = initialOrder.total !== undefined ? initialOrder.total : originalTotal - discountAmount;
+
         setFormData({
           customerName: initialOrder.customerName || '',
           email: initialOrder.email || '',
@@ -57,20 +83,29 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
           user_id: initialOrder.user_id || '',
           selectedUserName: userNameToDisplay,
           status: initialOrder.status || 'Pending',
-          items: initialOrder.items || [],
-          total: initialOrder.total || calculateTotal(initialOrder.items || []),
+          items: items,
+          coupon_code: initialOrder.coupon_code || '',
+          original_total: originalTotal,
+          discount_amount: discountAmount,
+          total: finalTotal,
           notes: initialOrder.notes || '',
           id: initialOrder.id || initialOrder._id || null
         });
       } else {
         // Reset for new order
         setFormData({
-          customerName: '', email: '', phone: '', user_id: '', selectedUserName: '', status: 'Pending', items: [], total: 0, notes: ''
+          customerName: '', email: '', phone: '', user_id: '', selectedUserName: '', status: 'Pending', 
+          items: [], coupon_code: '', original_total: 0, discount_amount: 0, total: 0, notes: ''
         });
       }
     };
     initForm();
-  }, [initialOrder, calculateTotal, users]); // Added users to dependency array
+  }, [initialOrder, users, calculateTotal]);
+
+  // Recalculate original_total and final_total whenever items change
+  useEffect(() => {
+    calculateAndSetTotals(formData.items, formData.coupon_code, formData.discount_amount);
+  }, [formData.items, formData.coupon_code, formData.discount_amount, calculateAndSetTotals]);
 
   // Helper function to fetch user name if editing an order with a user_id
   const fetchUserName = async (userId) => {
@@ -176,36 +211,44 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
 
   const handleAddItem = () => {
     if (!currentItem.productId || currentItem.quantity <= 0 || currentItem.price < 0) {
-      alert(t('admin.orderForm.invalidItem')); // Replace with a proper notification
+      alert(t('admin.orderForm.invalidItem', "Please select a product and ensure quantity/price are valid.")); 
       return;
     }
     const newItem = { ...currentItem, name: currentItem.name || `Product ID: ${currentItem.productId}` };
     const updatedItems = [...formData.items, newItem];
-    setFormData(prev => ({
-      ...prev,
-      items: updatedItems,
-      total: calculateTotal(updatedItems),
-    }));
-    setCurrentItem({ productId: '', name: '', quantity: 1, price: 0 }); // Reset for next item
+    // setFormData(prev => ({ // Total calculation is now handled by useEffect watching items
+    //   ...prev,
+    //   items: updatedItems,
+    // }));
+    // calculateAndSetTotals will be triggered by the state update of formData.items
+    setFormData(prev => ({ ...prev, items: updatedItems }));
+    setCurrentItem({ productId: '', name: '', quantity: 1, price: 0 }); 
   };
 
   const handleRemoveItem = (index) => {
     const updatedItems = formData.items.filter((_, i) => i !== index);
-    setFormData(prev => ({
-      ...prev,
-      items: updatedItems,
-      total: calculateTotal(updatedItems),
-    }));
+    // setFormData(prev => ({ // Total calculation is now handled by useEffect watching items
+    //   ...prev,
+    //   items: updatedItems,
+    // }));
+    // calculateAndSetTotals will be triggered by the state update of formData.items
+    setFormData(prev => ({ ...prev, items: updatedItems }));
   };
   
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (formData.items.length === 0) {
-      alert(t('admin.orderForm.atLeastOneItem')); // Replace with a proper notification
+    if (formData.items.length === 0 && !initialOrder) { // Allow empty items if editing (e.g. to cancel all items)
+      alert(t('admin.orderForm.atLeastOneItem', "Order must have at least one item.")); 
       return;
     }
-    // Ensure user_id is null if empty string, or backend handles it
-    const dataToSubmit = { ...formData, user_id: formData.user_id || null };
+    const dataToSubmit = { 
+      ...formData, 
+      user_id: formData.user_id || null,
+      // Ensure numeric values are numbers, not strings, if changed by input type="number"
+      original_total: parseFloat(formData.original_total) || 0,
+      discount_amount: parseFloat(formData.discount_amount) || 0,
+      total: parseFloat(formData.total) || 0,
+    };
     onSubmit(dataToSubmit);
   };
 
@@ -215,87 +258,91 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
   return (
     <div className="my-6 p-6 bg-white dark:bg-gray-800 shadow-xl rounded-lg">
       <h3 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-white">
-        {initialOrder ? t('admin.orderForm.editOrder') : t('admin.orderForm.createNewOrder')}
+        {initialOrder ? t('admin.orderForm.editOrderTitle', 'Edit Order') : t('admin.orderForm.createNewOrderTitle', 'Create New Order')}
       </h3>
       <form onSubmit={handleFormSubmit} className="space-y-6">
         {/* Customer Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="customerName" className={labelClass}>{t('admin.orderForm.customerName')}</label>
-            <input type="text" name="customerName" id="customerName" value={formData.customerName} onChange={handleInputChange} className={inputClass} required />
-          </div>
-          <div>
-            <label htmlFor="email" className={labelClass}>{t('admin.orderForm.email')}</label>
-            <input type="email" name="email" id="email" value={formData.email} onChange={handleInputChange} className={inputClass} required />
-          </div>
-          <div>
-            <label htmlFor="phone" className={labelClass}>{t('admin.orderForm.phone')}</label>
-            <input type="tel" name="phone" id="phone" value={formData.phone} onChange={handleInputChange} className={inputClass} />
-          </div>
-          <div>
-            <label htmlFor="status" className={labelClass}>{t('admin.orderForm.status')}</label>
-            <select name="status" id="status" value={formData.status} onChange={handleInputChange} className={inputClass}>
-              <option value="Pending">{t('admin.statusPending')}</option>
-              <option value="Processing">{t('admin.statusProcessing')}</option>
-              <option value="Shipped">{t('admin.statusShipped')}</option>
-              <option value="Completed">{t('admin.statusCompleted')}</option>
-              <option value="Cancelled">{t('admin.statusCancelled')}</option>
-            </select>
-          </div>
-        </div>
-
-        {/* User Linking (Optional) */}
-        {/* This is a basic example. You might want a more sophisticated user search/select component */}
-        <div>
-          <label htmlFor="user_search" className={labelClass}>{t('admin.orderForm.linkToUserOptional')}</label>
-          <input
-            type="text"
-            id="user_search"
-            placeholder={t('admin.orderForm.searchUserPlaceholder')}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`${inputClass} mb-1`}
-            aria-describedby="user-search-description"
-            aria-autocomplete="list"
-            aria-controls="user-suggestions-list"
-          />
-          <p id="user-search-description" className="sr-only">{t('admin.orderForm.searchUserDescription')}</p>
-          
-          {searchTerm && filteredUsers.length > 0 && (
-            <ul id="user-suggestions-list" className="border border-gray-300 dark:border-gray-600 rounded-md max-h-40 overflow-y-auto bg-white dark:bg-gray-700 shadow-lg z-10" role="listbox" aria-label={t('admin.orderForm.suggestedUsers')}>
-              {filteredUsers.map(user => (
-                <li 
-                  key={user.id || user._id} 
-                  onClick={() => handleUserSelect(user.id || user._id)}
-                  className="p-3 hover:bg-indigo-100 dark:hover:bg-indigo-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:bg-indigo-100 dark:focus:bg-indigo-700"
-                  role="option"
-                  tabIndex={0} // Make it focusable
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleUserSelect(user.id || user._id); }}
-                  aria-selected={formData.user_id === (user.id || user._id)}
-                >
-                  <span className="font-medium">{user.username}</span> - <span className="text-gray-500 dark:text-gray-400">{user.email}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {formData.user_id && formData.selectedUserName && (
-            <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-md">
-              <p className="text-sm text-green-700 dark:text-green-200">
-                <span className="font-semibold">{t('admin.orderForm.linkedToUserLabel')}</span> {formData.selectedUserName}
-              </p>
+        <fieldset className="border p-4 rounded-md dark:border-gray-600">
+          <legend className="text-lg font-medium text-gray-900 dark:text-white px-2">{t('admin.orderForm.customerInformationSection', 'Customer Information')}</legend>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div>
+              <label htmlFor="customerName" className={labelClass}>{t('admin.orderForm.customerNameLabel', 'Customer Name')}</label>
+              <input type="text" name="customerName" id="customerName" value={formData.customerName} onChange={handleInputChange} className={inputClass} required />
             </div>
-          )}
-        </div>
+            <div>
+              <label htmlFor="email" className={labelClass}>{t('admin.orderForm.emailLabel', 'Email Address')}</label>
+              <input type="email" name="email" id="email" value={formData.email} onChange={handleInputChange} className={inputClass} required />
+            </div>
+            <div>
+              <label htmlFor="phone" className={labelClass}>{t('admin.orderForm.phoneLabel', 'Phone Number')}</label>
+              <input type="tel" name="phone" id="phone" value={formData.phone} onChange={handleInputChange} className={inputClass} />
+            </div>
+            <div>
+              <label htmlFor="status" className={labelClass}>{t('admin.orderForm.statusLabel', 'Order Status')}</label>
+              <select name="status" id="status" value={formData.status} onChange={handleInputChange} className={inputClass}>
+                <option value="Pending">{t('admin.orderStatus.pending', 'Pending')}</option>
+                <option value="Processing">{t('admin.orderStatus.processing', 'Processing')}</option>
+                <option value="Shipped">{t('admin.orderStatus.shipped', 'Shipped')}</option>
+                <option value="Completed">{t('admin.orderStatus.completed', 'Completed')}</option>
+                <option value="Cancelled">{t('admin.orderStatus.cancelled', 'Cancelled')}</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        {/* User Linking */}
+        <fieldset className="border p-4 rounded-md dark:border-gray-600">
+          <legend className="text-lg font-medium text-gray-900 dark:text-white px-2">{t('admin.orderForm.linkUserSection', 'Link to Registered User (Optional)')}</legend>
+          <div className="mt-4">
+            <label htmlFor="user_search" className={labelClass}>{t('admin.orderForm.searchUserLabel', 'Search User')}</label>
+            <input
+              type="text"
+              id="user_search"
+              placeholder={t('admin.orderForm.searchUserPlaceholder', 'Start typing name or email to search...')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`${inputClass} mb-1`}
+              aria-describedby="user-search-description"
+              aria-autocomplete="list"
+              aria-controls="user-suggestions-list"
+            />
+            <p id="user-search-description" className="sr-only">{t('admin.orderForm.searchUserDescription', 'Type to search for registered users and link them to this order. This can pre-fill customer details.')}</p>
+            
+            {searchTerm && filteredUsers.length > 0 && (
+              <ul id="user-suggestions-list" className="border border-gray-300 dark:border-gray-600 rounded-md max-h-40 overflow-y-auto bg-white dark:bg-gray-700 shadow-lg z-10" role="listbox" aria-label={t('admin.orderForm.suggestedUsersListLabel', 'Suggested Users')}>
+                {filteredUsers.map(user => (
+                  <li 
+                    key={user.id || user._id} 
+                    onClick={() => handleUserSelect(user.id || user._id)}
+                    className="p-3 hover:bg-indigo-100 dark:hover:bg-indigo-700 cursor-pointer text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:bg-indigo-100 dark:focus:bg-indigo-700"
+                    role="option"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleUserSelect(user.id || user._id); }}
+                    aria-selected={formData.user_id === (user.id || user._id)}
+                  >
+                    <span className="font-medium">{user.username}</span> - <span className="text-gray-500 dark:text-gray-400">{user.email}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {formData.user_id && formData.selectedUserName && (
+              <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-md">
+                <p className="text-sm text-green-700 dark:text-green-200">
+                  <span className="font-semibold">{t('admin.orderForm.linkedUserConfirmationLabel', 'Linked to User:')}</span> {formData.selectedUserName}
+                </p>
+              </div>
+            )}
+          </div>
+        </fieldset>
 
         {/* Order Items Section */}
-        <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-          <h4 className="text-xl font-medium mb-4 text-gray-900 dark:text-white">{t('admin.orderForm.orderItems')}</h4>
-          {/* Current item input */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 p-4 border dark:border-gray-600 rounded-md">
-            <div>
-              <label htmlFor="productId" className={labelClass}>{t('admin.orderForm.product')}</label>
+        <fieldset className="border p-4 rounded-md dark:border-gray-600">
+          <legend className="text-lg font-medium text-gray-900 dark:text-white px-2">{t('admin.orderForm.orderItemsSection', 'Order Items')}</legend>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-4 mb-4 mt-4 p-4 border dark:border-gray-600 rounded-md items-end">
+            <div className="md:col-span-1"> {/* Product selection takes more space */}
+              <label htmlFor="productId" className={labelClass}>{t('admin.orderForm.productLabel', 'Product')}</label>
               <select name="productId" id="productId" value={currentItem.productId} onChange={handleItemInputChange} className={inputClass}>
-                <option value="">{t('admin.orderForm.selectProduct')}</option>
+                <option value="">{t('admin.orderForm.selectProductPlaceholder', '-- Select Product --')}</option>
                 {allProducts.map(p => (
                   <option key={p.id || p._id} value={p.id || p._id}>
                     {p.name?.en || p.name?.he || p.name} (ID: {p.id || p._id})
@@ -304,61 +351,98 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
               </select>
             </div>
             <div>
-              <label htmlFor="quantity" className={labelClass}>{t('admin.orderForm.quantity')}</label>
-              <input type="number" name="quantity" id="quantity" value={currentItem.quantity} onChange={handleItemInputChange} min="1" step="1" className={inputClass} />
+              <label htmlFor="quantity" className={labelClass}>{t('admin.orderForm.quantityLabel', 'Quantity')}</label>
+              <input type="number" name="quantity" id="quantity" value={currentItem.quantity} onChange={handleItemInputChange} min="1" step="1" className={`${inputClass} w-24`} />
             </div>
             <div>
-              <label htmlFor="price" className={labelClass}>{t('admin.orderForm.pricePerItem')}</label>
-              <input type="number" name="price" id="price" value={currentItem.price} onChange={handleItemInputChange} min="0" step="0.01" className={inputClass} />
+              <label htmlFor="price" className={labelClass}>{t('admin.orderForm.pricePerItemLabel', 'Price/Item')}</label>
+              <input type="number" name="price" id="price" value={currentItem.price} onChange={handleItemInputChange} min="0" step="0.01" className={`${inputClass} w-28`} />
             </div>
             <div className="self-end">
-              <button type="button" onClick={handleAddItem} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md shadow-sm">
-                {t('admin.orderForm.addItem')}
+              <button type="button" onClick={handleAddItem} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md shadow-sm whitespace-nowrap">
+                {t('admin.orderForm.addItemButton', 'Add Item')}
               </button>
             </div>
-             {currentItem.productId && currentItem.name && <p className="md:col-span-4 text-xs text-gray-500 dark:text-gray-400 mt-1">{t('admin.orderForm.selectedItemName')}: {currentItem.name}</p>}
+             {currentItem.productId && currentItem.name && <p className="md:col-span-4 text-xs text-gray-500 dark:text-gray-400 mt-1">{t('admin.orderForm.selectedItemInfo', 'Selected Item')}: {currentItem.name}</p>}
           </div>
 
           {/* Added items list */}
           {formData.items.length > 0 && (
             <div className="space-y-3 mb-4">
+              <h5 className="text-md font-medium text-gray-800 dark:text-gray-200">{t('admin.orderForm.currentItemsInOrderTitle', 'Current Items in Order:')}</h5>
               {formData.items.map((item, index) => (
                 <div key={index} className="flex justify-between items-center p-3 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700/50">
                   <div>
-                    <p className="font-medium text-gray-800 dark:text-gray-200">{item.name || `Product ID: ${item.productId}`}</p>
+                    <p className="font-medium text-gray-800 dark:text-gray-200">{item.name || `${t('admin.orderForm.productIdFallback', 'Product ID')}: ${item.productId}`}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {t('admin.orderForm.quantity')}: {item.quantity} @ ${item.price?.toFixed(2)}
+                      {t('admin.orderForm.itemQuantityPrice', '{quantity} x ₪{price, number, ::currency/ILS unit-width-narrow}', { quantity: item.quantity, price: item.price })}
                     </p>
                   </div>
                   <button type="button" onClick={() => handleRemoveItem(index)} className="text-red-500 hover:text-red-700 font-medium">
-                    {t('admin.orderForm.remove')}
+                    {t('admin.orderForm.removeItemButton', 'Remove')}
                   </button>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </fieldset>
         
-        {/* Total and Notes */}
-        <div>
-          <label htmlFor="total" className={labelClass}>{t('admin.orderForm.totalAmount')}</label>
-          <input type="number" name="total" id="total" value={formData.total.toFixed(2)} onChange={handleInputChange} min="0" step="0.01" className={inputClass} />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('admin.orderForm.totalCalculatedInfo')}</p>
-        </div>
+        {/* Coupon and Totals Section */}
+        <fieldset className="border p-4 rounded-md dark:border-gray-600">
+          <legend className="text-lg font-medium text-gray-900 dark:text-white px-2">{t('admin.orderForm.summaryAndCouponSection', 'Summary & Coupon')}</legend>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div>
+              <label htmlFor="coupon_code" className={labelClass}>{t('admin.orderForm.couponCodeLabel', 'Coupon Code (Optional)')}</label>
+              <input 
+                type="text" 
+                name="coupon_code" 
+                id="coupon_code" 
+                value={formData.coupon_code} 
+                onChange={handleInputChange} 
+                className={inputClass} 
+                placeholder={t('admin.orderForm.enterCouponPlaceholder', 'Enter coupon code if any')}
+              />
+            </div>
+            <div className="space-y-3"> {/* Totals on the right */}
+              <div>
+                <span className={labelClass}>{t('admin.orderForm.originalTotalLabel', 'Subtotal:')}</span>
+                <p className="mt-1 text-lg font-medium text-gray-900 dark:text-white">₪{formData.original_total.toFixed(2)}</p>
+              </div>
+
+              {formData.coupon_code && (
+                <div>
+                  <span className={labelClass}>{t('admin.orderForm.discountAppliedLabel', 'Discount Applied ({couponCode}):', { couponCode: formData.coupon_code })}</span>
+                  <p className="mt-1 text-lg font-medium text-green-600 dark:text-green-400">- ₪{formData.discount_amount.toFixed(2)}</p>
+                </div>
+              )}
+
+              <div>
+                <span className={`${labelClass} font-bold text-xl`}>{t('admin.orderForm.finalTotalLabel', 'Grand Total:')}</span>
+                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">₪{formData.total.toFixed(2)}</p>
+                {formData.coupon_code && formData.discount_amount === 0 && initialOrder?.coupon_code !== formData.coupon_code && (
+                     <p className="text-xs text-orange-500 dark:text-orange-400 mt-1">{t('admin.orderForm.couponValidationMessage', 'Note: New coupon discount will be calculated upon saving.')}</p>
+                )}
+                 {formData.coupon_code && initialOrder?.coupon_code === formData.coupon_code && formData.discount_amount === 0 && formData.original_total > 0 && (
+                     <p className="text-xs text-orange-500 dark:text-orange-400 mt-1">{t('admin.orderForm.couponNoDiscountMessage', 'This coupon did not result in a discount. It might be invalid or not applicable.')}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </fieldset>
 
         <div>
-          <label htmlFor="notes" className={labelClass}>{t('admin.orderForm.notesOptional')}</label>
-          <textarea name="notes" id="notes" value={formData.notes} onChange={handleInputChange} rows="3" className={inputClass}></textarea>
+          <label htmlFor="notes" className={labelClass}>{t('admin.orderForm.notesLabel', 'Order Notes (Optional)')}</label>
+          <textarea name="notes" id="notes" value={formData.notes} onChange={handleInputChange} rows="3" className={inputClass} placeholder={t('admin.orderForm.notesPlaceholder', 'Add any internal notes for this order...')}></textarea>
         </div>
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        {error && <p className="text-red-500 text-sm p-2 bg-red-100 dark:bg-red-900/30 rounded-md">{t('admin.orderForm.errorMessage', 'Error: {formError}', {formError: error})}</p>}
 
-        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-8">
           <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-            {t('admin.cancelButton')}
+            {t('admin.buttons.cancel', 'Cancel')}
           </button>
           <button type="submit" disabled={loading} className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50">
-            {loading ? t('admin.savingButton') : (initialOrder ? t('admin.orderForm.updateOrderButton') : t('admin.orderForm.createOrderButton'))}
+            {loading ? t('admin.buttons.saving', 'Saving...') : (initialOrder ? t('admin.orderForm.updateOrderButtonLabel', 'Update Order') : t('admin.orderForm.createOrderButtonLabel', 'Create Order'))}
           </button>
         </div>
       </form>

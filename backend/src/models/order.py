@@ -28,6 +28,9 @@ class Order(BaseModel):
     createdAt: datetime = Field(default_factory=datetime.utcnow)
     updatedAt: datetime = Field(default_factory=datetime.utcnow) # ADDED
     notes: Optional[str] = None
+    coupon_code: Optional[str] = None
+    discount_amount: Optional[float] = Field(default=0.0)
+    original_total: Optional[float] = None # To store total before discount
     
     class Config:
         allow_population_by_alias = True
