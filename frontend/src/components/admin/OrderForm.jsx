@@ -147,8 +147,16 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
   const handleItemInputChange = (e) => {
     const { name, value } = e.target;
     let processedValue = value;
-    if (name === 'quantity' || name === 'price') {
-      processedValue = parseFloat(value) || 0;
+    if (name === 'quantity') {
+      processedValue = parseInt(value, 10);
+      if (isNaN(processedValue) || processedValue < 1) { // Ensure it's a valid number, default to 1 or handle error
+        processedValue = 1; 
+      }
+    } else if (name === 'price') {
+      processedValue = parseFloat(value);
+      if (isNaN(processedValue) || processedValue < 0) { // Ensure it's a valid number, default to 0 or handle error
+        processedValue = 0;
+      }
     }
     setCurrentItem(prev => ({ ...prev, [name]: processedValue }));
 
@@ -297,7 +305,7 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
             </div>
             <div>
               <label htmlFor="quantity" className={labelClass}>{t('admin.orderForm.quantity')}</label>
-              <input type="number" name="quantity" id="quantity" value={currentItem.quantity} onChange={handleItemInputChange} min="1" className={inputClass} />
+              <input type="number" name="quantity" id="quantity" value={currentItem.quantity} onChange={handleItemInputChange} min="1" step="1" className={inputClass} />
             </div>
             <div>
               <label htmlFor="price" className={labelClass}>{t('admin.orderForm.pricePerItem')}</label>

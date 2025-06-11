@@ -61,12 +61,11 @@ function AdminOrdersSimple() {
     setLoadingProducts(false);
   }, [notify, t]);
 
-
   const refreshOrders = useCallback(async () => {
     setLoadingOrders(true);
     setOrderError(null);
     try {
-      const response = await apiService.get('/admin/orders');
+      const response = await apiService.get('/api/orders');
       if (response.data) {
         setOrders(response.data);
       } else {
@@ -99,18 +98,17 @@ function AdminOrdersSimple() {
     setShowOrderForm(true);
     setOrderError(null); // Clear previous errors
   };
-
   const handleOrderSubmit = async (orderData) => {
     setLoadingOrders(true);
     setOrderError(null);
     try {
       if (editingOrder?.id || editingOrder?._id) {
-        await apiService.patch(`/admin/orders/${editingOrder.id || editingOrder._id}`, orderData);
+        await apiService.patch(`/api/orders/${editingOrder.id || editingOrder._id}`, orderData);
         notify({ message: t('admin.orders.updatedSuccess', 'Order updated successfully!'), type: 'success' });
       } else {
         const payload = { ...orderData };
         if (payload.user_id === '') delete payload.user_id;
-        await apiService.post('/admin/orders', payload);
+        await apiService.post('/api/orders', payload);
         notify({ message: t('admin.orders.createdSuccess', 'Order created successfully!'), type: 'success' });
       }
       await refreshOrders();
@@ -125,13 +123,12 @@ function AdminOrdersSimple() {
       setLoadingOrders(false); // Ensure loading is stopped
     }
   };
-  
-  const handleOrderStatusUpdate = async (orderId, newStatus, note = null) => {
+    const handleOrderStatusUpdate = async (orderId, newStatus, note = null) => {
     setLoadingOrders(true);
     try {
       const payload = { status: newStatus };
       if (note) payload.note = note;
-      await apiService.put(`/admin/orders/${orderId}/status`, payload);
+      await apiService.put(`/api/orders/${orderId}/status`, payload);
       await refreshOrders();
       if (selectedOrderDetails && (selectedOrderDetails.id === orderId || selectedOrderDetails._id === orderId)) {
         setSelectedOrderDetails(prev => prev ? { ...prev, status: newStatus } : null);

@@ -3,7 +3,7 @@ from src.models.token.token import LoginResponse
 from src.lib.token_handler import create_access_token
 from src.models.user.user_response import SelfResponse
 from src.controller.controller_interface import ControllerInterface
-from src.models.user.user import User, UserRequest, Role # Added Role
+from src.models.user.user import User, UserRequest, Role
 from src.models.user.user_exception import LoginError
 from src.mongodb.keys_collection import KeysCollection
 from src.mongodb.users_collection import UserCollection
@@ -55,7 +55,7 @@ class UserController(ControllerInterface):
 
     async def has_role(self, username: str, role: Role) -> bool:
         """
-        Checks if a user has a specific role.
+        Check if a user has a specific role.
 
         Args:
             username (str): The username of the user.
@@ -65,7 +65,7 @@ class UserController(ControllerInterface):
             bool: True if the user has the role, False otherwise.
         """
         user = await self.user_collection.get_user_by_username(username)
-        if user and user.roles and role in user.roles:
+        if user and user.role and role == user.role:
             return True
         return False
 

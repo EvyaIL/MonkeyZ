@@ -20,12 +20,13 @@ class Order(BaseModel):
     customerName: str
     email: str
     phone: Optional[str] = None
-    date: datetime = Field(default_factory=datetime.utcnow)
+    date: datetime = Field(default_factory=datetime.utcnow) 
     status: str = "Pending"
     total: float
     items: List[OrderItem]
     statusHistory: List[StatusHistoryEntry] = Field(default_factory=list)
     createdAt: datetime = Field(default_factory=datetime.utcnow)
+    updatedAt: datetime = Field(default_factory=datetime.utcnow) # ADDED
     notes: Optional[str] = None
     
     class Config:

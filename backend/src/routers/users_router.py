@@ -1,5 +1,5 @@
 import contextlib
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from src.models.token.token import LoginResponse, Token, TokenData
 from src.deps.deps import UserCollection,KeysCollection , get_user_controller_dependency, UserController
 from src.models.user.user import UserRequest, User
@@ -15,9 +15,11 @@ from jose import jwt
 from src.lib.email_service import send_password_reset_email, send_otp_email, send_welcome_email # Import all email functions
 import os # Added for environment variables
 from src.lib.haseing import Hase
-from ..models.order import Order # ADDED
-from ..mongodb.mongodb import MongoDb # ADDED - Ensure MongoDb is imported
-from pymongo.database import Database # ADDED - Ensure Database is imported for type hinting
+from src.models.order import Order # Added import
+from src.models.token.token import TokenData
+from src.mongodb.mongodb import MongoDb
+from src.deps.deps import get_order_collection_dependency, OrdersCollection # Adjusted import
+from typing import List, Optional # Add List to imports
 
 # Load from environment variables with defaults
 SECRET_KEY = os.getenv("RESET_TOKEN_SECRET_KEY", "your-secret-key-please-change") 
@@ -201,25 +203,35 @@ mongo_db = MongoDb()
 
 @users_router.get("/orders", response_model=list[Order])
 async def get_user_orders(
-    current_user_token: dict = Depends(get_current_user), # Assuming get_current_user returns a token payload with 'sub' as user_id
-    db: Database = Depends(mongo_db.get_db) # Re-use existing mongo_db instance or get a new one
-):
-    user_id = current_user_token.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=403, detail="Could not validate credentials or user ID missing")
-
-    # Fetch orders from the 'orders' collection where 'user_id' matches
-    # The frontend expects fields like: id (or _id), status, createdAt (or date), totalAmount
-    # The Order model in models.order.py has: _id (aliased to id), status, createdAt, total
-    
-    orders_cursor = db.orders.find({"user_id": user_id})
-    orders_list = []
-    for order_doc in await orders_cursor.to_list(length=None): # Fetch all matching orders
-        orders_list.append(Order(**order_doc))
-    
-    if not orders_list:
-        # It's better to return an empty list if no orders are found, 
-        # rather than a 404, so the frontend can display "No orders found".
-        return []
+    current_user_token: TokenData = Depends(get_current_user), 
+    order_collection: OrdersCollection = Depends(get_order_collection_dependency) # Changed to OrdersCollection
+) -> List[Order]:
+    try:
+        user_id = current_user_token.username # Corrected line
+        if not user_id:
+            raise HTTPException(status_code=403, detail="User ID not found in token")
         
-    return orders_list
+        orders = await order_collection.get_orders_by_user_id(user_id)
+        if not orders:
+            return []
+        return orders
+    except HTTPException as http_exc:
+        raise http_exc
+    except Exception as e:
+        # Log the exception for debugging
+        print(f"Error in get_user_orders: {e}")
+        # Consider what to return or raise. For now, re-raising a generic 500.
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching user orders.")
+
+@users_router.get("/me", response_model=SelfResponse)
+async def get_current_user_details(
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
+):
+    user = await user_controller.get_user_by_token(current_user.username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Exclude sensitive fields like password
+    user_dict = user.dict(exclude={"password", "email_verified", "is_superuser"})
+    return SelfResponse(**user_dict)
