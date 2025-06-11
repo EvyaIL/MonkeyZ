@@ -513,6 +513,9 @@ async def delete_order_by_id(
     if not existing_order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Order with ID {order_id} not found")
 
+    # Get coupon code from the order before deleting, if any
+    coupon_code_on_deleted_order = existing_order.get("coupon_code")
+
     # Perform the deletion
     delete_result = await db.orders.delete_one({"_id": object_id_to_delete})
 
@@ -520,5 +523,13 @@ async def delete_order_by_id(
         # This case should ideally be caught by the find_one check above,
         # but it's a safeguard.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Order with ID {order_id} not found, or already deleted.")
+
+    # If a coupon was on the deleted order, decrement its usage count
+    if coupon_code_on_deleted_order:
+        await db.coupons.update_one(
+            {"code": coupon_code_on_deleted_order},
+            {"$inc": {"usageCount": -1}}
+        )
+        print(f"Decremented usage count for coupon '{coupon_code_on_deleted_order}' due to order deletion.")
 
     return {"message": f"Order with ID {order_id} deleted successfully"}
