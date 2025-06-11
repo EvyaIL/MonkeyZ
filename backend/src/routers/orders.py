@@ -429,6 +429,10 @@ async def update_order(
     if not updated_order_from_db: 
         raise HTTPException(status_code=404, detail="Order not found after update attempt")
     
+    # Convert ObjectId to string for Pydantic validation
+    if '_id' in updated_order_from_db and isinstance(updated_order_from_db['_id'], ObjectId):
+        updated_order_from_db['_id'] = str(updated_order_from_db['_id'])
+    
     return Order(**updated_order_from_db)
 
 @router.put("/orders/{order_id}/status", response_model=Order)
@@ -478,6 +482,11 @@ async def update_order_status_specific(
              raise HTTPException(status_code=404, detail="Order not found after status update attempt.")
         # If it exists but wasn't modified by this operation (e.g. status was already as requested)
         # still return it as the state is consistent with the request.
+        
+        # Convert ObjectId to string for Pydantic validation
+        if '_id' in updated_order_check and isinstance(updated_order_check['_id'], ObjectId):
+            updated_order_check['_id'] = str(updated_order_check['_id'])
+            
         return Order(**updated_order_check)
 
     # Ensure find_one is awaited
@@ -485,6 +494,10 @@ async def update_order_status_specific(
     if not updated_order_from_db:
         # Should be extremely rare if modified_count was > 0
         raise HTTPException(status_code=404, detail="Order not found after successful status update.")
+
+    # Convert ObjectId to string for Pydantic validation
+    if '_id' in updated_order_from_db and isinstance(updated_order_from_db['_id'], ObjectId):
+        updated_order_from_db['_id'] = str(updated_order_from_db['_id'])
 
     return Order(**updated_order_from_db)
 
