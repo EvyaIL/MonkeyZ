@@ -495,30 +495,26 @@ async def add_product_keys(
         added_keys_count = 0
         for key_string in keys_request.keys:
             try:
-                from src.models.key.key import KeyRequest
-                key_request = KeyRequest(
-                    product=product_object_id,
-                    is_active=True,
-                    key=key_string
+                from src.models.key.key import KeyCreateRequest
+                key_request = KeyCreateRequest(
+                    product_id=product_object_id, 
+                    key_string=key_string 
                 )
-                await key_controller.create_key(key_request, current_user.username)
+                # Pass the username to the create_key method
+                await key_controller.create_key(key_request, current_user.username) 
                 added_keys_count += 1
             except Exception as e:
-                print(f"Error adding key {key_string}: {str(e)}")
-                # Continue with other keys even if one fails
-                continue        
+                print(f"Error adding key {key_string}: {e}")
         
-        return {
-            "message": f"Successfully added {added_keys_count} keys to product",
-            "keysAdded": added_keys_count,
-            "productId": product_id
-        }
-        
+        if added_keys_count == 0 and len(keys_request.keys) > 0:
+            raise HTTPException(status_code=500, detail="Failed to add any keys. Check server logs for details.")
+
+        return {"message": f"Successfully added {added_keys_count} keys to product {product_id}"}
+    except HTTPException as http_exc:
+        raise http_exc # Re-raise HTTPExceptions
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        print(f"Error adding keys to product {product_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to add keys to product")
+        print(f"An unexpected error occurred in add_product_keys: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])
