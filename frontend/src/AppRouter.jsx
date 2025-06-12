@@ -14,7 +14,6 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFailed from "./pages/PaymentFailed";
 import AnalyticsTest from "./pages/AnalyticsTest";
 import ErrorBoundary from "./components/ErrorBoundary";
-import AdminOverview from "./pages/dashboard/admin/AdminOverview";
 import AdminProducts from "./pages/dashboard/admin/AdminProducts";
 import FAQ from "./pages/FAQ";
 import AboutUs from "./pages/AboutUs";
@@ -22,16 +21,12 @@ import Contact from "./pages/Contact";
 import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/BlogPage";
 import BlogPostPage from "./pages/BlogPostPage";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-
-// Import other admin components directly
 import AdminOrders from "./pages/dashboard/admin/AdminOrdersSimple";
 import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
 import AdminStock from "./pages/dashboard/admin/AdminStock";
 import AdminOrderCreate from "./pages/dashboard/admin/AdminOrderCreate";
-
-// Removed LazyComponentWrapper - now using direct imports with ErrorBoundary
+import DashboardLayout from "./components/dashboard/DashboardLayout";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 function AppRouter() {
   const location = useLocation();
@@ -67,7 +62,7 @@ function AppRouter() {
                     index
                     element={
                       <ErrorBoundary>
-                        <AdminOverview />
+                        <AdminProducts /> 
                       </ErrorBoundary>
                     }
                   />

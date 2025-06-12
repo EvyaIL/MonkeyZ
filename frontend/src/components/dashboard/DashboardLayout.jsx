@@ -24,7 +24,6 @@ export default function DashboardLayout({ children, isAdmin }) {  const location
     { name: 'Comments', path: '/dashboard/user/comments', icon: ChatBubbleLeftIcon },
   ];
   const adminMenuItems = [
-    { name: 'Overview', path: '/dashboard/admin/', icon: ChartBarIcon },
     { name: 'Products', path: '/dashboard/admin/products', icon: CubeIcon },
     { name: 'Stock', path: '/dashboard/admin/stock', icon: ArchiveBoxIcon },
     { name: 'Coupons', path: '/dashboard/admin/coupons', icon: TicketIcon },

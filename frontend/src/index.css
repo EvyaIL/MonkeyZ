@@ -199,7 +199,7 @@ html[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #8a684d;
+  background: var(--color-accent-dark);
 }
 
 /* Print styles for invoices/receipts */
