@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from bson import ObjectId
 from typing import Optional
 from enum import Enum
-from src.models.key.key import KeyRespond
+from src.models.key.key import KeyResponse
 
 class Role(Enum):
     manager = 0

@@ -2,7 +2,7 @@ from beanie import Document, Indexed,PydanticObjectId
 from pydantic import BaseModel
 from bson import ObjectId
 from typing import Optional
-from src.models.key.key import KeyRespond
+from src.models.key.key import KeyResponse # Changed KeyRespond to KeyResponse
 from datetime import datetime # Add this import
 
 class ProductResponse(BaseModel):

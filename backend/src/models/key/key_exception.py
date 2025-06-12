@@ -31,3 +31,8 @@ class GetError(NotValid):
     def __init__(self ,msg:str) -> None:
         path = "[GetError]:"
         super().__init__(msg, path, status.HTTP_409_CONFLICT)
+
+class KeyNotFoundError(keysException): # Or inherit from NotValid if preferred
+    def __init__(self, msg: str) -> None:
+        path = "[KeyNotFoundError]:"
+        super().__init__(msg, path, status.HTTP_404_NOT_FOUND)

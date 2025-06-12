@@ -10,7 +10,7 @@ from src.routers.users_router import users_router
 from src.routers.products_router import product_router
 from src.routers.admin_router import admin_router
 from src.base_exception.base_exception import BaseException
-from src.routers.keys_router import key_router
+from src.routers.keys_router import key_router, admin_key_router # Modified import
 from src.routers.orders import router as orders_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
@@ -82,6 +82,7 @@ app.include_router(users_router)
 app.include_router(product_router)
 app.include_router(key_router)
 app.include_router(admin_router)  # Add admin router
+app.include_router(admin_key_router) # Add admin_key_router
 app.include_router(orders_router, prefix="/api", tags=["orders"])  # Add orders router
 
 @app.exception_handler(BaseException)
