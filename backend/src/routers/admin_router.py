@@ -10,7 +10,8 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, validator, field_serializer
 from bson.objectid import ObjectId
 from src.models.admin.analytics import AdminAnalytics, DailySale
-from src.models.products.products import Product as ProductModel, CDKey # Added import for ProductModel and CDKey
+from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest # Added CDKeyUpdateRequest and CDKeysAddRequest
+from beanie import PydanticObjectId # Added PydanticObjectId
 
 class ProductBase(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -352,207 +353,81 @@ async def delete_product(
     await user_controller.sync_products()
     return {"message": "Product deleted successfully"}
 
-# Endpoint to add CD Keys to a specific product
-@admin_router.post("/products/{product_id}/cdkeys", summary="Add CD Keys to a Product")
+# Endpoint to add CD keys to a product
+@admin_router.post("/products/{product_id}/cdkeys", response_model=ProductModel)
 async def add_cd_keys_to_product(
-    product_id: str,
-    request_body: CDKeysAddRequest, # Use the new request model
+    product_id: PydanticObjectId, 
+    request: CDKeysAddRequest, 
     user_controller: UserController = Depends(get_user_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-
     try:
-        product_object_id = PydanticObjectId(product_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid product ID format")
-
-    product = await user_controller.admin_product_collection.get_product_by_id(product_object_id)
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product with id {product_id} not found")
-
-    if not isinstance(product, ProductModel):
-        # If it's a dict, we might need to parse it into the Pydantic model first, 
-        # or ensure get_product_by_id returns the Beanie model instance.
-        # For now, assuming get_product_by_id returns a Beanie Document (ProductModel)
-        try:
-            product = ProductModel.model_validate(product) # or ProductModel(**product) if it's a dict
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error processing product data: {str(e)}")
-
-    newly_added_keys = []
-    # The request_body.keys are already CDKey model instances thanks to Pydantic validation
-    for cd_key_data in request_body.keys:
-        # Basic validation: ensure key string is present
-        if not cd_key_data.key or not cd_key_data.key.strip():
-            # Optionally skip or raise error for empty key strings
-            continue
-        
-        # Prevent adding duplicate keys within the same product (simple check)
-        # More robust duplicate prevention (across all products or globally) would be more complex
-        is_duplicate = any(existing_key.key == cd_key_data.key for existing_key in product.cdKeys)
-        if is_duplicate:
-            # Optionally skip, update, or raise error
-            print(f"Skipping duplicate key: {cd_key_data.key} for product {product_id}")
-            continue
-
-        # Defaults are handled by the CDKey model (isUsed=False, addedAt=utcnow)
-        product.cdKeys.append(cd_key_data)
-        newly_added_keys.append(cd_key_data.key)
-
-    if not newly_added_keys:
-        raise HTTPException(status_code=400, detail="No valid keys provided or all keys were duplicates.")
-
-    try:
-        await product.save()
+        # Extract key strings from the request
+        key_strings = [cd_key.key for cd_key in request.keys]
+        updated_product = await user_controller.admin_product_collection.add_keys_to_product(product_id, key_strings)
+        return updated_product
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        # Log the detailed error for server-side debugging
-        print(f"Error saving product {product_id} after adding keys: {str(e)}")
-        # Provide a generic error message to the client
-        raise HTTPException(status_code=500, detail=f"An error occurred while saving the product: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to add CD keys: {str(e)}")
 
-    return {
-        "message": f"Successfully added {len(newly_added_keys)} CD keys to product {product.name.get('en', product_id) if product.name else product_id}",
-        "keysAddedCount": len(newly_added_keys),
-        "addedKeys": newly_added_keys,
-        "productId": product_id
-    }
-
-# Endpoint to get CD Keys for a specific product
-@admin_router.get("/products/{product_id}/cdkeys", response_model=List[CDKey], summary="Get CD Keys for a Product")
+# Endpoint to get CD keys for a product
+@admin_router.get("/products/{product_id}/cdkeys", response_model=List[CDKey])
 async def get_cd_keys_for_product(
-    product_id: str,
+    product_id: PydanticObjectId, 
     user_controller: UserController = Depends(get_user_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-
     try:
-        product_object_id = PydanticObjectId(product_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid product ID format")
-
-    product = await user_controller.admin_product_collection.get_product_by_id(product_object_id)
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product with id {product_id} not found")
-
-    # Ensure product is the Beanie model instance to access cdKeys directly
-    if not isinstance(product, ProductModel):
-        try:
-            # This might be necessary if get_product_by_id returns a dict
-            product = ProductModel.model_validate(product) 
-        except Exception as e:
-            # Log the error for debugging
-            print(f"Error validating product data for get_cd_keys: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error processing product data.")
-
-    if not hasattr(product, 'cdKeys') or product.cdKeys is None:
-        # This case should ideally not happen if cdKeys has a default_factory=list
-        return []
-        
-    return product.cdKeys
-
-
-# This existing endpoint might be for a different Key model or purpose.
-# Ensure it doesn't conflict or is updated if it's meant for the same cdKeys.
-@admin_router.post("/products/{product_id}/keys")
-async def add_product_keys(
-    product_id: str,
-    keys_request: ProductKeysRequest,
-    user_controller: UserController = Depends(get_user_controller_dependency),
-    key_controller: KeyController = Depends(get_keys_controller_dependency),
-    current_user: TokenData = Depends(get_current_user)
-):
-    """Add new keys to a product's inventory."""
-    await verify_admin(user_controller, current_user)
-    
-    try:
-        # Validate key format (XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)
-        key_format_regex = r'^[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$'
-        import re
-        
-        invalid_keys = []
-        for key in keys_request.keys:
-            if not re.match(key_format_regex, key):
-                invalid_keys.append(key)
-        
-        if invalid_keys:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid key format. Keys must match XXXXX-XXXXX-XXXXX-XXXXX-XXXXX pattern. Invalid keys: {', '.join(invalid_keys[:5])}"
-            )
-        
-        # Add keys to the product using KeyController
-        from beanie import PydanticObjectId
-        
-        # Convert product_id to ObjectId
-        try:
-            product_object_id = PydanticObjectId(product_id)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid product ID format")
-          # Create Key objects for each key and collect new CDKeys
-        added_keys_count = 0
-        newly_added_cdkeys = []
-        
-        # Also update the product document with CD keys
-        product = await user_controller.admin_product_collection.get_product_by_id(product_object_id)
+        product = await user_controller.admin_product_collection.get_product_by_id(product_id)
         if not product:
-            raise HTTPException(status_code=404, detail=f"Product with id {product_id} not found")
-        
-        for key_string in keys_request.keys:
-            try:
-                from src.models.key.key import KeyCreateRequest
-                from src.models.products.products import CDKey
-                
-                # Create the key in the keys collection
-                key_request = KeyCreateRequest(
-                    product_id=product_object_id, 
-                    key_string=key_string 
-                )
-                # Pass the username to the create_key method
-                await key_controller.create_key(key_request, current_user.username)
-                
-                # Also create a CDKey object to add to the product
-                new_cdkey = CDKey(
-                    key=key_string,
-                    isUsed=False,
-                    addedAt=datetime.utcnow()
-                )
-                newly_added_cdkeys.append(new_cdkey)
-                
-                added_keys_count += 1
-            except Exception as e:
-                print(f"Error adding key {key_string}: {e}")
-        
-        if added_keys_count == 0 and len(keys_request.keys) > 0:
-            raise HTTPException(status_code=500, detail="Failed to add any keys. Check server logs for details.")
-            
-        # Update the product document with the new CD keys and set manages_cd_keys flag
-        if newly_added_cdkeys:
-            # Initialize cdKeys if it doesn't exist
-            if not hasattr(product, 'cdKeys') or product.cdKeys is None:
-                product.cdKeys = []
-                
-            # Add the new keys
-            product.cdKeys.extend(newly_added_cdkeys)
-            
-            # Set the manages_cd_keys flag
-            product.manages_cd_keys = True
-            
-            # Save the updated product
-            try:
-                await product.save()
-                print(f"Updated product {product_id} with {len(newly_added_cdkeys)} CD keys")
-            except Exception as save_error:
-                print(f"Error saving product with updated CD keys: {save_error}")
-                # Continue anyway since the keys were added to the keys collection
-
-        return {"message": f"Successfully added {added_keys_count} keys to product {product_id}"}
-    except HTTPException as http_exc:
-        raise http_exc # Re-raise HTTPExceptions
+            raise HTTPException(status_code=404, detail="Product not found")
+        if not product.manages_cd_keys:
+            raise HTTPException(status_code=400, detail="Product does not manage CD keys")
+        return product.cdKeys if product.cdKeys else []
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        print(f"An unexpected error occurred in add_product_keys: {e}")
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get CD keys: {str(e)}")
+
+@admin_router.patch("/products/{product_id}/cdkeys/{cd_key_index}", response_model=ProductModel)
+async def update_cd_key_for_product(
+    product_id: PydanticObjectId,
+    cd_key_index: int,
+    request: CDKeyUpdateRequest,
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
+):
+    await verify_admin(user_controller, current_user)
+    try:
+        updated_product = await user_controller.admin_product_collection.update_cd_key_in_product(
+            product_id, cd_key_index, request
+        )
+        return updated_product
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update CD key: {str(e)}")
+
+@admin_router.delete("/products/{product_id}/cdkeys/{cd_key_index}", response_model=ProductModel)
+async def delete_cd_key_for_product(
+    product_id: PydanticObjectId,
+    cd_key_index: int,
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
+):
+    await verify_admin(user_controller, current_user)
+    try:
+        updated_product = await user_controller.admin_product_collection.delete_cd_key_from_product(
+            product_id, cd_key_index
+        )
+        return updated_product
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete CD key: {str(e)}")
 
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])

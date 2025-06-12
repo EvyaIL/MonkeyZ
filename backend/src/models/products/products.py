@@ -2,6 +2,8 @@ from beanie import Document, PydanticObjectId, Link
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from beanie import PydanticObjectId
+from pydantic import BaseModel, Field
 
 # Defines the structure for an individual CD key
 class CDKey(BaseModel):
@@ -10,6 +12,15 @@ class CDKey(BaseModel):
     usedAt: Optional[datetime] = None
     orderId: Optional[PydanticObjectId] = None # For referencing Order ObjectId
     addedAt: datetime = Field(default_factory=datetime.utcnow)
+
+class CDKeyUpdateRequest(BaseModel):
+    key: Optional[str] = None
+    isUsed: Optional[bool] = None
+    usedAt: Optional[datetime] = None
+    orderId: Optional[PydanticObjectId] = None
+
+class CDKeysAddRequest(BaseModel):
+    keys: List[CDKey]
 
 class Product(Document):
     name: dict  # {'en': str, 'he': str}

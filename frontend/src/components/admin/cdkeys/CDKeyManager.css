@@ -1,0 +1,161 @@
+.cdkey-manager {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.cdkey-manager h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.cdkey-manager table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.cdkey-manager th, .cdkey-manager td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.cdkey-manager th {
+  background-color: #f0f0f0;
+  color: #555;
+}
+
+.cdkey-manager tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.cdkey-manager tr:hover {
+  background-color: #f1f1f1;
+}
+
+.cdkey-manager .edit-btn, .cdkey-manager .delete-btn {
+  padding: 5px 10px;
+  margin-right: 5px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.cdkey-manager .edit-btn {
+  background-color: #4CAF50; /* Green */
+  color: white;
+}
+
+.cdkey-manager .edit-btn:hover {
+  background-color: #45a049;
+}
+
+.cdkey-manager .delete-btn {
+  background-color: #f44336; /* Red */
+  color: white;
+}
+
+.cdkey-manager .delete-btn:hover {
+  background-color: #da190b;
+}
+
+.cdkey-manager .edit-btn:disabled, .cdkey-manager .delete-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.cdkey-manager .error-message {
+  color: #D8000C; /* Red */
+  background-color: #FFD2D2; /* Light red */
+  border: 1px solid #D8000C;
+  padding: 10px;
+  border-radius: 3px;
+  margin-bottom: 15px;
+}
+
+.cdkey-manager p {
+  margin-bottom: 10px;
+}
+
+.cd-key-manager-container {
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.cd-key-manager-container h2 {
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.cd-keys-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.cd-keys-table th,
+.cd-keys-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+}
+
+.cd-keys-table th {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.cd-keys-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.cd-keys-table tr:hover {
+    background-color: #f1f1f1;
+}
+
+.cd-key-actions button {
+    margin-right: 8px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.edit-btn {
+    background-color: #ffc107; /* Amber */
+    color: white;
+}
+
+.delete-btn {
+    background-color: #f44336; /* Red */
+    color: white;
+}
+
+.edit-btn:hover {
+    background-color: #e0a800;
+}
+
+.delete-btn:hover {
+    background-color: #c33025;
+}
+
+.loading-message,
+.error-message {
+    text-align: center;
+    padding: 20px;
+    font-size: 1.1em;
+}
+
+.error-message {
+    color: #d9534f; /* Bootstrap danger color */
+}
+
+/* Add any additional specific styles you need below */

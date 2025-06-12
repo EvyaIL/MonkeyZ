@@ -30,14 +30,16 @@ import {
   MenuItem
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import KeyIcon from '@mui/icons-material/VpnKey';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
+import ManageKeysIcon from '@mui/icons-material/VpnKey'; // Or another suitable icon
+import CloseIcon from '@mui/icons-material/Close'; // Import CloseIcon
 import { apiService } from '../../../lib/apiService';
+import CDKeyManager from '../../../components/admin/cdkeys/CDKeyManager'; // Import CDKeyManager
 
 function AdminStock() {
   const [stockItems, setStockItems] = useState([]);
@@ -45,8 +47,10 @@ function AdminStock() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedProductName, setSelectedProductName] = useState(''); // Add state for product name
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [openAddKeysDialog, setOpenAddKeysDialog] = useState(false);
+  const [openManageKeysDialog, setOpenManageKeysDialog] = useState(false);
   const [newKeys, setNewKeys] = useState("");
   const [keyFormat, setKeyFormat] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -135,6 +139,18 @@ function AdminStock() {
       setNewKeys("");
       setOpenAddKeysDialog(true);
     }
+  };
+
+  const handleOpenManageKeysDialog = (productId, productName) => { // Accept productName
+    setSelectedProductId(productId);
+    setSelectedProductName(productName); // Set product name
+    setOpenManageKeysDialog(true);
+  };
+
+  const handleCloseManageKeysDialog = () => {
+    setOpenManageKeysDialog(false);
+    setSelectedProductId(null);
+    setSelectedProductName(''); // Reset product name
   };
 
   const handleAddKeys = async () => {
@@ -411,18 +427,29 @@ function AdminStock() {
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box>
-                        <Tooltip title="Add Keys">
+                      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Tooltip title="Add Keys (Bulk)">
                           <IconButton
                             color="primary"
+                            size="small"
                             onClick={() => handleOpenAddKeysDialog(item.productId)}
                           >
                             <KeyIcon />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Manage CD Keys">
+                          <IconButton
+                            color="info"
+                            size="small"
+                            onClick={() => handleOpenManageKeysDialog(item.productId, item.productName)} // Pass item.productName
+                          >
+                            <ManageKeysIcon />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Export Keys">
                           <IconButton
                             color="secondary"
+                            size="small"
                             onClick={() => handleExportKeys(item.productId)}
                           >
                             <FileDownloadIcon />
@@ -501,6 +528,30 @@ function AdminStock() {
             Add Keys
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Manage CD Keys Dialog */}
+      <Dialog
+        open={openManageKeysDialog}
+        onClose={handleCloseManageKeysDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Manage CD Keys {selectedProductName && `for ${selectedProductName}`}
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseManageKeysDialog}
+            sx={{ position: 'absolute', right: 8, top: 8, color: (theme) => theme.palette.grey[500] }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedProductId && 
+            <CDKeyManager productId={selectedProductId} productName={selectedProductName} /> // Pass productName
+          }
+        </DialogContent>
       </Dialog>
     </Box>
   );

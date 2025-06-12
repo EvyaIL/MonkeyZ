@@ -1,7 +1,7 @@
 from beanie import Document, PydanticObjectId
 from pymongo.database import Database
 from .mongodb import MongoDb
-from src.models.products.products import Product
+from src.models.products.products import Product, CDKey, CDKeyUpdateRequest
 from src.singleton.singleton import Singleton
 from typing import List, Optional, Union, Dict, Any
 from datetime import datetime
@@ -39,6 +39,43 @@ class ProductCollection(MongoDb, metaclass=Singleton):
             product.cdKeys = []
         
         product.cdKeys.extend(new_cd_keys)
+        await product.save()
+        return product
+
+    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, cd_key_update_request: CDKeyUpdateRequest) -> Product:
+        """Update a specific CD key in a product by its index."""
+        product = await Product.get(product_id)
+        if not product:
+            raise ValueError(f"Product with id {product_id} not found")
+
+        if not product.manages_cd_keys:
+            raise ValueError(f"Product {product.name} does not manage CD keys.")
+
+        if not product.cdKeys or cd_key_index < 0 or cd_key_index >= len(product.cdKeys):
+            raise ValueError(f"CD key at index {cd_key_index} not found in product {product_id}")
+
+        cd_key_to_update = product.cdKeys[cd_key_index]
+        update_data = cd_key_update_request.model_dump(exclude_unset=True)
+
+        for key, value in update_data.items():
+            setattr(cd_key_to_update, key, value)
+        
+        await product.save()
+        return product
+
+    async def delete_cd_key_from_product(self, product_id: PydanticObjectId, cd_key_index: int) -> Product:
+        """Delete a specific CD key from a product by its index."""
+        product = await Product.get(product_id)
+        if not product:
+            raise ValueError(f"Product with id {product_id} not found")
+
+        if not product.manages_cd_keys:
+            raise ValueError(f"Product {product.name} does not manage CD keys.")
+
+        if not product.cdKeys or cd_key_index < 0 or cd_key_index >= len(product.cdKeys):
+            raise ValueError(f"CD key at index {cd_key_index} not found in product {product_id}")
+
+        del product.cdKeys[cd_key_index]
         await product.save()
         return product
         
