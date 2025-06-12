@@ -17,6 +17,31 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         self.db = await self.add_new_collection(database_name)
         await self.initialize_beanie(self.db, [Product])
         
+    async def add_keys_to_product(self, product_id: PydanticObjectId, keys: List[str]) -> Product:
+        """Add a list of CD keys to a specific product."""
+        product = await Product.get(product_id)
+        if not product:
+            raise ValueError(f"Product with id {product_id} not found" )
+
+        if not product.manages_cd_keys:
+            raise ValueError(f"Product {product.name} does not manage CD keys.")
+
+        new_cd_keys = []
+        for key_string in keys:
+            new_key = CDKey(
+                key=key_string,
+                isUsed=False,
+                addedAt=datetime.utcnow()
+            )
+            new_cd_keys.append(new_key)
+        
+        if not product.cdKeys:
+            product.cdKeys = []
+        
+        product.cdKeys.extend(new_cd_keys)
+        await product.save()
+        return product
+        
     async def get_all_products(self) -> List[Product]:
         """Get all products in the collection."""
         return await Product.find().to_list()

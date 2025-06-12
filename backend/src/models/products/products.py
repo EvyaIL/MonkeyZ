@@ -30,6 +30,9 @@ class Product(Document):
     class Settings:
         name = "Product" # Changed from "products" to "Product" to match MongoDB
 
+class AddKeysRequest(BaseModel):
+    keys: List[str]
+
 class ProductRequest(BaseModel):
     name: dict  # {'en': str, 'he': str}
     description: dict  # {'en': str, 'he': str}
