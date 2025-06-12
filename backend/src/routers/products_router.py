@@ -1,11 +1,12 @@
 import contextlib
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from src.models.products.products_response import ProductResponse
 from src.deps.deps import ProductsController, get_products_controller_dependency
 from src.models.products.products import ProductRequest
 from src.lib.token_handler import get_current_user
 from src.models.user.user import User
 from beanie import PydanticObjectId
+from src.models.products.products import Product
 
 
 
@@ -40,31 +41,29 @@ async def get_best_sellers(products_controller:ProductsController = Depends(get_
    return products
 
 @product_router.get("/recent", response_model=list[ProductResponse])
-async def get_best_sellers(limit:int = 8, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.get_recent_products(limit=limit) 
+async def get_recent_products(limit:int = 8, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   products = await products_controller.product_collection.find().sort("-created_at").limit(limit).to_list() # Assuming get_recent_products fetches by creation date
    return products
 
 
-@product_router.get("", response_model=ProductResponse)
-async def get_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_id(product_id) 
-   return products
-
-@product_router.get("", response_model=ProductResponse)
-async def get_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_id(product_id) 
-   return products
-
+@product_router.get("", response_model=ProductResponse) # This route seems to be duplicated, might need to be get_product_by_id
+async def get_product_by_id_route(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   product = await products_controller.product_collection.get_product(product_id) 
+   return product
 
 @product_router.get("/homepage", response_model=list[ProductResponse])
 async def get_homepage_products(limit:int = 6, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.get_homepage_products(limit=limit)
+   products = await products_controller.product_collection.get_homepage_products(limit=limit)
    return products
 
-@product_router.get("/{name_product}", response_model=ProductResponse)
-async def get_product(name_product:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_name(name_product) 
-   return products
+@product_router.get("/{slug}", response_model=ProductResponse) # Changed from name_product to slug for clarity and consistency
+async def get_product_by_slug_route(slug:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   # Assuming a method get_product_by_slug exists or will be added to ProductCollection
+   # For now, let's assume Product model can be queried by slug directly if it's unique
+   product = await Product.find_one(Product.slug == slug)
+   if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+   return product
 
 
 @product_router.put("")

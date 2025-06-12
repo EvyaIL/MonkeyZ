@@ -49,15 +49,15 @@ function AdminStock() {
   const [openAddKeysDialog, setOpenAddKeysDialog] = useState(false);
   const [newKeys, setNewKeys] = useState("");
   const [keyFormat, setKeyFormat] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const loadStockData = useCallback(async () => {
+  const [filterStatus, setFilterStatus] = useState("all");  const loadStockData = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError("");
     setSuccessMessage("");
     try {
       // Check if we have cached data that's less than 1 minute old
       const cacheTimestamp = localStorage.getItem('adminStockDataTimestamp');
-      const isCacheValid = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 60000;
+      // Enable caching to improve performance, but allow for forced refresh
+      const isCacheValid = !forceRefresh && cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 60000;
       const cachedData = localStorage.getItem('adminStockData');
 
       if (isCacheValid && cachedData) {
@@ -80,23 +80,82 @@ function AdminStock() {
       
       if (!metrics || !products) {
         throw new Error('Invalid response from server');
+      }      // Add more detailed debug info
+      console.debug('API Response - Metrics:', metrics);
+      console.debug('API Response - Products:', products);
+      
+      // Check if metrics data is properly structured
+      if (!metrics || typeof metrics !== 'object') {
+        console.error('Metrics data is invalid or missing:', metrics);
+        throw new Error('Invalid metrics data received from server');
       }
-
+      
+      if (!metrics.keyUsageByProduct || !Array.isArray(metrics.keyUsageByProduct)) {
+        console.error('keyUsageByProduct is missing or not an array:', metrics.keyUsageByProduct);
+      }
+      
+      // Log the summary metrics
+      console.debug(`Summary Metrics: Total Keys: ${metrics.totalKeys}, Available: ${metrics.availableKeys}, Used: ${metrics.usedKeys}`);
+      
       // Combine metrics with product details
       const stockData = products.map(product => {
-        const productMetrics = metrics.keyUsageByProduct?.find(p => p.productId === product.id) || {};
+        // Fix the productId and id values to ensure they're consistent
+        const productId = product.id ? product.id : (product._id ? product._id : null);
+        // Find corresponding metrics - add more extensive logging
+        console.debug(`Looking for metrics for product ${productId}`);
+        console.debug(`Available metrics: ${JSON.stringify(metrics.keyUsageByProduct?.map(p => p.productId))}`);          // Try different matching strategies
+          let productMetrics = null;
+          if (metrics.keyUsageByProduct && Array.isArray(metrics.keyUsageByProduct)) {
+            // Try exact match first
+            productMetrics = metrics.keyUsageByProduct.find(p => p.productId === productId);
+            
+            // If no match, try string comparison (in case of ObjectId vs string issues)
+            if (!productMetrics) {
+              productMetrics = metrics.keyUsageByProduct.find(p => String(p.productId) === String(productId));
+            }
+            
+            // Try matching by product name as a last resort
+            if (!productMetrics) {
+              const productName = typeof product.name === "object" ? 
+                (product.name.en || Object.values(product.name)[0] || "") : 
+                product.name;
+              
+              productMetrics = metrics.keyUsageByProduct.find(
+                p => p.productName === productName
+              );
+            }
+          }
+          
+          // Default to empty object with zero counts if still no match
+          productMetrics = productMetrics || {
+            totalKeys: 0,
+            availableKeys: 0,
+            usedKeys: 0
+          };
+        
+        // Enhanced debug info
+        console.debug(`Processing product ${productId}, found metrics:`, productMetrics);
+        
+        // Process product name
+        let productName = product.name;
+        if (typeof product.name === "object") {
+          productName = product.name.en || Object.values(product.name)[0] || "";
+        }
+        
         return {
-          id: product.id,
-          productId: product.id,
-          productName: typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name,
+          id: productId,
+          productId: productId, 
+          productName: productName,
           keyFormat: product.keyManagement?.format || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
           quantity: productMetrics.availableKeys || 0,
           totalKeys: productMetrics.totalKeys || 0,
-          usedKeys: (productMetrics.totalKeys || 0) - (productMetrics.availableKeys || 0),
+          usedKeys: productMetrics.usedKeys || ((productMetrics.totalKeys || 0) - (productMetrics.availableKeys || 0)),
           minStockAlert: product.keyManagement?.minStockAlert || 10,
           status: productMetrics.availableKeys === 0 ? 'Out of Stock' : 
-                 productMetrics.availableKeys <= product.keyManagement?.minStockAlert ? 'Low Stock' : 
-                 'In Stock'
+                 productMetrics.availableKeys <= (product.keyManagement?.minStockAlert || 10) ? 'Low Stock' : 
+                 'In Stock',
+          // Include manages_cd_keys flag if present in the product
+          manages_cd_keys: product.manages_cd_keys || false
         };
       });      // Cache the data
       localStorage.setItem('adminStockData', JSON.stringify(stockData));
@@ -167,14 +226,12 @@ function AdminStock() {
         format: keyFormat
       });
 
-      if (response.error) throw new Error(response.error);
-
-      setSuccessMessage(`Successfully added ${keys.length} keys to ${selectedProduct?.productName}`);
+      if (response.error) throw new Error(response.error);      setSuccessMessage(`Successfully added ${keys.length} keys to ${selectedProduct?.productName}`);
       setOpenAddKeysDialog(false);
       setNewKeys("");
       
-      // Wait a moment before refreshing data
-      setTimeout(loadStockData, 1000);
+      // Wait a moment before refreshing data - force refresh to get latest data
+      setTimeout(() => loadStockData(true), 1000);
     } catch (err) {
       setError(`Failed to add keys: ${err.message}`);
     } finally {
@@ -244,10 +301,9 @@ function AdminStock() {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" component="h1">
           Stock Management
-        </Typography>
-        <Button 
+        </Typography>        <Button 
           variant="outlined" 
-          onClick={loadStockData} 
+          onClick={() => loadStockData(true)} 
           disabled={loading}
           startIcon={<RefreshIcon />}
         >

@@ -13,7 +13,7 @@ class ProductCollection(MongoDb, metaclass=Singleton):
     
     async def initialize(self):
         """Initialize the collection with the admin database."""
-        database_name = "admin"
+        database_name = "shop" # Changed from "admin" to "shop"
         self.db = await self.add_new_collection(database_name)
         await self.initialize_beanie(self.db, [Product])
         
@@ -78,6 +78,20 @@ class ProductCollection(MongoDb, metaclass=Singleton):
     async def get_product(self, product_id: str) -> Product:
         """Get a product by ID."""
         return await Product.get(product_id)
+        
+    async def get_best_sellers(self, limit: int = 0) -> List[Product]:
+        """Get best-selling products."""
+        query = Product.find({"best_seller": True})
+        if limit > 0:
+            query = query.limit(limit)
+        return await query.to_list()
+
+    async def get_homepage_products(self, limit: int = 0) -> List[Product]:
+        """Get products to display on the homepage."""
+        query = Product.find({"displayOnHomePage": True})
+        if limit > 0:
+            query = query.limit(limit)
+        return await query.to_list()
         
     async def update_product(self, product_id: str, product_data: dict) -> Product:
         """Update a product."""
