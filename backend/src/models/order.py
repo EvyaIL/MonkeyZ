@@ -9,6 +9,7 @@ class OrderItem(BaseModel):
     name: str
     quantity: int
     price: float
+    assigned_key: Optional[str] = Field(None, description="The CD key assigned to this item if applicable")
 
 class StatusHistoryEntry(BaseModel):
     status: str
