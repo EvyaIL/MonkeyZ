@@ -100,7 +100,7 @@ const ProductCard = ({ product, otherStyle }) => {
             src={currentSrc}
             alt={displayName}
             loading="lazy"
-            className={`w-full h-full object-contain transition-all duration-300 ${
+            className={`w-full h-full object-cover transition-all duration-300 ${
               imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
             } group-hover:scale-105`}
             onLoad={() => {

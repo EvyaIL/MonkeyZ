@@ -196,7 +196,8 @@ const ProductPage = () => {
         ...product,
         name: displayName,
         description: displayDesc,
-        imageUrl: product.image,
+        // Prioritize imageUrl, then image for structured data
+        imageUrl: product.imageUrl || product.image,
         inStock: true
       };
       
@@ -239,7 +240,8 @@ const ProductPage = () => {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")} />
         <meta name="twitter:description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
-        {product.image && <meta name="twitter:image" content={product.image} />}
+        {/* Prioritize imageUrl, then image for Twitter card */}
+        {(product.imageUrl || product.image) && <meta name="twitter:image" content={product.imageUrl || product.image} />}
       </Helmet>
       <div className="p-4 md:p-9 flex flex-col items-center justify-center min-h-screen">
         <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5 backdrop-blur-sm">
@@ -287,11 +289,12 @@ const ProductPage = () => {
 
               <div className="flex flex-col md:flex-row gap-6 items-start p-4">
                 <div className="w-full md:w-1/2 h-[300px] md:h-[350px] rounded-lg border border-accent/10 dark:border-accent/10 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300 hover:border-accent/30 group relative">
-                  {product.image ? (
+                  {/* Prioritize imageUrl, then image for product display */}
+                  {(product.imageUrl || product.image) ? (
                     <img
-                      src={product.image}
+                      src={product.imageUrl || product.image}
                       alt={displayName || t("product_image")}
-                      className="object-contain w-full h-full p-4 transition-all duration-500 group-hover:scale-105"
+                      className="object-cover w-full h-full transition-all duration-500 group-hover:scale-105" /* Changed from object-contain and removed p-4 */
                       loading="lazy"
                     />
                   ) : (
@@ -420,11 +423,12 @@ const ProductPage = () => {
                         >
                           <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg p-4 shadow-lg transition-all duration-300 hover:shadow-xl backdrop-blur-sm h-full flex flex-col">
                             <div className="h-40 mb-4 bg-gray-100 dark:bg-gray-900 rounded-lg border border-accent/10 dark:border-accent/10 flex items-center justify-center overflow-hidden group-hover:border-accent/30 transition-colors">
-                              {relatedProduct.image ? (
+                              {/* Prioritize imageUrl, then image for related product display */}
+                              {(relatedProduct.imageUrl || relatedProduct.image) ? (
                                 <img 
-                                  src={relatedProduct.image} 
+                                  src={relatedProduct.imageUrl || relatedProduct.image} 
                                   alt={relName} 
-                                  className="object-contain h-full w-full p-2 group-hover:scale-105 transition-all duration-500"
+                                  className="object-cover h-full w-full group-hover:scale-105 transition-all duration-500" /* Changed from object-contain and removed p-2 */
                                   loading="lazy"
                                 />
                               ) : (

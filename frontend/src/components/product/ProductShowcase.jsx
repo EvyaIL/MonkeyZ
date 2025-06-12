@@ -228,7 +228,8 @@ const ProductShowcase = ({ products, title }) => {
               const nameToDisplay = productName || t("product_name_unavailable", "Name unavailable");
               const descToDisplay = productDesc || t("product_description_unavailable", "Description unavailable");
               const priceToDisplay = p.price !== undefined ? p.price.toFixed(2) : t("price_unavailable", "N/A");
-              const imageUrl = p.image || null;
+              // Prioritize imageUrl, then image, then null
+              const imageToDisplay = p.imageUrl || p.image || null;
               const productId = p.id;
               const isActive = index === currentIndex;
 
@@ -243,11 +244,11 @@ const ProductShowcase = ({ products, title }) => {
                   dir={lang === "he" ? "rtl" : "ltr"}
                 >
                   <div className="w-full md:w-1/2 h-[140px] md:h-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shadow-sm transition-transform hover:scale-[1.02] duration-200">
-                    {imageUrl ? (
+                    {imageToDisplay ? (
                       <img
-                        src={imageUrl}
+                        src={imageToDisplay}
                         alt={nameToDisplay}
-                        className="object-contain w-full h-full p-2"
+                        className="object-cover w-full h-full" /* Changed from object-contain and removed p-2 */
                         loading="lazy"
                         onError={(e) => {
                           e.target.onerror = null;
@@ -255,7 +256,7 @@ const ProductShowcase = ({ products, title }) => {
                         }}
                       />
                     ) : (
-                      <img src={placeholderImage} alt={nameToDisplay} className="object-contain w-full h-full p-2" />
+                      <img src={placeholderImage} alt={nameToDisplay} className="object-cover w-full h-full" /> /* Changed from object-contain and removed p-2 */
                     )}
                   </div>
 
