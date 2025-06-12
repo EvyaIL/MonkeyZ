@@ -490,24 +490,62 @@ async def add_product_keys(
             product_object_id = PydanticObjectId(product_id)
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid product ID format")
-        
-        # Create Key objects for each key
+          # Create Key objects for each key and collect new CDKeys
         added_keys_count = 0
+        newly_added_cdkeys = []
+        
+        # Also update the product document with CD keys
+        product = await user_controller.admin_product_collection.get_product_by_id(product_object_id)
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product with id {product_id} not found")
+        
         for key_string in keys_request.keys:
             try:
                 from src.models.key.key import KeyCreateRequest
+                from src.models.products.products import CDKey
+                
+                # Create the key in the keys collection
                 key_request = KeyCreateRequest(
                     product_id=product_object_id, 
                     key_string=key_string 
                 )
                 # Pass the username to the create_key method
-                await key_controller.create_key(key_request, current_user.username) 
+                await key_controller.create_key(key_request, current_user.username)
+                
+                # Also create a CDKey object to add to the product
+                new_cdkey = CDKey(
+                    key=key_string,
+                    isUsed=False,
+                    addedAt=datetime.utcnow()
+                )
+                newly_added_cdkeys.append(new_cdkey)
+                
                 added_keys_count += 1
             except Exception as e:
                 print(f"Error adding key {key_string}: {e}")
         
         if added_keys_count == 0 and len(keys_request.keys) > 0:
             raise HTTPException(status_code=500, detail="Failed to add any keys. Check server logs for details.")
+            
+        # Update the product document with the new CD keys and set manages_cd_keys flag
+        if newly_added_cdkeys:
+            # Initialize cdKeys if it doesn't exist
+            if not hasattr(product, 'cdKeys') or product.cdKeys is None:
+                product.cdKeys = []
+                
+            # Add the new keys
+            product.cdKeys.extend(newly_added_cdkeys)
+            
+            # Set the manages_cd_keys flag
+            product.manages_cd_keys = True
+            
+            # Save the updated product
+            try:
+                await product.save()
+                print(f"Updated product {product_id} with {len(newly_added_cdkeys)} CD keys")
+            except Exception as save_error:
+                print(f"Error saving product with updated CD keys: {save_error}")
+                # Continue anyway since the keys were added to the keys collection
 
         return {"message": f"Successfully added {added_keys_count} keys to product {product_id}"}
     except HTTPException as http_exc:
