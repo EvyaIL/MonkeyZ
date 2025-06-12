@@ -947,3 +947,39 @@ async def get_key_metrics(
     # Get metrics from the dedicated controller
     metrics = await key_metrics_controller.get_key_metrics()
     return metrics
+    product_metrics = []
+    
+    for product in products:
+        # Get keys for this product
+        product_keys = await user_controller.get_product_keys(product.id)
+        product_total = len(product_keys)
+        product_available = len([k for k in product_keys if k.status == 'available'])
+        product_used = len([k for k in product_keys if k.status == 'used'])
+        product_expired = len([k for k in product_keys if k.status == 'expired'])
+        
+        # Update totals
+        total_keys += product_total
+        available_keys += product_available
+        used_keys += product_used
+        expired_keys += product_expired
+        
+        # Check if product is low on stock
+        if product_available <= product.minStockAlert:
+            low_stock_products += 1
+        
+        # Add product metrics
+        product_metrics.append(KeyUsageByProduct(
+            productId=str(product.id),
+            productName=product.name.en if isinstance(product.name, dict) else product.name,
+            totalKeys=product_total,
+            availableKeys=product_available
+        ))
+    
+    return KeyMetrics(
+        totalKeys=total_keys,
+        availableKeys=available_keys,
+        usedKeys=used_keys,
+        expiredKeys=expired_keys,
+        lowStockProducts=low_stock_products,
+        keyUsageByProduct=product_metrics
+    )
