@@ -65,6 +65,7 @@ async def create_order(
 
     order_dict_for_db = {} 
     raw_data_dump = "order_data (Pydantic model) not available"
+    db = await mongo_db.get_db() # Moved DB connection up
 
     try:
         try:
@@ -78,9 +79,7 @@ async def create_order(
         order_data.original_total = calculated_original_total
         order_data.discount_amount = 0.0 # Default discount
 
-        db = await mongo_db.get_db() # Get DB instance earlier for coupon check
-
-        # Coupon Logic
+        # Coupon Logic (existing)
         valid_coupon_applied = False
         if order_data.coupon_code:
             coupon = await db.coupons.find_one({"code": order_data.coupon_code})
@@ -93,19 +92,18 @@ async def create_order(
                 is_expired = False
                 if expires_at_str:
                     try:
-                        # If it's a string, parse it. If it's already datetime, use it.
                         if isinstance(expires_at_str, str):
                             expires_at_dt = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
                         elif isinstance(expires_at_str, datetime):
                             expires_at_dt = expires_at_str
-                        else: # Handle other potential types or log warning
+                        else: 
                             expires_at_dt = None
 
-                        if expires_at_dt and datetime.utcnow().replace(tzinfo=None) > expires_at_dt.replace(tzinfo=None): # Compare naive datetimes
+                        if expires_at_dt and datetime.utcnow().replace(tzinfo=None) > expires_at_dt.replace(tzinfo=None): 
                             is_expired = True
                     except ValueError:
                         print(f"Warning: Could not parse coupon expiresAt date: {expires_at_str}")
-                        is_expired = True # Treat unparseable date as expired or invalid
+                        is_expired = True 
 
                 has_exceeded_uses = False
                 if max_uses is not None and usage_count >= max_uses:
@@ -123,123 +121,95 @@ async def create_order(
                         discount = 0.0
                     
                     order_data.discount_amount = min(discount, order_data.original_total)
-                    valid_coupon_applied = True # Mark that a valid coupon was processed
+                    valid_coupon_applied = True 
                 else:
-                    # Coupon is invalid (inactive, expired, or overused)
-                    print(f"Coupon '{order_data.coupon_code}' is invalid. Active: {is_active}, Expired: {is_expired}, Exceeded Uses: {has_exceeded_uses}")
-                    order_data.coupon_code = None # Clear invalid coupon code from order
+                    print(f"Coupon \'{order_data.coupon_code}\' is invalid. Active: {is_active}, Expired: {is_expired}, Exceeded Uses: {has_exceeded_uses}")
+                    order_data.coupon_code = None 
                     order_data.discount_amount = 0.0
             else:
-                # Coupon code not found
-                print(f"Coupon code '{order_data.coupon_code}' not found.")
-                order_data.coupon_code = None # Clear non-existent coupon code
+                print(f"Coupon code \'{order_data.coupon_code}\' not found.")
+                order_data.coupon_code = None 
                 order_data.discount_amount = 0.0
         
-        # Recalculate total based on original_total and discount_amount
         order_data.total = order_data.original_total - order_data.discount_amount
 
-        # 1. Prepare Status History
         new_status_entry = StatusHistoryEntry(
-            status=order_data.status, # status from client or model default "Pending"
+            status=order_data.status, 
             date=datetime.utcnow(), 
             note="Order created by admin"
         )
-        # order_data.statusHistory is initialized to [] by Pydantic's default_factory if not sent
-        if order_data.statusHistory is None: # Should be redundant due to default_factory
+        if order_data.statusHistory is None: 
             order_data.statusHistory = []
         order_data.statusHistory.insert(0, new_status_entry)
-
-        # 2. Ensure updatedAt is current for this creation event
         order_data.updatedAt = datetime.utcnow()
-
-        # 3. Convert Pydantic model to dictionary for MongoDB
-        # by_alias=True uses "_id" instead of "id"
-        # exclude_none=False includes fields explicitly set to None by client (e.g. user_id)
         order_dict_for_db = order_data.model_dump(by_alias=True, exclude_none=False)
         
-        # 4. Data sanitization/transformation for DB
-        # Ensure user_id is None if it was an empty string from client
         if order_dict_for_db.get("user_id") == "":
             order_dict_for_db["user_id"] = None
         
-        # The 'id' (aliased to '_id') from model_dump is a string. Convert to ObjectId for DB.
         if "_id" in order_dict_for_db and isinstance(order_dict_for_db["_id"], str):
             try:
                 order_dict_for_db["_id"] = ObjectId(order_dict_for_db["_id"])
             except Exception as e:
-                print(f"Error converting _id string to ObjectId: {e}. Value was: {order_dict_for_db['_id']}")
-                raise # Re-raise to be caught by the main try-except
+                print(f"Error converting _id string to ObjectId: {e}. Value was: {order_dict_for_db['_id']}") # Changed [\\'_id\\'] to ['_id']
+                raise 
         else:
             # This case should ideally not be hit if Pydantic's default_factory for 'id' works.
             # If _id is missing or not a string, generate a new one.
-            print(f"Warning: _id was missing or not a string in order_dict_for_db. Generating new ObjectId. Current _id: {order_dict_for_db.get('_id')}")
+            print(f"Warning: _id was missing or not a string in order_dict_for_db. Generating new ObjectId. Current _id: {order_dict_for_db.get('_id')}") # Changed .get(\\'_id\\') to .get('_id')
             order_dict_for_db["_id"] = ObjectId() 
 
         # Log the dictionary that will be inserted into MongoDB
         try:
-            print(f"Attempting to insert into DB: {str(order_dict_for_db)[:1000]}") # Log first 1k chars
+            print(f"Attempting to insert into DB: {str(order_dict_for_db)[:1000]}") 
         except Exception as log_exc:
             print(f"Could not serialize order_dict_for_db for logging before insert: {log_exc}")
 
-        # 5. Database insertion
-        # db = await mongo_db.get_db() # Moved up
         insert_result = await db.orders.insert_one(order_dict_for_db) 
 
         if not insert_result.inserted_id:
             print(f"MongoDB insert_one result: {insert_result.acknowledged}, Inserted ID: {insert_result.inserted_id}")
             raise HTTPException(status_code=500, detail="Failed to insert order into database, no ID returned by DB.")
 
-        # Increment coupon usage count if a valid coupon was applied
-        if valid_coupon_applied and order_data.coupon_code: # Check order_data.coupon_code again in case it was cleared
-            coupon_code_used = order_data.coupon_code # The one that was validated and stored on the order
+        if valid_coupon_applied and order_data.coupon_code: 
+            coupon_code_used = order_data.coupon_code 
             await db.coupons.update_one(
                 {"code": coupon_code_used}, 
                 {"$inc": {"usageCount": 1}}
             )
             print(f"Incremented usage count for coupon: {coupon_code_used}")
 
-        # 6. Retrieve and return the created order
-        # Fetch using the ObjectId that was definitely used for insertion.
-        created_order_from_db = await db.orders.find_one({"_id": order_dict_for_db["_id"]}) # Added await
+        created_order_from_db = await db.orders.find_one({"_id": order_dict_for_db["_id"]}) 
         
         if not created_order_from_db:
             # This would be very strange if insert_one succeeded.
-            print(f"Order inserted with _id {order_dict_for_db['_id']} but not found immediately after.")
+            print(f"Order inserted with _id {order_dict_for_db['_id']} but not found immediately after.") # Changed [\\'_id\\'] to ['_id']
             raise HTTPException(status_code=404, detail="Order created but could not be retrieved from database.")
         
         return Order(**created_order_from_db)
 
     except HTTPException as http_exc: 
-        # Re-raise HTTPExceptions directly
         raise http_exc
     except Exception as e:
-        # Catch any other exceptions (Pydantic ValidationErrors if they occur post-FastAPI, DB errors, etc.)
         error_type = type(e).__name__
         error_message_detail = str(e)
         error_message = f"Internal server error creating order: {error_type} - {error_message_detail}"
         
         print(f"!!!!!!!! Backend Error in create_order: {error_message}")
         
-        # Log the dictionary that was attempted for DB insertion (if populated)
         db_data_dump = "order_dict_for_db not available or not yet populated"
         if 'order_dict_for_db' in locals() and order_dict_for_db:
             try:
-                # Attempt to convert datetime/ObjectId back to str for simpler logging if needed
-                # This is a simplified representation for logging
                 loggable_dict = {k: (str(v) if isinstance(v, (datetime, ObjectId)) else v) for k, v in order_dict_for_db.items()}
                 db_data_dump = str(loggable_dict)
             except Exception as dump_exc:
                 db_data_dump = f"Could not serialize order_dict_for_db for logging: {dump_exc}"
         print(f"Data intended for DB (order_dict_for_db) (first 1000 chars): {db_data_dump[:1000]}")
         
-        # Log the raw Pydantic model data received by the endpoint
         print(f"Raw Pydantic model data received (order_data) (first 1000 chars): {raw_data_dump[:1000]}")
 
-        # If it's a Pydantic ValidationError, log its specific errors
-        if error_type == "ValidationError": # Check if 'e' is a Pydantic ValidationError
+        if error_type == "ValidationError": 
             try:
-                # Pydantic v2: e.errors()
-                # Pydantic v1: e.errors
                 validation_errors = e.errors() if hasattr(e, 'errors') and callable(e.errors) else getattr(e, 'errors', 'No detailed errors found')
                 print(f"Pydantic ValidationError details: {validation_errors}")
             except Exception as pydantic_log_exc:

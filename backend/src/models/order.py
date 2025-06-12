@@ -10,6 +10,7 @@ class OrderItem(BaseModel):
     quantity: int
     price: float
     assigned_key: Optional[str] = Field(None, description="The CD key assigned to this item if applicable")
+    assigned_cd_key: Optional[str] = None # New field for the assigned CD key
 
 class StatusHistoryEntry(BaseModel):
     status: str
@@ -33,11 +34,13 @@ class Order(BaseModel):
     coupon_code: Optional[str] = None
     discount_amount: Optional[float] = Field(default=0.0)
     original_total: Optional[float] = None # To store total before discount
+    assigned_cd_keys_summary: Optional[List[dict]] = None # New field for summary
     
     class Config:
         allow_population_by_alias = True
         json_encoders = {
-            ObjectId: str
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat() # Ensure datetime is ISO formatted
         }
 
 class OrderStatusUpdateRequest(BaseModel):
