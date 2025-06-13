@@ -1,6 +1,6 @@
 from beanie import PydanticObjectId
 from .mongodb import MongoDb
-from src.models.products.products import Product, ProductRequest
+from src.models.products.products import Product, ProductRequest, CDKeyUpdateRequest # Added CDKeyUpdateRequest
 from src.models.products.products_exception import CreateError, NotValid ,NotFound
 from src.singleton.singleton import Singleton
 from datetime import datetime, timedelta
@@ -508,63 +508,50 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         await product.save()
         return product
 
-    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, key_update_request_dict: dict) -> Product:
-        """
-        Updates a specific CDKey within a product's cdKeys list by its index using atomic MongoDB operators.
-        key_update_request_dict is expected to be a dictionary, e.g., from CDKeyUpdateRequest.model_dump(exclude_unset=True).
-        """
-        # It's good practice to import specific Beanie/Mongo operators where used
-        from beanie.operators import Set 
-        # Ensure Product model is available; it might be already imported at the class/module level
-        # from src.models.products.products import Product 
-        # Ensure NotFound exception is available
-        # from src.models.products.products_exception import NotFound
+    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, cd_key_update_request: CDKeyUpdateRequest) -> Product:
+        """Update a specific CD key in a product by its index using atomic operations."""
+        product = await Product.get(product_id)
+        if not product:
+            raise ValueError("Product not found")
 
-        product_to_check = await Product.get(product_id)
-        if not product_to_check:
-            raise NotFound(f"Product with id {product_id} not found.")
+        if not product.manages_cd_keys:
+            raise ValueError("This product does not manage CD keys.")
 
-        if product_to_check.cdKeys is None or not (0 <= cd_key_index < len(product_to_check.cdKeys)):
-            raise NotFound(f"CDKey at index {cd_key_index} not found for product {product_id}.")
+        if not product.cdKeys or cd_key_index < 0 or cd_key_index >= len(product.cdKeys):
+            raise ValueError("CD key index is out of bounds.")
 
-        update_payload = {}
-        # We only want to update specific fields, and explicitly NOT the 'key' string itself.
-        if 'isUsed' in key_update_request_dict:
-            update_payload[f"cdKeys.{cd_key_index}.isUsed"] = key_update_request_dict['isUsed']
+        update_data = cd_key_update_request.model_dump(exclude_unset=True, exclude_none=True)
+
+        # Ensure the 'key' field itself is never part of the update from this request
+        if 'key' in update_data:
+            del update_data['key']
         
-        if 'usedAt' in key_update_request_dict: # Can be datetime or None
-            update_payload[f"cdKeys.{cd_key_index}.usedAt"] = key_update_request_dict['usedAt']
+        if not update_data:
+            # No valid fields to update
+            return product
+
+        # Prepare the update document for MongoDB
+        # We are targeting a specific element in the cdKeys array
+        set_query = {f"cdKeys.{cd_key_index}.{key}": value for key, value in update_data.items()}
         
-        if 'orderId' in key_update_request_dict: # Can be PydanticObjectId or None
-            # Ensure PydanticObjectId is handled correctly if it's passed as string from dict
-            order_id_val = key_update_request_dict['orderId']
-            if isinstance(order_id_val, str):
-                try:
-                    order_id_val = PydanticObjectId(order_id_val)
-                except Exception: # Catch potential validation error for ObjectId
-                    pass # Or raise an error if it must be a valid ObjectId string
-            update_payload[f"cdKeys.{cd_key_index}.orderId"] = order_id_val
+        if "isUsed" in update_data and update_data["isUsed"] and "usedAt" not in update_data:
+            set_query[f"cdKeys.{cd_key_index}.usedAt"] = datetime.utcnow()
+        elif "isUsed" in update_data and not update_data["isUsed"]:
+            # If isUsed is set to False, clear usedAt and orderId
+            set_query[f"cdKeys.{cd_key_index}.usedAt"] = None
+            set_query[f"cdKeys.{cd_key_index}.orderId"] = None
 
-        if not update_payload:
-            # No valid fields to update were provided in the request
-            return product_to_check 
 
-        # Perform the atomic update using the Product model's methods
-        # The find_one filter ensures we are targeting the correct document.
-        result = await Product.find_one(Product.id == product_id).update(Set(update_payload))
+        if not set_query:
+             return product # No actual changes to make
+
+        await Product.find_one(Product.id == product_id).update({"$set": set_query})
         
-        # result might be a UpdateResult object from Motor, check modified_count
-        # For Beanie, the .update() on a query builder typically returns the number of modified docs or a result object
-        # Depending on Beanie version and usage, checking modified_count might look like:
-        # if result is None or (hasattr(result, 'modified_count') and result.modified_count == 0) :
-             # Log or handle cases where no document was modified.
-             # This could be because the values were already set as requested.
-
-        # Fetch the updated product to return its new state
+        # Re-fetch the product to return the updated version
         updated_product = await Product.get(product_id)
         if not updated_product:
-            # This case should ideally not be reached if the initial product_to_check was found
-            raise NotFound(f"Product with id {product_id} could not be fetched after update.")
+            # This should ideally not happen if the product existed before
+            raise ValueError("Failed to retrieve product after update.")
         return updated_product
 
     async def delete_cd_key_from_product(self, product_id: PydanticObjectId, cd_key_index: int) -> Product:

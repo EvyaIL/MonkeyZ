@@ -52,7 +52,7 @@ function CDKeyManager({ productId, productName }) {
 
         // Find the index of the key being edited.
         // The backend expects the index of the key in the product's cd_keys array.
-        const keyIndex = cdKeys.findIndex(k => k._id === editingKey._id);
+        const keyIndex = cdKeys.findIndex(k => k._id === editingKey._id); // Assuming _id is unique and present
         if (keyIndex === -1) {
             alert("Could not find the key index. Please refresh and try again.");
             return;
@@ -60,15 +60,22 @@ function CDKeyManager({ productId, productName }) {
 
         try {
             // Construct the payload for the backend.
-            // The backend expects only the fields that are being updated.
+            // Only send fields that can be updated. The 'key' string itself should not be updatable here.
             const payload = {
-                key: updatedKeyData.key,
                 isUsed: updatedKeyData.isUsed,
-                // Include other fields if they are editable and part of CDKeyUpdateRequest
-                // For example, if usedAt or orderId can be manually set/cleared:
-                // usedAt: updatedKeyData.usedAt, 
-                // orderId: updatedKeyData.orderId,
+                // usedAt and orderId will be conditionally added
             };
+            
+            // Logic for setting usedAt and orderId based on isUsed status
+            if (updatedKeyData.isUsed) {
+                payload.usedAt = updatedKeyData.usedAt || new Date().toISOString(); // Set to provided time or now
+                if (updatedKeyData.orderId) { // Only add orderId if provided
+                    payload.orderId = updatedKeyData.orderId;
+                }
+            } else {
+                payload.usedAt = null; // Clear usedAt if marked as not used
+                payload.orderId = null; // Clear orderId if marked as not used
+            }
             
             await updateProductCDKey(productId, keyIndex, payload);
             setEditingKey(null); // Close the form
