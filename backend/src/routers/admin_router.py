@@ -402,8 +402,14 @@ async def update_cd_key_for_product(
 ):
     await verify_admin(user_controller, current_user)
     try:
+        # Convert Pydantic model to dict, excluding unset fields
+        # Use .model_dump() for Pydantic v2+, or .dict() for Pydantic v1
+        update_data_dict = request.model_dump(exclude_unset=True) 
+        # If using Pydantic v1, uncomment the line below and comment out the line above
+        # update_data_dict = request.dict(exclude_unset=True)
+
         updated_product = await user_controller.admin_product_collection.update_cd_key_in_product(
-            product_id, cd_key_index, request
+            product_id, cd_key_index, update_data_dict
         )
         return updated_product
     except ValueError as e:
