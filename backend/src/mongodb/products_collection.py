@@ -4,6 +4,7 @@ from src.models.products.products import Product, ProductRequest, CDKeyUpdateReq
 from src.models.products.products_exception import CreateError, NotValid ,NotFound
 from src.singleton.singleton import Singleton
 from datetime import datetime, timedelta
+from typing import List, Optional, Union, Dict, Any # Ensure Dict and Any are imported
 
 class ProductsCollection(MongoDb, metaclass=Singleton):
     """
@@ -508,51 +509,37 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         await product.save()
         return product
 
-    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, cd_key_update_request: CDKeyUpdateRequest) -> Product:
-        """Update a specific CD key in a product by its index using atomic operations."""
+    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, cd_key_update_payload: Dict[str, Any]) -> Product: # Changed type hint
+        """Update a specific CD key in a product by its index."""
         product = await Product.get(product_id)
         if not product:
-            raise ValueError("Product not found")
+            raise NotFound("Product not found")
 
         if not product.manages_cd_keys:
-            raise ValueError("This product does not manage CD keys.")
+            raise NotValid("This product does not manage CD keys.")
 
         if not product.cdKeys or cd_key_index < 0 or cd_key_index >= len(product.cdKeys):
-            raise ValueError("CD key index is out of bounds.")
+            raise NotFound("CD key index out of bounds or no CD keys exist for this product.")
 
-        update_data = cd_key_update_request.model_dump(exclude_unset=True, exclude_none=True)
+        cd_key_to_update = product.cdKeys[cd_key_index]
+        update_data = cd_key_update_payload # Use the dict directly
 
-        # Ensure the 'key' field itself is never part of the update from this request
+        # Ensure 'key' field is not in update_data to prevent accidental overwrite of the key string itself
         if 'key' in update_data:
-            del update_data['key']
+            # This should ideally not happen if called from our frontend,
+            # but as a safeguard, we remove it.
+            # The key string itself should not be editable via this method.
+            del update_data['key'] 
+
+        for field_name, value in update_data.items():
+            if hasattr(cd_key_to_update, field_name):
+                setattr(cd_key_to_update, field_name, value)
+            else:
+                # Log or handle unexpected fields if necessary
+                print(f"Warning: Field '{field_name}' not found in CDKey model, skipping update for this field.")
         
-        if not update_data:
-            # No valid fields to update
-            return product
-
-        # Prepare the update document for MongoDB
-        # We are targeting a specific element in the cdKeys array
-        set_query = {f"cdKeys.{cd_key_index}.{key}": value for key, value in update_data.items()}
-        
-        if "isUsed" in update_data and update_data["isUsed"] and "usedAt" not in update_data:
-            set_query[f"cdKeys.{cd_key_index}.usedAt"] = datetime.utcnow()
-        elif "isUsed" in update_data and not update_data["isUsed"]:
-            # If isUsed is set to False, clear usedAt and orderId
-            set_query[f"cdKeys.{cd_key_index}.usedAt"] = None
-            set_query[f"cdKeys.{cd_key_index}.orderId"] = None
-
-
-        if not set_query:
-             return product # No actual changes to make
-
-        await Product.find_one(Product.id == product_id).update({"$set": set_query})
-        
-        # Re-fetch the product to return the updated version
-        updated_product = await Product.get(product_id)
-        if not updated_product:
-            # This should ideally not happen if the product existed before
-            raise ValueError("Failed to retrieve product after update.")
-        return updated_product
+        await product.save()
+        return product
 
     async def delete_cd_key_from_product(self, product_id: PydanticObjectId, cd_key_index: int) -> Product:
         """
