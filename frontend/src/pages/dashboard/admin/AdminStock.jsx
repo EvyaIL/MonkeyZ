@@ -54,21 +54,28 @@ function AdminStock() {
   const [newKeys, setNewKeys] = useState("");
   const [keyFormat, setKeyFormat] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const loadStockData = useCallback(async () => {
+
+  const loadStockData = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError("");
     setSuccessMessage("");
     try {
-      // Check if we have cached data that's less than 1 minute old
-      const cacheTimestamp = localStorage.getItem('adminStockDataTimestamp');
-      const isCacheValid = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 60000;
-      const cachedData = localStorage.getItem('adminStockData');
+      if (!forceRefresh) {
+        const cacheTimestamp = localStorage.getItem('adminStockDataTimestamp');
+        const isCacheValid = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 60000; // 1 minute
+        const cachedData = localStorage.getItem('adminStockData');
 
-      if (isCacheValid && cachedData) {
-        console.debug('Using cached stock data');
-        setStockItems(JSON.parse(cachedData));
-        setLoading(false);
-        return;
+        if (isCacheValid && cachedData) {
+          console.debug('Using cached stock data');
+          setStockItems(JSON.parse(cachedData));
+          setLoading(false);
+          return;
+        }
+      } else {
+        // If forcing refresh, clear the cache
+        localStorage.removeItem('adminStockData');
+        localStorage.removeItem('adminStockDataTimestamp');
+        console.debug('Cache cleared due to forceRefresh');
       }
 
       const [metricsResponse, productsResponse] = await Promise.all([
@@ -111,23 +118,25 @@ function AdminStock() {
       console.error('Error loading stock data:', err);
       setError("Failed to load stock data: " + err.message);
       
-      // Try to use cached data as fallback
-      try {
-        const cachedData = localStorage.getItem('adminStockData');
-        if (cachedData) {
-          console.debug('Using cached stock data as fallback');
-          setStockItems(JSON.parse(cachedData));
+      // Try to use cached data as fallback only if not forcing refresh
+      if (!forceRefresh) {
+        try {
+          const cachedData = localStorage.getItem('adminStockData');
+          if (cachedData) {
+            console.debug('Using cached stock data as fallback');
+            setStockItems(JSON.parse(cachedData));
+          }
+        } catch (cacheError) {
+          console.error('Cache fallback failed:', cacheError);
         }
-      } catch (cacheError) {
-        console.error('Cache fallback failed:', cacheError);
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Keep useCallback dependencies minimal, forceRefresh is a param
 
   useEffect(() => {
-    loadStockData();
+    loadStockData(); // Initial load
   }, [loadStockData]);
 
   const handleOpenAddKeysDialog = (productId) => {
@@ -141,17 +150,24 @@ function AdminStock() {
     }
   };
 
-  const handleOpenManageKeysDialog = (productId, productName) => { // Accept productName
+  const handleOpenManageKeysDialog = (productId, productName) => {
     setSelectedProductId(productId);
-    setSelectedProductName(productName); // Set product name
+    setSelectedProductName(productName);
     setOpenManageKeysDialog(true);
   };
 
   const handleCloseManageKeysDialog = () => {
     setOpenManageKeysDialog(false);
     setSelectedProductId(null);
-    setSelectedProductName(''); // Reset product name
+    setSelectedProductName('');
   };
+  
+  const refreshStockDataAndCloseDialogs = () => {
+    loadStockData(true); // Force refresh
+    setOpenAddKeysDialog(false);
+    // Potentially close other dialogs if needed
+  };
+
 
   const handleAddKeys = async () => {
     if (!selectedProductId || !newKeys.trim()) return;
@@ -180,20 +196,19 @@ function AdminStock() {
 
       // Prepare the payload according to backend expectations
       const payload = {
-        keys: keyStrings.map(k => ({ key: k })) // Backend expects [{key: "val1"}, {key: "val2"}]
+        keys: keyStrings.map(k => ({ key: k }))
       };
 
-      // Use the correct endpoint: /cdkeys
       const response = await apiService.post(`/admin/products/${selectedProductId}/cdkeys`, payload);
 
       if (response.error) throw new Error(response.error);
 
       setSuccessMessage(`Successfully added ${keyStrings.length} keys to ${selectedProduct?.productName}`);
-      setOpenAddKeysDialog(false);
       setNewKeys("");
-      
-      // Wait a moment before refreshing data
-      setTimeout(loadStockData, 1000);
+      // Call the new refresh function
+      refreshStockDataAndCloseDialogs(); 
+      // No need for setTimeout if loadStockData handles loading state correctly
+      // setTimeout(() => loadStockData(true), 1000); // Old way
     } catch (err) {
       setError(`Failed to add keys: ${err.message}`);
     } finally {
@@ -266,7 +281,7 @@ function AdminStock() {
         </Typography>
         <Button 
           variant="outlined" 
-          onClick={loadStockData} 
+          onClick={() => loadStockData(true)} // Call with forceRefresh = true
           disabled={loading}
           startIcon={<RefreshIcon />}
         >
@@ -552,7 +567,7 @@ function AdminStock() {
         </DialogTitle>
         <DialogContent dividers>
           {selectedProductId && 
-            <CDKeyManager productId={selectedProductId} productName={selectedProductName} /> // Pass productName
+            <CDKeyManager productId={selectedProductId} productName={selectedProductName} onKeysUpdated={() => loadStockData(true)} /> // Pass productName
           }
         </DialogContent>
       </Dialog>
