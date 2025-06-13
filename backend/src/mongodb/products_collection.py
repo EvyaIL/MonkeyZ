@@ -5,6 +5,8 @@ from src.models.products.products_exception import CreateError, NotValid ,NotFou
 from src.singleton.singleton import Singleton
 from datetime import datetime, timedelta
 from typing import List, Optional, Union, Dict, Any # Ensure Dict and Any are imported
+from bson import ObjectId # Ensure ObjectId is imported
+from fastapi import HTTPException # Ensure HTTPException is imported
 
 class ProductsCollection(MongoDb, metaclass=Singleton):
     """
@@ -509,37 +511,74 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         await product.save()
         return product
 
-    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, cd_key_update_payload: Dict[str, Any]) -> Product: # Changed type hint
-        """Update a specific CD key in a product by its index."""
-        product = await Product.get(product_id)
+    async def update_cd_key_in_product(self, product_id: str, key_index: int, key_update_data: dict) -> dict:
+        # Ensure product_id is a valid ObjectId string before querying
+        try:
+            obj_product_id = ObjectId(product_id)
+        except Exception: # Handles InvalidId from bson.objectid
+            # logger.error(f"Invalid product ID format: {product_id}") # Optional: logging
+            raise HTTPException(status_code=400, detail=f"Invalid product ID format: {product_id}")
+
+        product = await self.collection.find_one({"_id": obj_product_id})
         if not product:
-            raise NotFound("Product not found")
+            # logger.warning(f"Product with ID {product_id} not found during cd key update attempt.") # Optional: logging
+            raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found")
 
-        if not product.manages_cd_keys:
-            raise NotValid("This product does not manage CD keys.")
+        if not product.get("manages_cd_keys", False):
+            # logger.warning(f"Attempt to update CD key for product {product_id} which does not manage keys.") # Optional: logging
+            raise HTTPException(status_code=400, detail="This product does not manage CD keys.")
 
-        if not product.cdKeys or cd_key_index < 0 or cd_key_index >= len(product.cdKeys):
-            raise NotFound("CD key index out of bounds or no CD keys exist for this product.")
+        cd_keys = product.get("cd_keys", [])
+        if not isinstance(cd_keys, list):
+            # logger.error(f"Product {product_id} cd_keys field is not a list.") # Optional: logging
+            raise HTTPException(status_code=500, detail="Product cd_keys data is corrupted (not a list).")
 
-        cd_key_to_update = product.cdKeys[cd_key_index]
-        update_data = cd_key_update_payload # Use the dict directly
+        if not 0 <= key_index < len(cd_keys):
+            # logger.warning(f"CD key index {key_index} out of bounds for product {product_id} with {len(cd_keys)} keys.") # Optional: logging
+            raise HTTPException(status_code=404, detail=f"CD key at index {key_index} not found. Product has {len(cd_keys)} keys.")
 
-        # Ensure 'key' field is not in update_data to prevent accidental overwrite of the key string itself
-        if 'key' in update_data:
-            # This should ideally not happen if called from our frontend,
-            # but as a safeguard, we remove it.
-            # The key string itself should not be editable via this method.
-            del update_data['key'] 
+        # Define fields that are allowed to be updated for a CD key
+        allowed_fields_to_update = {"is_used", "notes", "assigned_to_order_id", "assigned_at"}
+        set_query_updates = {}
 
-        for field_name, value in update_data.items():
-            if hasattr(cd_key_to_update, field_name):
-                setattr(cd_key_to_update, field_name, value)
-            else:
-                # Log or handle unexpected fields if necessary
-                print(f"Warning: Field '{field_name}' not found in CDKey model, skipping update for this field.")
+        for field, value in key_update_data.items():
+            if field == "key":
+                # This is a critical security/integrity check.
+                # logger.warning(f"Blocked attempt to update 'key' string for product {product_id}, key_index {key_index}.") # Optional: logging
+                raise HTTPException(status_code=400, detail="Updating the key string itself is not allowed via this endpoint. Please delete and add a new key if changes are needed.")
+            
+            if field in allowed_fields_to_update:
+                set_query_updates[f"cd_keys.{key_index}.{field}"] = value
+            # else:
+                # Optionally, log or raise an error for unexpected fields if strict validation is required.
+                # logger.info(f"Ignoring unexpected field '{field}' in CD key update for product {product_id}, key_index {key_index}")
+
+        if not set_query_updates:
+            # This means the payload (key_update_data) either was empty or contained no fields that are allowed for update.
+            # logger.warning(f"No valid fields provided for CD key update on product {product_id}, key_index {key_index}. Payload: {key_update_data}") # Optional: logging
+            raise HTTPException(status_code=400, detail="No valid fields to update provided for the CD key. Allowed fields are: " + ", ".join(allowed_fields_to_update))
+
+        # Perform the atomic update operation
+        result = await self.collection.update_one(
+            {"_id": obj_product_id},
+            {"$set": set_query_updates}
+        )
+
+        if result.matched_count == 0:
+            # This scenario implies the product was deleted between the initial find_one and this update_one call (race condition).
+            # logger.error(f"Product {product_id} not found during update_one operation (race condition or deleted).") # Optional: logging
+            raise HTTPException(status_code=404, detail="Product not found during update operation. It may have been deleted.")
         
-        await product.save()
-        return product
+        # result.modified_count == 0 is not an error; it means the data was already in the desired state.
+
+        # Re-fetch the product to return its latest state, including the update
+        updated_product = await self.collection.find_one({"_id": obj_product_id})
+        if not updated_product:
+            # This would be highly unusual if the update_one indicated a match.
+            # logger.critical(f"Failed to retrieve product {product_id} after a successful-looking update.") # Optional: logging
+            raise HTTPException(status_code=500, detail="Critical error: Failed to retrieve product after update.")
+        
+        return updated_product
 
     async def delete_cd_key_from_product(self, product_id: PydanticObjectId, cd_key_index: int) -> Product:
         """

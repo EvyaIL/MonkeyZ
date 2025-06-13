@@ -9,6 +9,7 @@ function CDKeyManager({ productId, productName }) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [editingKey, setEditingKey] = useState(null); // State to hold the key being edited
+    const [editingKeyIndex, setEditingKeyIndex] = useState(null); // State to hold the index of the key being edited
 
     const fetchCDKeys = useCallback(async () => {
         if (!productId) return;
@@ -43,43 +44,45 @@ function CDKeyManager({ productId, productName }) {
         }
     };
 
-    const handleEdit = (key) => {
+    const handleEdit = (key, index) => { // Accept index here
         setEditingKey(key);
+        setEditingKeyIndex(index); // Store the index
     };
 
     const handleSaveEdit = async (updatedKeyData) => {
-        if (!editingKey) return;
-
-        // Find the index of the key being edited.
-        // The backend expects the index of the key in the product's cd_keys array.
-        const keyIndex = cdKeys.findIndex(k => k._id === editingKey._id); // Assuming _id is unique and present
-        if (keyIndex === -1) {
-            alert("Could not find the key index. Please refresh and try again.");
+        if (!editingKey || editingKeyIndex === null) { // Check editingKeyIndex as well
+            alert("No key selected for editing or index is missing.");
             return;
         }
 
+        // const keyIndex = cdKeys.findIndex(k => k._id === editingKey._id); // OLD LOGIC - REMOVED
+        // Use the stored editingKeyIndex directly
+        const keyIndex = editingKeyIndex;
+
+        // if (keyIndex === -1) { // This check might still be relevant if index could become invalid
+        //     alert("Could not find the key index. Please refresh and try again.");
+        //     return;
+        // }
+
         try {
-            // Construct the payload for the backend.
-            // Only send fields that can be updated. The 'key' string itself should not be updatable here.
             const payload = {
                 isUsed: updatedKeyData.isUsed,
-                // usedAt and orderId will be conditionally added
             };
             
-            // Logic for setting usedAt and orderId based on isUsed status
             if (updatedKeyData.isUsed) {
-                payload.usedAt = updatedKeyData.usedAt || new Date().toISOString(); // Set to provided time or now
-                if (updatedKeyData.orderId) { // Only add orderId if provided
+                payload.usedAt = updatedKeyData.usedAt || new Date().toISOString();
+                if (updatedKeyData.orderId) { 
                     payload.orderId = updatedKeyData.orderId;
                 }
             } else {
-                payload.usedAt = null; // Clear usedAt if marked as not used
-                payload.orderId = null; // Clear orderId if marked as not used
+                payload.usedAt = null; 
+                payload.orderId = null; 
             }
             
             await updateProductCDKey(productId, keyIndex, payload);
-            setEditingKey(null); // Close the form
-            fetchCDKeys(); // Refresh the list
+            setEditingKey(null); 
+            setEditingKeyIndex(null); // Clear the index
+            fetchCDKeys(); 
             alert("CD Key updated successfully.");
         } catch (err) {
             console.error("Error updating CD key:", err);
@@ -89,6 +92,7 @@ function CDKeyManager({ productId, productName }) {
 
     const handleCancelEdit = () => {
         setEditingKey(null);
+        setEditingKeyIndex(null); // Clear the index on cancel
     };
 
     if (!productId) {
@@ -121,13 +125,15 @@ function CDKeyManager({ productId, productName }) {
                     </thead>
                     <tbody>
                         {cdKeys.map((keyItem, index) => (
-                            <tr key={keyItem._id || index}>
+                            <tr key={keyItem.key + '-' + index}> {/* Use a more robust key if possible, e.g., key string + index */}
                                 <td>{keyItem.key}</td>
                                 <td>{keyItem.isUsed ? 'Yes' : 'No'}</td>
                                 <td>{keyItem.usedAt ? new Date(keyItem.usedAt).toLocaleString() : 'N/A'}</td>
                                 <td>{keyItem.orderId || 'N/A'}</td>
                                 <td className="cd-key-actions">
-                                    <button onClick={() => handleEdit(keyItem)} className="edit-btn">Edit</button>
+                                    {/* Pass index to handleEdit */}
+                                    <button onClick={() => handleEdit(keyItem, index)} className="edit-btn">Edit</button>
+                                    {/* handleDelete already correctly receives the index */}
                                     <button onClick={() => handleDelete(keyItem._id, index)} className="delete-btn">Delete</button>
                                 </td>
                             </tr>

@@ -37,6 +37,7 @@ class ProductBase(BaseModel):
     best_seller: bool = False  # Best Seller tag
     displayOnHomePage: bool = False  # Homepage display flag
     slug: Optional[str] = None  # Unique URL-friendly identifier
+    manages_cd_keys: Optional[bool] = None # <<<< ADDED THIS LINE
 
 class ProductCreate(ProductBase):
     pass
@@ -395,12 +396,16 @@ async def add_cd_keys_to_product(
 ):
     await verify_admin(user_controller, current_user)
     try:
-        # Extract key strings from the request
         key_strings = [cd_key.key for cd_key in request.keys]
         updated_product = await user_controller.admin_product_collection.add_keys_to_product(product_id, key_strings)
         return updated_product
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        if "not found" in str(e).lower(): # For product not found
+            raise HTTPException(status_code=404, detail=str(e))
+        elif "does not manage CD keys" in str(e) or "does not manage cd keys" in str(e).lower():
+            raise HTTPException(status_code=400, detail=str(e)) # Bad Request
+        else: # Other ValueErrors like duplicate keys, empty keys etc.
+            raise HTTPException(status_code=422, detail=str(e)) # Unprocessable Entity
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to add CD keys: {str(e)}")
 
@@ -417,18 +422,21 @@ async def get_cd_keys_for_product(
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         if not product.manages_cd_keys:
-            raise HTTPException(status_code=400, detail="Product does not manage CD keys")
+            # This error is specific and indicates a configuration issue with an existing product.
+            raise HTTPException(status_code=400, detail=f"Product '{product.name.get('en', str(product.id))}' does not manage CD keys.")
         return product.cdKeys if product.cdKeys else []
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
+    except ValueError as e: # Catches PydanticObjectId validation errors or other ValueErrors from get_product_by_id if any
+        raise HTTPException(status_code=400, detail=f"Invalid product ID or error fetching product: {str(e)}")
+    except HTTPException: # Re-raise existing HTTPExceptions
+        raise
+    except Exception as e: # Catch-all for other unexpected errors
         raise HTTPException(status_code=500, detail=f"Failed to get CD keys: {str(e)}")
 
 @admin_router.patch("/products/{product_id}/cdkeys/{cd_key_index}", response_model=ProductModel)
 async def update_cd_key_for_product(
     product_id: PydanticObjectId,
     cd_key_index: int,
-    request: CDKeyUpdateRequest,
+    request: CDKeyUpdateRequest, # FastAPI will try to parse the body into this
     user_controller: UserController = Depends(get_user_controller_dependency),
     current_user: TokenData = Depends(get_current_user)
 ):
@@ -485,19 +493,20 @@ async def update_cd_key_for_product(
             product_id, cd_key_index, update_data_dict
         )
         return updated_product
-    except ValueError as e: # Specific errors like product/key not found from collection methods
-        print(f"ValueError in update_cd_key_for_product: {str(e)}")
-        raise HTTPException(status_code=404, detail=str(e))
-    except HTTPException: # Re-raise HTTPExceptions (like 422 from validation or 400 from type check)
+    except ValueError as e: 
+        if "not found" in str(e).lower(): # Product or key index not found
+            raise HTTPException(status_code=404, detail=str(e))
+        elif "does not manage CD keys" in str(e).lower(): # Product exists but not configured for keys
+            raise HTTPException(status_code=400, detail=str(e))
+        else: # Other ValueErrors (e.g. bad index if not caught by "not found")
+            raise HTTPException(status_code=422, detail=str(e))
+    except HTTPException: 
         raise
     except Exception as e:
-        # Catch-all for other unexpected errors
-        print(f"Unexpected error in update_cd_key_for_product: {type(e).__name__} - {str(e)}")
         import traceback
-        traceback.print_exc() # Log the full traceback for server-side debugging
+        traceback.print_exc() 
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred while updating the CD key: {str(e)}")
 
-# Endpoint to delete a specific CD key from a product
 @admin_router.delete("/products/{product_id}/cdkeys/{cd_key_index}", response_model=ProductModel)
 async def delete_cd_key_for_product(
     product_id: PydanticObjectId,
@@ -512,7 +521,12 @@ async def delete_cd_key_for_product(
         )
         return updated_product
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        if "not found" in str(e).lower(): # Product or key index not found
+            raise HTTPException(status_code=404, detail=str(e))
+        elif "does not manage CD keys" in str(e).lower(): # Product exists but not configured for keys
+            raise HTTPException(status_code=400, detail=str(e))
+        else: # Other ValueErrors
+            raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete CD key: {str(e)}")
 
