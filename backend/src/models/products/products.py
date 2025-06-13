@@ -1,9 +1,11 @@
 from beanie import Document, PydanticObjectId, Link
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
-from beanie import PydanticObjectId
-from pydantic import BaseModel, Field
+import logging # Added for model-specific logging
+
+# Get a logger for this module (e.g., "src.models.products.products")
+model_logger = logging.getLogger(__name__)
 
 # Defines the structure for an individual CD key
 class CDKey(BaseModel):
@@ -37,6 +39,35 @@ class Product(Document):
     slug: Optional[str] = None  # Unique URL-friendly identifier
     category: Optional[str] = None # Product category
     imageUrl: Optional[str] = None # Product image URL
+
+    @validator("imageUrl", pre=True, always=True)
+    def validate_image_url(cls, v, values):
+        # Attempt to get a product identifier for logging.
+        # 'id' might not be in 'values' during initial creation from raw data before an ID is assigned.
+        # 'name' itself could also be complex or not yet validated.
+        product_name_dict = values.get('name')
+        product_identifier_for_log = "Unknown Product"
+        if isinstance(product_name_dict, dict):
+            product_identifier_for_log = product_name_dict.get('en', str(product_name_dict))
+        elif product_name_dict is not None: # If name is somehow not a dict but present
+            product_identifier_for_log = str(product_name_dict)
+
+        if v is None:
+            # This is fine, imageUrl is Optional. No log needed unless for verbose debugging.
+            return None
+        
+        if isinstance(v, str):
+            if not v.strip(): # If it's an empty string or only whitespace
+                model_logger.info(f"Product '{product_identifier_for_log}': imageUrl was empty/whitespace, converting to None.")
+                return None
+            # Here you could add more validation, e.g., if it's a valid URL format
+            return v # It's a non-empty string
+        else:
+            # The value for imageUrl is present but not a string.
+            model_logger.warning(
+                f"Product '{product_identifier_for_log}': imageUrl was not a string (type: {type(v)}, value: '{str(v)[:100]}'). Converting to None."
+            )
+            return None
 
     class Settings:
         name = "Product" # Changed from "products" to "Product" to match MongoDB
