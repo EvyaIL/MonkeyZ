@@ -3,7 +3,7 @@ from pymongo.database import Database
 from .mongodb import MongoDb
 from src.models.products.products import Product, CDKey, CDKeyUpdateRequest
 from src.singleton.singleton import Singleton
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Dict, Any
 from datetime import datetime
 import pymongo
 import logging
@@ -42,7 +42,7 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         await product.save()
         return product
 
-    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, cd_key_update_request: CDKeyUpdateRequest) -> Product:
+    async def update_cd_key_in_product(self, product_id: PydanticObjectId, cd_key_index: int, update_data: Dict[str, Any]) -> Product: # Changed type hint
         """Update a specific CD key in a product by its index."""
         product = await Product.get(product_id)
         if not product:
@@ -55,10 +55,22 @@ class ProductCollection(MongoDb, metaclass=Singleton):
             raise ValueError(f"CD key at index {cd_key_index} not found in product {product_id}")
 
         cd_key_to_update = product.cdKeys[cd_key_index]
-        update_data = cd_key_update_request.model_dump(exclude_unset=True)
+        # update_data is already a dict, no need to call model_dump()
+        # update_data = cd_key_update_request.model_dump(exclude_unset=True) 
 
-        for key, value in update_data.items():
-            setattr(cd_key_to_update, key, value)
+        # Ensure that the 'key' field itself is not being updated through this method.
+        # This method should only update status fields like isUsed, usedAt, orderId.
+        if 'key' in update_data:
+            # Log or handle this case, for now, we'll prevent the key string from being changed.
+            print(f"Warning: Attempt to update 'key' string in update_cd_key_in_product was ignored. Key: {update_data['key']}")
+            del update_data['key']
+
+        for field_name, value in update_data.items():
+            if hasattr(cd_key_to_update, field_name):
+                setattr(cd_key_to_update, field_name, value)
+            else:
+                # Optionally log a warning if trying to set a non-existent attribute
+                print(f"Warning: Attribute '{field_name}' does not exist on CDKey model.")
         
         await product.save()
         return product

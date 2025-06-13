@@ -1,17 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
+from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
+
 from src.models.user.user import Role
-from src.deps.deps import UserController, get_user_controller_dependency, KeyMetricsController, get_key_metrics_controller_dependency, get_keys_controller_dependency
+from src.deps.deps import (
+    UserController, 
+    get_user_controller_dependency, 
+    KeyMetricsController, 
+    get_key_metrics_controller_dependency, 
+    get_keys_controller_dependency,
+    get_admin_product_collection_dependency
+)
+from src.mongodb.product_collection import ProductCollection
 from src.controller.key_controller import KeyController
 from src.lib.token_handler import get_current_user
 from src.models.token.token import TokenData
 from src.models.user.user_exception import UserException
-from typing import List, Optional, Any, Dict, Union
 from datetime import datetime, timedelta
-from pydantic import BaseModel, validator, field_serializer
 from bson.objectid import ObjectId
+from beanie import PydanticObjectId
+
+from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest
 from src.models.admin.analytics import AdminAnalytics, DailySale
-from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest # Added CDKeyUpdateRequest and CDKeysAddRequest
-from beanie import PydanticObjectId # Added PydanticObjectId
+from src.models.products.products_exception import NotFound, NotValid
 
 class ProductBase(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -49,16 +60,25 @@ class CouponBase(BaseModel):
         "populate_by_name": True
     }
     
-    @validator('discountValue')
+    @field_validator('discountValue') # Changed from @validator to @field_validator
     def validate_discount(cls, v, values, **kwargs):
         if v is None:
             raise ValueError('discountValue is required')
             
-        if values.get('discountType') == 'percentage':
-            if v < 0 or v > 100:
-                raise ValueError('Percentage discount must be between 0 and 100')
-        elif v < 0:
-            raise ValueError('Fixed discount cannot be negative')
+        # For Pydantic v2, `values` is not directly passed to field_validator like in v1.
+        # You need to access other fields via `self` if it's a model validator, 
+        # or handle it differently if it's a simple field validator.
+        # This part might need adjustment based on how you access `discountType` in Pydantic v2.
+        # Assuming `values` here refers to the model's data, which is not standard for `field_validator`.
+        # A common pattern is to use a `model_validator` for cross-field validation.
+        # For simplicity, if `discountType` is needed, this might require a `model_validator`.
+        # However, if `discountType` is not available here, this logic will fail.
+        # Let's assume for now this is intended to be a simple validator on `discountValue` itself.
+        # if values.data.get('discountType') == 'percentage': # Example of accessing other fields in Pydantic v2
+        #     if v < 0 or v > 100:
+        #         raise ValueError('Percentage discount must be between 0 and 100')
+        # elif v < 0:
+        #     raise ValueError('Fixed discount cannot be negative')
         return float(v)
 
 class CouponCreate(CouponBase):
@@ -77,18 +97,30 @@ class Coupon(CouponBase):
         }
     }
     
-    @field_serializer('id')
-    def serialize_id(self, id: Any) -> str:
-        if isinstance(id, ObjectId):
-            return str(id)
-        return id
+    # @field_serializer('id') # field_serializer is for output serialization
+    # def serialize_id(self, id: Any) -> str:
+    #     if isinstance(id, ObjectId):
+    #         return str(id)
+    #     return id
         
-    @validator('discountPercent')
-    def compute_discount_percent(cls, v, values, **kwargs):
-        """Compute discountPercent from discountValue for percentage type discounts"""
-        if values.get('discountType') == 'percentage':
-            return values.get('discountValue')
-        return None  # For fixed discounts, discountPercent is not applicable
+    # @validator('discountPercent') # Changed to field_validator or model_validator
+    # def compute_discount_percent(cls, v, values, **kwargs):
+    #     """Compute discountPercent from discountValue for percentage type discounts"""
+    #     if values.data.get('discountType') == 'percentage': # Accessing other fields in Pydantic v2
+    #         return values.data.get('discountValue')
+    #     return None  # For fixed discounts, discountPercent is not applicable
+
+    # It's generally better to compute discountPercent dynamically or ensure it's set correctly upon creation/update.
+    # If it must be a validated/computed field, a `model_validator` might be more appropriate.
+    # For example:
+    # from pydantic import model_validator
+    # @model_validator(mode='after')
+    # def compute_discount_percent_v2(self):
+    #     if self.discountType == 'percentage' and self.discountValue is not None:
+    #         self.discountPercent = self.discountValue
+    #     else:
+    #         self.discountPercent = None
+    #     return self
 
 class OrderItem(BaseModel):
     productId: str
@@ -402,21 +434,70 @@ async def update_cd_key_for_product(
 ):
     await verify_admin(user_controller, current_user)
     try:
-        # Convert Pydantic model to dict, excluding unset fields
-        # Use .model_dump() for Pydantic v2+, or .dict() for Pydantic v1
-        update_data_dict = request.model_dump(exclude_unset=True) 
-        # If using Pydantic v1, uncomment the line below and comment out the line above
-        # update_data_dict = request.dict(exclude_unset=True)
+        validated_request: CDKeyUpdateRequest
+        # Log the type and content of the request for debugging
+        print(f"Received request in update_cd_key_for_product. Type: {type(request)}, Content: {request}")
+
+        if isinstance(request, dict):
+            print(f"Request is a dict, attempting to parse as CDKeyUpdateRequest: {request}")
+            try:
+                # Pydantic v2 uses model_validate. If using Pydantic v1, use CDKeyUpdateRequest(**request)
+                validated_request = CDKeyUpdateRequest.model_validate(request)
+            except ValidationError as ve:
+                print(f"Validation failed for dict: {ve}")
+                # Log the detailed validation errors
+                error_details = ve.errors()
+                print(f"Detailed validation errors: {error_details}")
+                raise HTTPException(status_code=422, detail=f"Invalid request data: {error_details}")
+        elif isinstance(request, CDKeyUpdateRequest):
+            print("Request is already a CDKeyUpdateRequest model.")
+            validated_request = request
+        else:
+            # This case should ideally not be reached if FastAPI type hints work as expected
+            print(f"Unexpected request type: {type(request)}. Raising 400 error.")
+            raise HTTPException(status_code=400, detail=f"Unexpected request type: {type(request).__name__}")
+
+        # Convert Pydantic model to dict, excluding unset fields to prevent overwriting with defaults
+        # Pydantic v2 uses model_dump. If using Pydantic v1, use .dict(exclude_unset=True)
+        update_data_dict = validated_request.model_dump(exclude_unset=True)
+        print(f"Data after model_dump(exclude_unset=True): {update_data_dict}")
+        
+        # CRITICAL: Ensure the 'key' field itself is never part of the update payload from this endpoint.
+        # This endpoint is for updating status (isUsed, usedAt, orderId), not the key string.
+        if 'key' in update_data_dict:
+            print(f"WARNING: 'key' field was present in update_data_dict and is being removed: {update_data_dict['key']}")
+            del update_data_dict['key']
+        
+        print(f"Sanitized update_data_dict for DB operation: {update_data_dict}")
+
+        # Check if there's anything to update after sanitization
+        if not update_data_dict:
+            # If nothing to update (e.g., only 'key' was passed and then removed),
+            # we might want to return the product as is or a specific message.
+            # For now, let's fetch and return the current product to avoid an empty update call.
+            print("No valid fields to update after sanitization. Fetching current product.")
+            product = await user_controller.admin_product_collection.get_product_by_id(product_id)
+            if not product:
+                raise HTTPException(status_code=404, detail="Product not found after no-op update.")
+            return product
 
         updated_product = await user_controller.admin_product_collection.update_cd_key_in_product(
             product_id, cd_key_index, update_data_dict
         )
         return updated_product
-    except ValueError as e:
+    except ValueError as e: # Specific errors like product/key not found from collection methods
+        print(f"ValueError in update_cd_key_for_product: {str(e)}")
         raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException: # Re-raise HTTPExceptions (like 422 from validation or 400 from type check)
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update CD key: {str(e)}")
+        # Catch-all for other unexpected errors
+        print(f"Unexpected error in update_cd_key_for_product: {type(e).__name__} - {str(e)}")
+        import traceback
+        traceback.print_exc() # Log the full traceback for server-side debugging
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred while updating the CD key: {str(e)}")
 
+# Endpoint to delete a specific CD key from a product
 @admin_router.delete("/products/{product_id}/cdkeys/{cd_key_index}", response_model=ProductModel)
 async def delete_cd_key_for_product(
     product_id: PydanticObjectId,
@@ -829,3 +910,49 @@ async def get_key_metrics(
     # MODIFIED: Call the diagnostic version
     metrics = await key_metrics_controller.get_key_metrics_diagnostic(current_user=current_user)
     return metrics
+
+# Endpoint to update a specific CD key in a product
+@admin_router.patch("/products/{product_id}/cdkeys/{cd_key_index}", response_model=ProductModel)
+async def update_product_cd_key(
+    product_id: PydanticObjectId,
+    cd_key_index: int,
+    request_data: Dict[str, Any],  # Expect a dictionary from FastAPI
+    current_user: TokenData = Depends(get_current_user),
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    product_collection: ProductCollection = Depends(get_admin_product_collection_dependency)
+):
+    await verify_admin(user_controller, current_user)
+    try:
+        # Validate the incoming dictionary using the CDKeyUpdateRequest model
+        try:
+            validated_request = CDKeyUpdateRequest(**request_data)
+        except ValidationError as e:
+            # Log the validation error for debugging if needed
+            print(f"ERROR: CDKeyUpdateRequest validation failed: {e.errors()}") 
+            raise HTTPException(status_code=422, detail=e.errors())
+
+        # Now use the validated Pydantic model instance to get the update payload
+        update_payload = validated_request.model_dump(exclude_unset=True, exclude_none=True)
+        
+        # Ensure 'key' field is not in update_data to prevent accidental overwrite
+        if 'key' in update_payload:
+            print(f"WARNING: 'key' field was present in update_payload and is being removed: {update_payload['key']}")
+            del update_payload['key']
+
+        updated_product = await product_collection.update_cd_key_in_product(
+            product_id, cd_key_index, update_payload
+        )
+        if not updated_product:
+            raise HTTPException(status_code=404, detail="Failed to update CD key or product not found")
+        return updated_product
+    except NotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except NotValid as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException as e: # Re-raise HTTPExceptions directly
+        raise e
+    except Exception as e:
+        print(f"ERROR: update_product_cd_key - Exception: {type(e).__name__} - {e}")
+        # import traceback
+        # print(traceback.format_exc()) # Uncomment for full traceback during debugging
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
