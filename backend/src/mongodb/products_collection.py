@@ -14,128 +14,119 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         """
         Initializes the Products Collection with the 'shop' database and Product model.
         """
-        print("[DIAGNOSTIC PRINT - ProductsCollection] Initializing...")
         database_name = "shop"
         self.db = await self.add_new_collection(database_name)
         await self.initialize_beanie(self.db, [Product])
-        print("[DIAGNOSTIC PRINT - ProductsCollection] Initialized.")
 
     async def get_all_products(self) -> list[Product]:
-        print("\n[DIAGNOSTIC PRINT - ProductsCollection] get_all_products CALLED.")
+        """
+        Retrieves all products from the database.
+
+        Returns:
+            list[Product]: A list of all ACTIVE products in the database.
+        """
         try:
             collection = Product.get_motor_collection()
             cursor = collection.find({"active": True})  # Only fetch active products
-            raw_docs = await cursor.to_list(length=None) # Get all docs at once
-            
-            print(f"[DIAGNOSTIC PRINT - ProductsCollection] Found {len(raw_docs)} active raw products from DB.")
-
             products = []
-            for i, doc in enumerate(raw_docs):
-                doc_id = doc.get('_id', 'N/A_ID')
-                raw_doc_name = doc.get('name', 'N/A_NAME')
-                doc_name_for_print = str(raw_doc_name.get('en', raw_doc_name)) if isinstance(raw_doc_name, dict) else str(raw_doc_name)
-                doc_manages_cd_keys = doc.get('manages_cd_keys', 'N/A_MANAGES_CD_KEYS')
-                doc_cd_keys_len = len(doc.get('cdKeys', []))
-                doc_image_url = doc.get('imageUrl', 'N/A_IMAGE_URL')
-                
-                print(
-                    f"  [DIAGNOSTIC PRINT - ProductsCollection] Raw doc #{i}: ID={doc_id}, Name='{doc_name_for_print}', "
-                    f"ManagesCDKeys_Raw={doc_manages_cd_keys}, NumCDKeys_Raw={doc_cd_keys_len}, ImageUrl_Raw='{doc_image_url}'"
-                )
-
-                # Compatibility conversions (existing code)
+            
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
                 if 'createdAt' in doc and 'created_at' not in doc:
                     doc['created_at'] = doc['createdAt']
                 if 'updatedAt' in doc and 'updated_at' not in doc:
                     doc['updated_at'] = doc['updatedAt']
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
                 
-                current_name = doc.get('name')
-                if isinstance(current_name, str):
-                    doc['name'] = {'en': current_name, 'he': current_name}
-                elif not isinstance(current_name, dict) and current_name is not None:
-                    print(f"  [DIAGNOSTIC PRINT - ProductsCollection] WARNING: Doc ID={doc_id} has unexpected type for name: {type(current_name)}.")
-                    doc['name'] = {'en': str(current_name), 'he': str(current_name)}
-                elif current_name is None:
-                    doc['name'] = {'en': 'N/A_NAME_CONVERTED', 'he': 'N/A_NAME_CONVERTED'}
-
-                current_description = doc.get('description')
-                if isinstance(current_description, str):
-                    doc['description'] = {'en': current_description, 'he': current_description}
-                elif not isinstance(current_description, dict) and current_description is not None:
-                    print(f"  [DIAGNOSTIC PRINT - ProductsCollection] WARNING: Doc ID={doc_id} has unexpected type for description: {type(current_description)}.")
-                    doc['description'] = {'en': str(current_description), 'he': str(current_description)}
-                elif current_description is None:
-                    doc['description'] = {'en': 'N/A_DESC_CONVERTED', 'he': 'N/A_DESC_CONVERTED'}
-                
-                try:
-                    product = Product(**doc)
-                    products.append(product)
-                except Exception as e:
-                    print(f"  [DIAGNOSTIC PRINT - ProductsCollection] ERROR converting raw doc #{i} (ID={doc_id}) to Product model: {e}. Raw doc snippet: {{'_id': {doc_id}, 'name': {doc.get('name')}, 'manages_cd_keys': {doc.get('manages_cd_keys')}}}")
-            
-            print(f"[DIAGNOSTIC PRINT - ProductsCollection] Returning {len(products)} Product objects from get_all_products.")
             return products
         except Exception as e:
-            print(f"[DIAGNOSTIC PRINT - ProductsCollection] CRITICAL ERROR in get_all_products: {str(e)}")
-            import traceback
-            traceback.print_exc() # Print full traceback for critical errors
+            print(f"Error in get_all_products: {str(e)}")
             return []
 
     async def get_best_sellers(self, limit: int = None) -> list[Product]:
-        print("\n[DIAGNOSTIC PRINT - ProductsCollection] get_best_sellers CALLED.")
+        """
+            Retrieves all the best sellers products from the database.
+
+            Returns:
+                list[Product]: A list of all best sellers products in the database.
+        """
         try:
-            collection = Product.get_motor_collection()
-            query = {"best_seller": True, "active": True}
+            # Fetch raw data with projection to convert field names
+            collection = Product.get_motor_collection()            # Use only best_seller field, as it's now standardized
+            query = {"best_seller": True, "active": True}  # Also filter for active products
             cursor = collection.find(query)
             if limit:
                 cursor = cursor.limit(limit)
-            
-            raw_docs = await cursor.to_list(length=None)
-            print(f"[DIAGNOSTIC PRINT - ProductsCollection] Found {len(raw_docs)} best-seller raw products from DB.")
             products = []
-            for i, doc in enumerate(raw_docs):
-                doc_id = doc.get('_id', 'N/A_ID')
-                raw_doc_name = doc.get('name', 'N/A_NAME')
-                doc_name_for_print = str(raw_doc_name.get('en', raw_doc_name)) if isinstance(raw_doc_name, dict) else str(raw_doc_name)
-                doc_image_url = doc.get('imageUrl', 'N/A_IMAGE_URL')
-                print(f"  [DIAGNOSTIC PRINT - ProductsCollection] Best-seller Raw doc #{i}: ID={doc_id}, Name='{doc_name_for_print}', ImageUrl_Raw='{doc_image_url}'")
-                
+            
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
                 if 'createdAt' in doc and 'created_at' not in doc:
                     doc['created_at'] = doc['createdAt']
                 if 'updatedAt' in doc and 'updated_at' not in doc:
                     doc['updated_at'] = doc['updatedAt']
-                current_name = doc.get('name')
-                if isinstance(current_name, str):
-                    doc['name'] = {'en': current_name, 'he': current_name}
-                elif not isinstance(current_name, dict) and current_name is not None:
-                    doc['name'] = {'en': str(current_name), 'he': str(current_name)}
-                elif current_name is None:
-                    doc['name'] = {'en': 'N/A_NAME_CONVERTED', 'he': 'N/A_NAME_CONVERTED'}
-                current_description = doc.get('description')
-                if isinstance(current_description, str):
-                    doc['description'] = {'en': current_description, 'he': current_description}
-                elif not isinstance(current_description, dict) and current_description is not None:
-                    doc['description'] = {'en': str(current_description), 'he': str(current_description)}
-                elif current_description is None:
-                    doc['description'] = {'en': 'N/A_DESC_CONVERTED', 'he': 'N/A_DESC_CONVERTED'}
-                try:
-                    product = Product(**doc)
-                    products.append(product)
-                except Exception as e:
-                    print(f"  [DIAGNOSTIC PRINT - ProductsCollection] ERROR converting best-seller raw doc #{i} (ID={doc_id}) to Product model: {e}.")
-            print(f"[DIAGNOSTIC PRINT - ProductsCollection] Returning {len(products)} Product objects from get_best_sellers.")
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
+                
             return products
         except Exception as e:
-            print(f"[DIAGNOSTIC PRINT - ProductsCollection] CRITICAL ERROR in get_best_sellers: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            print(f"Error in get_best_sellers: {str(e)}")
             return []
 
     async def get_recent_products(self, limit: int) -> list[Product]:
-        print("\n[DIAGNOSTIC PRINT - ProductsCollection] get_recent_products CALLED.")
-        # ... (rest of the method, can add similar prints if needed)
-        return await super().get_recent_products(limit)
+        """
+        Retrieves the most recently created products.
 
+        Args:
+            limit (int): The number of recent products to retrieve. Defaults to 8.
+
+        Returns:
+            list[Product]: A list of recently created products.
+        """
+        try:
+            # Fetch raw data with projection to convert field names
+            collection = Product.get_motor_collection()
+            # Sort by createdAt (camelCase) or created_at (snake_case), whichever exists
+            pipeline = [
+                {"$sort": {"createdAt": -1}},  # Try camelCase first
+                {"$limit": limit}
+            ]
+            cursor = collection.aggregate(pipeline)
+            products = []
+            
+            async for doc in cursor:
+                # Convert camelCase to snake_case for Pydantic model
+                if 'createdAt' in doc and 'created_at' not in doc:
+                    doc['created_at'] = doc['createdAt']
+                if 'updatedAt' in doc and 'updated_at' not in doc:
+                    doc['updated_at'] = doc['updatedAt']
+                # Compatibility: convert string name/description to dict
+                if isinstance(doc.get('name'), str):
+                    doc['name'] = {'en': doc['name'], 'he': ''}
+                if isinstance(doc.get('description'), str):
+                    doc['description'] = {'en': doc['description'], 'he': ''}
+                # Create product instance
+                product = Product(**doc)
+                products.append(product)
+                
+            return products
+        except Exception as e:
+            print(f"Error in get_recent_products: {str(e)}")
+            return []
+        
     async def create_product(self, product_request: ProductRequest) -> Product:
         """
         Creates a new product in the database.
