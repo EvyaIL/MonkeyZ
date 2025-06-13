@@ -161,31 +161,34 @@ function AdminStock() {
       setError("");
       setSuccessMessage("");
 
-      const keys = newKeys.split('\n')
+      const keyStrings = newKeys.split('\n')
         .map(key => key.trim())
         .filter(key => key.length > 0);
 
-      if (keys.length === 0) {
+      if (keyStrings.length === 0) {
         throw new Error("No valid keys entered");
       }
 
-      // Validate key format if specified
+      // Validate key format if specified (client-side validation can remain)
       if (keyFormat) {
         const formatRegex = new RegExp(keyFormat.replace(/X/g, '[A-Z0-9]'));
-        const invalidKeys = keys.filter(key => !formatRegex.test(key));
+        const invalidKeys = keyStrings.filter(key => !formatRegex.test(key));
         if (invalidKeys.length > 0) {
           throw new Error(`Invalid key format detected. First invalid key: ${invalidKeys[0]}`);
         }
       }
 
-      const response = await apiService.post(`/admin/products/${selectedProductId}/keys`, {
-        keys,
-        format: keyFormat
-      });
+      // Prepare the payload according to backend expectations
+      const payload = {
+        keys: keyStrings.map(k => ({ key: k })) // Backend expects [{key: "val1"}, {key: "val2"}]
+      };
+
+      // Use the correct endpoint: /cdkeys
+      const response = await apiService.post(`/admin/products/${selectedProductId}/cdkeys`, payload);
 
       if (response.error) throw new Error(response.error);
 
-      setSuccessMessage(`Successfully added ${keys.length} keys to ${selectedProduct?.productName}`);
+      setSuccessMessage(`Successfully added ${keyStrings.length} keys to ${selectedProduct?.productName}`);
       setOpenAddKeysDialog(false);
       setNewKeys("");
       

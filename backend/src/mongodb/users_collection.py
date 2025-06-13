@@ -6,6 +6,7 @@ from src.singleton.singleton import Singleton
 from src.lib.haseing import Hase
 from src.lib.token_handler import create_access_token
 from typing import Optional # Added Optional for type hinting
+from beanie import PydanticObjectId # Added for get_user_by_id
 
 class UserCollection(MongoDb, metaclass=Singleton):
     """
@@ -23,6 +24,8 @@ class UserCollection(MongoDb, metaclass=Singleton):
         Authenticates a user with the given details.
     get_user_by_username(username: str) -> User:
         Retrieves a user by their username.
+    get_user_by_id(user_id: PydanticObjectId) -> Optional[User]: # Added method signature
+        Retrieves a user by their ID.
     """
 
     async def initialize(self) -> None:
@@ -200,15 +203,25 @@ class UserCollection(MongoDb, metaclass=Singleton):
                 user = await self.get_user_by_phone_number(pn_int)
                 if user:
                     raise CreateError("This phone number already use")
-            except ValueError: # Catches if phone_number cannot be converted to int
-                raise CreateError("This phone number is not a valid integer")
-            except Exception as e: # Catch other potential errors during validation
-                # It might be better to log this error and raise a generic CreateError
-                # or a more specific one if identifiable.
-                # For now, re-raising a generic CreateError to avoid leaking details.
-                # Consider logging `e` for debugging purposes.
-                # logging.error(f"Error validating phone number: {e}")
-                raise CreateError("Error validating phone number")
+            except ValueError: # Handle cases where phone_number is not a valid integer string
+                raise CreateError("Invalid phone number format")
+
+    async def get_user_by_id(self, user_id: PydanticObjectId) -> Optional[User]:
+        """ Retrieves a user by their ID.
+
+            Parameters
+            ----------
+                user_id : PydanticObjectId
+                    The ID of the user to retrieve.
+
+            Returns
+            -------
+                Optional[User]
+                    The user with the given ID, or None if not found.
+        """
+        # Assuming User is a Beanie Document model
+        user = await User.get(user_id)
+        return user
 
     async def validate_user_role(self, username: str) -> None:
         """
