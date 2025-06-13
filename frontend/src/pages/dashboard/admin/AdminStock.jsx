@@ -27,19 +27,38 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  TableFooter // Add TableFooter
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import WarningIcon from '@mui/icons-material/Warning';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import KeyIcon from '@mui/icons-material/VpnKey';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import KeyIcon from '@mui/icons-material/VpnKey'; // Used for Add Keys
 import FileUploadIcon from '@mui/icons-material/FileUpload';
-import ManageKeysIcon from '@mui/icons-material/VpnKey'; // Or another suitable icon
+import EditIcon from '@mui/icons-material/Edit'; // New icon for Manage/Edit Keys
 import CloseIcon from '@mui/icons-material/Close'; // Import CloseIcon
 import { apiService } from '../../../lib/apiService';
 import CDKeyManager from '../../../components/admin/cdkeys/CDKeyManager'; // Import CDKeyManager
+
+// Helper functions for status display
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'Out of Stock': return 'error';
+    case 'Low Stock': return 'warning';
+    case 'In Stock': return 'success';
+    default: return 'default';
+  }
+};
+
+const getStatusIcon = (status) => {
+  switch (status) {
+    case 'Out of Stock': return <ErrorIcon />;
+    case 'Low Stock': return <WarningIcon />;
+    case 'In Stock': return <CheckCircleIcon />;
+    default: return null;
+  }
+};
 
 function AdminStock() {
   const [stockItems, setStockItems] = useState([]);
@@ -96,17 +115,22 @@ function AdminStock() {
       // Combine metrics with product details
       const stockData = products.map(product => {
         const productMetrics = metrics.keyUsageByProduct?.find(p => p.productId === product.id) || {};
+        const availableKeys = productMetrics.availableKeys || 0;
+        const totalKeys = productMetrics.totalKeys || 0;
+        // const minStockAlert = product.keyManagement?.minStockAlert || 10; // Old logic
+        const minStockAlert = 5; // New Low Stock Threshold
+
         return {
           id: product.id,
           productId: product.id,
           productName: typeof product.name === "object" ? (product.name.en || Object.values(product.name)[0] || "") : product.name,
           keyFormat: product.keyManagement?.format || 'XXXXX-XXXXX-XXXXX-XXXXX-XXXXX',
-          quantity: productMetrics.availableKeys || 0,
-          totalKeys: productMetrics.totalKeys || 0,
-          usedKeys: (productMetrics.totalKeys || 0) - (productMetrics.availableKeys || 0),
-          minStockAlert: product.keyManagement?.minStockAlert || 10,
-          status: productMetrics.availableKeys === 0 ? 'Out of Stock' : 
-                 productMetrics.availableKeys <= product.keyManagement?.minStockAlert ? 'Low Stock' : 
+          quantity: availableKeys,
+          totalKeys: totalKeys,
+          usedKeys: totalKeys - availableKeys,
+          minStockAlert: minStockAlert, // Use the new threshold
+          status: availableKeys === 0 ? 'Out of Stock' : 
+                 availableKeys <= minStockAlert ? 'Low Stock' : 
                  'In Stock'
         };
       });      // Cache the data
@@ -216,54 +240,16 @@ function AdminStock() {
     }
   };
 
-  const handleExportKeys = async (productId) => {
-    try {
-      setLoading(true);
-      const response = await apiService.get(`/admin/products/${productId}/keys/export`);
-      
-      if (response.error) throw new Error(response.error);
-
-      // Create CSV content
-      const csvContent = "data:text/csv;charset=utf-8," + response.data.map(key => 
-        `${key.value},${key.status},${key.createdAt || ''}`
-      ).join("\n");
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `keys_${productId}_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      setError(`Failed to export keys: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Out of Stock': return 'error';
-      case 'Low Stock': return 'warning';
-      case 'In Stock': return 'success';
-      default: return 'default';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Out of Stock': return <ErrorIcon />;
-      case 'Low Stock': return <WarningIcon />;
-      case 'In Stock': return <CheckCircleIcon />;
-      default: return null;
-    }
-  };
-
   const filteredStockItems = stockItems.filter(item => {
     if (filterStatus === 'all') return true;
     return item.status.toLowerCase().replace(' ', '-') === filterStatus;
   });
+
+  // Calculate overall analytics
+  const totalAvailableKeys = stockItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalUsedKeys = stockItems.reduce((sum, item) => sum + item.usedKeys, 0);
+  const grandTotalKeys = stockItems.reduce((sum, item) => sum + item.totalKeys, 0);
+  const averageUsage = grandTotalKeys > 0 ? (totalUsedKeys / grandTotalKeys) * 100 : 0;
 
   if (loading && stockItems.length === 0) {
     return (
@@ -455,22 +441,13 @@ function AdminStock() {
                             <KeyIcon />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Manage CD Keys">
+                        <Tooltip title="Manage/Edit CD Keys">
                           <IconButton
-                            color="info"
+                            color="info" // Can change to 'secondary' or other if 'info' is too similar
                             size="small"
-                            onClick={() => handleOpenManageKeysDialog(item.productId, item.productName)} // Pass item.productName
+                            onClick={() => handleOpenManageKeysDialog(item.productId, item.productName)}
                           >
-                            <ManageKeysIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Export Keys">
-                          <IconButton
-                            color="secondary"
-                            size="small"
-                            onClick={() => handleExportKeys(item.productId)}
-                          >
-                            <FileDownloadIcon />
+                            <EditIcon /> {/* Changed icon */}
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -480,6 +457,29 @@ function AdminStock() {
               })
             )}
           </TableBody>
+          <TableFooter>
+            <TableRow sx={{ '& > *': { fontWeight: 'bold', backgroundColor: 'action.hover' } }}>
+              <TableCell>Overall Totals / Average</TableCell>
+              <TableCell align="center">{totalAvailableKeys}</TableCell>
+              <TableCell align="center">{grandTotalKeys}</TableCell>
+              <TableCell align="center">{totalUsedKeys}</TableCell>
+              <TableCell align="center">
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LinearProgress 
+                    variant="determinate" 
+                    value={averageUsage} 
+                    sx={{ width: '60px', mr: 1 }}
+                    color={averageUsage > 90 ? 'error' : averageUsage > 70 ? 'warning' : 'primary'}
+                  />
+                  <Typography variant="caption">
+                    {averageUsage.toFixed(1)}%
+                  </Typography>
+                </Box>
+              </TableCell>
+              <TableCell align="center">-</TableCell> {/* Placeholder for Status */}
+              <TableCell align="center">-</TableCell> {/* Placeholder for Actions */}
+            </TableRow>
+          </TableFooter>
         </Table>
       </TableContainer>
 

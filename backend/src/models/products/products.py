@@ -29,7 +29,7 @@ class Product(Document):
     active: bool
     created_at: datetime # Consider default_factory=datetime.utcnow if not always provided
     cdKeys: List[CDKey] = Field(default_factory=list)  # Added new field for CD keys
-    manages_cd_keys: bool = Field(default=False) # New field
+    manages_cd_keys: bool = Field(default=True) # Changed default to True
     is_new: bool = False  # New product tag
     percent_off: int = 0  # Discount percentage
     best_seller: bool = False  # Best Seller tag
