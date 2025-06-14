@@ -1,5 +1,5 @@
 import contextlib
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from src.models.products.products_response import ProductResponse
 from src.deps.deps import ProductsController, get_products_controller_dependency
 from src.models.products.products import ProductRequest
@@ -47,13 +47,10 @@ async def get_best_sellers(limit:int = 8, products_controller:ProductsController
 
 @product_router.get("", response_model=ProductResponse)
 async def get_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_id(product_id) 
-   return products
-
-@product_router.get("", response_model=ProductResponse)
-async def get_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_id(product_id) 
-   return products
+   product = await products_controller.product_collection.get_product_by_id(product_id) 
+   if not product:
+      raise HTTPException(status_code=404, detail=f"Product with id {product_id} not found")
+   return product
 
 
 @product_router.get("/homepage", response_model=list[ProductResponse])
@@ -61,10 +58,12 @@ async def get_homepage_products(limit:int = 6, products_controller:ProductsContr
    products = await products_controller.get_homepage_products(limit=limit)
    return products
 
-@product_router.get("/{name_product}", response_model=ProductResponse)
-async def get_product(name_product:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.product_collection.get_product_by_name(name_product) 
-   return products
+@product_router.get("/{product_slug}", response_model=ProductResponse)
+async def get_product_by_slug_endpoint(product_slug:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   product = await products_controller.product_collection.get_product_by_slug(product_slug) 
+   if not product:
+      raise HTTPException(status_code=404, detail=f"Product with slug {product_slug} not found")
+   return product
 
 
 @product_router.put("")

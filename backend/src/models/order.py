@@ -52,3 +52,4 @@ class StatusEnum(str, Enum):
     PROCESSING = "Processing"
     COMPLETED = "Completed"
     CANCELLED = "Cancelled"
+    AWAITING_STOCK = "Awaiting Stock" # Added new status

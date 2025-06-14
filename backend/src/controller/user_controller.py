@@ -7,51 +7,57 @@ from src.models.user.user import User, UserRequest, Role
 from src.models.user.user_exception import LoginError
 from src.mongodb.keys_collection import KeysCollection
 from src.mongodb.users_collection import UserCollection
-from src.mongodb.product_collection import ProductCollection
-from src.mongodb.products_collection import ProductsCollection
+from src.mongodb.product_collection import ProductCollection # Ensure this is the one being used
+# from src.mongodb.products_collection import ProductsCollection # Removed as ProductCollection is now standard
 from typing import List
 
 class UserController(ControllerInterface):
     """Controller for managing user operations, including authentication and profile retrieval."""
     
-    def __init__(self, keys_collection: KeysCollection, user_collection: UserCollection, admin_product_collection: ProductCollection = None, shop_product_collection: ProductsCollection = None):
+    def __init__(self, keys_collection: KeysCollection, user_collection: UserCollection, admin_product_collection: ProductCollection = None, shop_product_collection: ProductCollection = None): # Changed ProductsCollection to ProductCollection
         """
         Initializes the UserController with dependencies.
 
         Args:
             keys_collection (KeysCollection): Collection for key-related operations.
             user_collection (UserCollection): Collection for user-related operations.
-            admin_product_collection (ProductCollection): Collection for admin product operations.
-            shop_product_collection (ProductsCollection): Collection for shop product operations.
+            admin_product_collection (ProductCollection): Collection for product operations (points to shop.Product).
+            shop_product_collection (ProductCollection): Also points to shop.Product, passed for consistency but effectively the same as admin_product_collection.
         """
         self.keys_collection = keys_collection
         self.user_collection = user_collection
+        # admin_product_collection is expected to be the ProductCollection instance for 'shop.Product'
         self.admin_product_collection = admin_product_collection
-        self.product_collection = admin_product_collection  # For backward compatibility
+        # self.product_collection is used by many internal methods, ensure it points to the correct shop collection
+        self.product_collection = admin_product_collection  
+        # self.shop_product_collection is also the same shop.Product collection instance
         self.shop_product_collection = shop_product_collection
         
     async def initialize(self):
         """Initializes database connections and collections."""
         # Initialize all collections in parallel for better performance
-        await self.keys_collection.connection()
-        await self.user_collection.connection()
-        if self.admin_product_collection:
+        # Assuming connection() and initialize() are idempotent or safe to call on the same instance if admin_product_collection and shop_product_collection are identical.
+        # As per deps.py, admin_product_collection and shop_product_collection are the same instance from get_product_collection_dependency()
+        
+        if self.keys_collection: # Check if collection exists before calling methods
+            await self.keys_collection.connection()
+        if self.user_collection:
+            await self.user_collection.connection()
+        if self.admin_product_collection: # This is the shop.Product collection
             await self.admin_product_collection.connection()
-        if self.shop_product_collection:
-            await self.shop_product_collection.connection()
+        # No separate connection for self.shop_product_collection if it's the same object as self.admin_product_collection
             
-        # Initialize collections in parallel
-        init_tasks = [
-            self.keys_collection.initialize(),
-            self.user_collection.initialize()
-        ]
-        if self.admin_product_collection:
+        init_tasks = []
+        if self.keys_collection:
+            init_tasks.append(self.keys_collection.initialize())
+        if self.user_collection:
+            init_tasks.append(self.user_collection.initialize())
+        if self.admin_product_collection: # This is the shop.Product collection
             init_tasks.append(self.admin_product_collection.initialize())
-        if self.shop_product_collection:
-            init_tasks.append(self.shop_product_collection.initialize())
+        # No separate initialize for self.shop_product_collection if it's the same object
             
-        # Wait for all initializations to complete
-        await asyncio.gather(*init_tasks)
+        if init_tasks: # Ensure there are tasks to gather
+             await asyncio.gather(*init_tasks)
 
     async def has_role(self, username: str, role: Role) -> bool:
         """
@@ -126,8 +132,8 @@ class UserController(ControllerInterface):
         return await self.product_collection.create_product(product_data)
         
     async def update_admin_product(self, product_id, product_data):
-        """Update admin collection, then update main shop collection as well."""
-        if not self.product_collection:
+        """Update product in the shop collection. Redundant sync to a separate shop collection is removed."""
+        if not self.product_collection: # self.product_collection is shop.Product
             raise ValueError("Product collection not initialized")
         
         # Ensure boolean fields are properly converted to boolean values
@@ -136,18 +142,21 @@ class UserController(ControllerInterface):
         if 'best_seller' in product_data:
             product_data['best_seller'] = bool(product_data['best_seller'])
             
-        updated_admin_product = await self.product_collection.update_product(product_id, product_data)
-        # Sync to main shop collection
-        if self.shop_product_collection:
-            # Convert to dict if needed
-            product_dict = updated_admin_product.dict() if hasattr(updated_admin_product, 'dict') else (
-                updated_admin_product.model_dump() if hasattr(updated_admin_product, 'model_dump') else updated_admin_product
-            )
-            try:
-                await self.shop_product_collection.update_product_from_dict(product_id, product_dict)
-            except Exception:
-                await self.shop_product_collection.create_product_from_dict(product_dict)
-        return updated_admin_product
+        # This updates the product in the shop.Product collection directly
+        updated_product = await self.product_collection.update_product(product_id, product_data)
+        
+        # The following block for syncing to self.shop_product_collection is removed
+        # as self.product_collection and self.shop_product_collection point to the same shop.Product collection.
+        # if self.shop_product_collection:
+        #     product_dict = updated_product.dict() if hasattr(updated_product, 'dict') else (
+        #         updated_product.model_dump() if hasattr(updated_product, 'model_dump') else updated_product
+        #     )
+        #     try:
+        #         await self.shop_product_collection.update_product_from_dict(product_id, product_dict)
+        #     except Exception:
+        #         await self.shop_product_collection.create_product_from_dict(product_dict)
+                
+        return updated_product
         
     async def delete_admin_product(self, product_id):
         """Delegate to product_collection for deleting admin products."""
@@ -181,36 +190,10 @@ class UserController(ControllerInterface):
         return await self.product_collection.delete_coupon(coupon_id)
     
     async def sync_products(self):
-        """Synchronize products between admin collection and main collection."""
-        if not self.product_collection:
-            raise ValueError("Product collection not initialized")
-        if not self.shop_product_collection:
-            return True  # No shop collection to sync to
-            
-        admin_products = await self.product_collection.get_all_products()
-        for product in admin_products:
-            # Convert admin product to main product format
-            try:
-                product_dict = product.dict() if hasattr(product, 'dict') else (
-                    product.model_dump() if hasattr(product, 'model_dump') else product
-                )
-                
-                # Ensure boolean fields are properly converted
-                if 'displayOnHomePage' in product_dict:
-                    product_dict['displayOnHomePage'] = bool(product_dict['displayOnHomePage'])
-                if 'best_seller' in product_dict:
-                    product_dict['best_seller'] = bool(product_dict['best_seller'])
-                
-                try:
-                    # Use shop_product_collection instead of product_collection (admin)
-                    await self.shop_product_collection.update_product_from_dict(
-                        product.id, product_dict
-                    )
-                except Exception:
-                    await self.shop_product_collection.create_product_from_dict(product_dict)
-            except Exception as e:
-                print(f"Error syncing product {getattr(product, 'id', 'unknown')}: {str(e)}")
-        return True
+        """Synchronize products - This is now a no-op as only one product collection (shop.Product) is used."""
+        # The original logic synced an admin collection to a shop collection.
+        # Since all operations now target shop.Product directly, this explicit sync is not needed.
+        return True # Indicate success without performing any operations.
 
     async def disconnect(self):
         """Disconnect from collections."""

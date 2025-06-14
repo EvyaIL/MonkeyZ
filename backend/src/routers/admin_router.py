@@ -177,8 +177,8 @@ async def get_products(
 ):
     await verify_admin(user_controller, current_user)
     try:
-        # Get real products from database
-        products = await user_controller.admin_product_collection.get_all_products()
+        # Get real products from the shop.Product collection
+        products = await user_controller.product_collection.get_all_products() # Changed from admin_product_collection
           # Convert backend model to frontend format for each product
         result = []
         for product in products:
@@ -240,50 +240,46 @@ async def create_product(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-      # Ensure proper database fields and handle translations
-    if not product.get('name') or not product.get('description'):
-        raise HTTPException(
-            status_code=400, 
-            detail="Name and description are required in the primary language (English)"
-        )
-    
+    # Ensure product_data is a dict for create_product
+    product_data_dict = product if isinstance(product, dict) else product.model_dump(by_alias=True) # Pydantic v2
+
     # Ensure metadata.translations exists
-    if 'metadata' not in product:
-        product['metadata'] = {'translations': {}}
-    elif 'translations' not in product['metadata']:
-        product['metadata']['translations'] = {}
+    if 'metadata' not in product_data_dict:
+        product_data_dict['metadata'] = {'translations': {}}
+    elif 'translations' not in product_data_dict['metadata']:
+        product_data_dict['metadata']['translations'] = {}
     
     # Set up translations structure if not present
-    translations = product['metadata']['translations']
+    translations = product_data_dict['metadata']['translations']
     if 'name' not in translations:
-        translations['name'] = {'en': product['name']}
+        translations['name'] = {'en': product_data_dict['name']}
     if 'description' not in translations:
-        translations['description'] = {'en': product['description']}
+        translations['description'] = {'en': product_data_dict['description']}
     
     # Make sure we have imageUrl - frontend might use image or imageUrl property
-    if 'image' in product and not product.get('imageUrl'):
-        product['imageUrl'] = product.get('image')
+    if 'image' in product_data_dict and not product_data_dict.get('imageUrl'):
+        product_data_dict['imageUrl'] = product_data_dict.get('image')
       # Handle field name conversion for compatibility
     # Convert camelCase to snake_case for backend model
-    if 'createdAt' in product and 'created_at' not in product:
-        product['created_at'] = product['createdAt']
-    if 'updatedAt' in product and 'updated_at' not in product:
-        product['updated_at'] = product['updatedAt']
+    if 'createdAt' in product_data_dict and 'created_at' not in product_data_dict:
+        product_data_dict['created_at'] = product_data_dict['createdAt']
+    if 'updatedAt' in product_data_dict and 'updated_at' not in product_data_dict:
+        product_data_dict['updated_at'] = product_data_dict['updatedAt']
     
     # Set timestamps
-    product['created_at'] = datetime.now()
-    product['updated_at'] = datetime.now()    # Ensure boolean fields are properly converted
-    if 'displayOnHomePage' in product:
-        product['displayOnHomePage'] = bool(product['displayOnHomePage'])
-    if 'best_seller' in product:
-        product['best_seller'] = bool(product['best_seller'])
+    product_data_dict['created_at'] = datetime.now()
+    product_data_dict['updated_at'] = datetime.now()    # Ensure boolean fields are properly converted
+    if 'displayOnHomePage' in product_data_dict:
+        product_data_dict['displayOnHomePage'] = bool(product_data_dict['displayOnHomePage'])
+    if 'best_seller' in product_data_dict:
+        product_data_dict['best_seller'] = bool(product_data_dict['best_seller'])
     
     # Ensure slug field exists (will be further processed in collection class)
-    if not product.get('slug'):
+    if not product_data_dict.get('slug'):
         # Allow the collection class to generate the slug
-        product['slug'] = None
+        product_data_dict['slug'] = None
     
-    new_product = await user_controller.create_admin_product(product)
+    new_product = await user_controller.product_collection.create_product(product_data_dict) # Changed from create_admin_product
       # Convert to dict to ensure proper serialization
     product_dict = new_product.dict() if hasattr(new_product, 'dict') else (
         new_product.model_dump() if hasattr(new_product, 'model_dump') else new_product
@@ -327,9 +323,11 @@ async def update_product(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    updated_product = await user_controller.update_admin_product(product_id, product.dict())
-    # Ensure sync to public collection after update
-    await user_controller.sync_products()
+    # Ensure product is a dict for update_product
+    product_data_dict = product.model_dump(by_alias=True, exclude_unset=True) # Pydantic v2
+    updated_product = await user_controller.product_collection.update_product(product_id, product_data_dict) # Changed from update_admin_product
+    # Sync to public collection is no longer needed as we operate directly on shop.Product
+    # await user_controller.sync_products()
     # --- SERIALIZATION FIX START ---    # Convert to dict to ensure proper serialization
     product_dict = updated_product.dict() if hasattr(updated_product, 'dict') else (
         updated_product.model_dump() if hasattr(updated_product, 'model_dump') else updated_product
@@ -381,9 +379,9 @@ async def delete_product(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    await user_controller.delete_admin_product(product_id)
-    # Ensure sync to public collection after delete
-    await user_controller.sync_products()
+    await user_controller.product_collection.delete_product(product_id) # Changed from delete_admin_product
+    # Sync to public collection is no longer needed
+    # await user_controller.sync_products()
     return {"message": "Product deleted successfully"}
 
 # Endpoint to add CD keys to a product
@@ -397,7 +395,8 @@ async def add_cd_keys_to_product(
     await verify_admin(user_controller, current_user)
     try:
         key_strings = [cd_key.key for cd_key in request.keys]
-        updated_product = await user_controller.admin_product_collection.add_keys_to_product(product_id, key_strings)
+        # Use product_collection (shop.Product) directly
+        updated_product = await user_controller.product_collection.add_keys_to_product(product_id, key_strings)
         return updated_product
     except ValueError as e:
         if "not found" in str(e).lower(): # For product not found
@@ -418,7 +417,8 @@ async def get_cd_keys_for_product(
 ):
     await verify_admin(user_controller, current_user)
     try:
-        product = await user_controller.admin_product_collection.get_product_by_id(product_id)
+        # Use product_collection (shop.Product) directly
+        product = await user_controller.product_collection.get_product_by_id(product_id)
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
         if not product.manages_cd_keys:
@@ -478,25 +478,23 @@ async def update_cd_key_for_product(
         
         print(f"Sanitized update_data_dict for DB operation: {update_data_dict}")
 
-        # Check if there's anything to update after sanitization
         if not update_data_dict:
-            # If nothing to update (e.g., only 'key' was passed and then removed),
-            # we might want to return the product as is or a specific message.
-            # For now, let's fetch and return the current product to avoid an empty update call.
             print("No valid fields to update after sanitization. Fetching current product.")
-            product = await user_controller.admin_product_collection.get_product_by_id(product_id)
+            # Use product_collection (shop.Product) directly
+            product = await user_controller.product_collection.get_product_by_id(product_id)
             if not product:
                 raise HTTPException(status_code=404, detail="Product not found after no-op update.")
             return product
 
-        updated_product = await user_controller.admin_product_collection.update_cd_key_in_product(
+        # Use product_collection (shop.Product) directly
+        updated_product = await user_controller.product_collection.update_cd_key_in_product(
             product_id, cd_key_index, update_data_dict
         )
         return updated_product
     except ValueError as e: 
         if "not found" in str(e).lower(): # Product or key index not found
             raise HTTPException(status_code=404, detail=str(e))
-        elif "does not manage CD keys" in str(e).lower(): # Product exists but not configured for keys
+        elif "does not manage cd keys" in str(e).lower(): # Product exists but not configured for keys
             raise HTTPException(status_code=400, detail=str(e))
         else: # Other ValueErrors (e.g. bad index if not caught by "not found")
             raise HTTPException(status_code=422, detail=str(e))

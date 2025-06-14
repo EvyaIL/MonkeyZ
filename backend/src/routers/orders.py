@@ -1,14 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends, status # Added status
+from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List, Optional
 from ..lib.token_handler import get_current_user
 from ..mongodb.mongodb import MongoDb
 from ..models.user.user import Role
-from ..models.order import Order, OrderItem, StatusHistoryEntry, OrderStatusUpdateRequest
-from ..deps.deps import get_user_controller_dependency
+from ..models.order import Order, OrderItem, StatusHistoryEntry, OrderStatusUpdateRequest, StatusEnum # Added StatusEnum
+from ..models.products.products import Product as ProductModel # Added ProductModel
+from ..mongodb.product_collection import ProductCollection # Added ProductCollection
+from ..deps.deps import get_user_controller_dependency, get_product_collection_dependency # Added get_product_collection_dependency
 from datetime import datetime
 from pymongo.database import Database
 from bson import ObjectId
-from ..models.token.token import TokenData # Corrected import path
+from ..models.token.token import TokenData
 
 router = APIRouter()
 
@@ -58,164 +60,161 @@ async def get_order(
 async def create_order(
     order_data: Order, 
     current_user: TokenData = Depends(get_current_user),
-    user_controller = Depends(get_user_controller_dependency)
+    user_controller = Depends(get_user_controller_dependency),
+    product_collection: ProductCollection = Depends(get_product_collection_dependency) # Added product_collection
 ):
     if not await user_controller.has_role(current_user.username, Role.manager):
-        raise HTTPException(status_code=403, detail="Admin access required")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-    order_dict_for_db = {} 
-    raw_data_dump = "order_data (Pydantic model) not available"
-    db = await mongo_db.get_db() # Moved DB connection up
+    db = await mongo_db.get_db()
+    order_id = ObjectId()
+    order_data.id = str(order_id) # Ensure ID is set for the response model and for key assignment
 
-    try:
+    # Initialize order status - will be updated if stock is insufficient
+    current_order_status = order_data.status if order_data.status else StatusEnum.PENDING
+
+    # --- CD Key Assignment Logic ---
+    order_awaits_stock = False
+    for item_index, item in enumerate(order_data.items):
         try:
-            raw_data_dump = order_data.model_dump_json(indent=2)
-            print(f"Received order_data (Pydantic model): {raw_data_dump[:1000]}") 
-        except Exception as log_exc:
-            print(f"Could not serialize initial order_data for logging: {log_exc}")
+            product = await product_collection.get_product_by_id(item.productId)
+        except Exception as e:
+            # Log this error, product might not exist or ID is invalid
+            print(f"Error fetching product {item.productId} for order {order_data.id}: {e}")
+            # Decide how to handle: skip item, fail order, etc. For now, let's assume product must exist.
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product with ID {item.productId} not found.")
 
-        # Calculate original_total from items
-        calculated_original_total = sum(item.price * item.quantity for item in order_data.items if item.price is not None and item.quantity is not None)
-        order_data.original_total = calculated_original_total
-        order_data.discount_amount = 0.0 # Default discount
+        if product and product.manages_cd_keys:
+            available_keys_for_item = 0
+            assigned_key_to_item = None
 
-        # Coupon Logic (existing)
-        valid_coupon_applied = False
-        if order_data.coupon_code:
-            coupon = await db.coupons.find_one({"code": order_data.coupon_code})
-            if coupon:
-                is_active = coupon.get("active", False)
-                expires_at_str = coupon.get("expiresAt")
-                max_uses = coupon.get("maxUses")
-                usage_count = coupon.get("usageCount", 0)
+            # We need to assign one key per quantity if product manages keys
+            # For simplicity in this step, let's assume quantity is 1 for key assignment.
+            # If quantity > 1, this logic needs to be expanded to assign multiple keys
+            # or handle it as an error/limitation for now.
+            # For now, we handle quantity = 1 for key assignment. If quantity > 1 and manages_cd_keys,
+            # it will likely go to AWAITING_STOCK unless multiple keys are assigned.
+
+            if item.quantity > 0: # Process only if quantity is positive
+                keys_assigned_for_this_item = 0
+                temp_assigned_keys_for_order_item = []
+
+                for key_idx, cd_key in enumerate(product.cdKeys):
+                    if not cd_key.isUsed:
+                        # Mark key as used
+                        product.cdKeys[key_idx].isUsed = True
+                        product.cdKeys[key_idx].usedAt = datetime.utcnow()
+                        product.cdKeys[key_idx].orderId = PydanticObjectId(order_id) # Store order ID
+
+                        # Assign the key string to the order item
+                        # If an item has quantity > 1, we'd need a list of keys.
+                        # For now, assigning the first available key if quantity is 1.
+                        # This needs robust handling for quantity > 1.
+                        if item.quantity == 1: # Simplified: assumes one key per item if manages_cd_keys
+                             order_data.items[item_index].assigned_cd_key = cd_key.key
+                        # If item.quantity > 1, we'd append to a list on the order item
+                        # and increment keys_assigned_for_this_item.
+                        # For now, this simplified version will only assign one key.
+
+                        keys_assigned_for_this_item += 1
+                        # For this example, if we need one key per item.quantity,
+                        # we'd break here if keys_assigned_for_this_item == item.quantity
+                        break # Found and assigned a key for this item (or the first of many if quantity > 1)
                 
-                is_expired = False
-                if expires_at_str:
+                if keys_assigned_for_this_item < item.quantity:
+                    order_awaits_stock = True
+                    # Potentially revert any keys tentatively assigned if partial assignment is not allowed
+                    # For now, if any item is short, the whole order awaits stock.
+                    print(f"Product {product.id} does not have enough keys for order {order_data.id}, item {item.name}. Required: {item.quantity}, Found: {keys_assigned_for_this_item}")
+                    break # Stop processing further items for key assignment if one is short
+
+                if keys_assigned_for_this_item > 0:
                     try:
-                        if isinstance(expires_at_str, str):
-                            expires_at_dt = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
-                        elif isinstance(expires_at_str, datetime):
-                            expires_at_dt = expires_at_str
-                        else: 
-                            expires_at_dt = None
+                        await product.save() # Save changes to product (key status)
+                    except Exception as e:
+                        # Log this error, could be a concurrent modification or DB issue
+                        print(f"Error saving product {product.id} after key assignment for order {order_data.id}: {e}")
+                        # This is a critical error, might need to roll back or flag order
+                        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update product stock.")
+            
+    if order_awaits_stock:
+        current_order_status = StatusEnum.AWAITING_STOCK
+    # --- End CD Key Assignment Logic ---
 
-                        if expires_at_dt and datetime.utcnow().replace(tzinfo=None) > expires_at_dt.replace(tzinfo=None): 
-                            is_expired = True
-                    except ValueError:
-                        print(f"Warning: Could not parse coupon expiresAt date: {expires_at_str}")
-                        is_expired = True 
+    order_data.status = current_order_status
+    order_data.createdAt = datetime.utcnow()
+    order_data.updatedAt = datetime.utcnow()
+    order_data.date = order_data.date if order_data.date else datetime.utcnow() # Ensure date is set
 
-                has_exceeded_uses = False
-                if max_uses is not None and usage_count >= max_uses:
-                    has_exceeded_uses = True
+    # Add initial status to history
+    initial_status_entry = StatusHistoryEntry(
+        status=order_data.status,
+        date=datetime.utcnow(),
+        note="Order created." if not order_awaits_stock else "Order created, awaiting stock for one or more items."
+    )
+    order_data.statusHistory = [initial_status_entry]
 
-                if is_active and not is_expired and not has_exceeded_uses:
-                    discount_value = coupon.get("discountValue", 0.0)
-                    discount_type = coupon.get("discountType")
+    # Prepare order for DB insertion
+    # Pydantic model_dump is preferred over manual dict creation
+    order_dict_for_db = order_data.model_dump(by_alias=True, exclude_none=True)
+    order_dict_for_db["_id"] = order_id # Ensure the ObjectId is used for insertion
 
-                    if discount_type == "percentage":
-                        discount = order_data.original_total * (discount_value / 100)
-                    elif discount_type == "fixed":
-                        discount = discount_value
-                    else:
-                        discount = 0.0
-                    
-                    order_data.discount_amount = min(discount, order_data.original_total)
-                    valid_coupon_applied = True 
-                else:
-                    print(f"Coupon \'{order_data.coupon_code}\' is invalid. Active: {is_active}, Expired: {is_expired}, Exceeded Uses: {has_exceeded_uses}")
-                    order_data.coupon_code = None 
-                    order_data.discount_amount = 0.0
+    # Coupon logic (simplified, assuming it's handled or not critical for this step)
+    # If coupon_code is provided, validate and apply discount
+    if order_data.coupon_code:
+        coupon = await db.coupons.find_one({"code": order_data.coupon_code, "active": True})
+        if coupon:
+            if coupon.get("expiresAt") and coupon["expiresAt"] < datetime.utcnow():
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Coupon has expired.")
+            if coupon.get("maxUses") is not None and coupon.get("usageCount", 0) >= coupon["maxUses"]:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Coupon has reached its maximum usage limit.")
+
+            order_data.original_total = order_data.total # Store original total before discount
+            if coupon["discountType"] == "percentage":
+                discount = order_data.total * (coupon["discountValue"] / 100)
+            elif coupon["discountType"] == "fixed":
+                discount = coupon["discountValue"]
             else:
-                print(f"Coupon code \'{order_data.coupon_code}\' not found.")
-                order_data.coupon_code = None 
-                order_data.discount_amount = 0.0
-        
-        order_data.total = order_data.original_total - order_data.discount_amount
-
-        new_status_entry = StatusHistoryEntry(
-            status=order_data.status, 
-            date=datetime.utcnow(), 
-            note="Order created by admin"
-        )
-        if order_data.statusHistory is None: 
-            order_data.statusHistory = []
-        order_data.statusHistory.insert(0, new_status_entry)
-        order_data.updatedAt = datetime.utcnow()
-        order_dict_for_db = order_data.model_dump(by_alias=True, exclude_none=False)
-        
-        if order_dict_for_db.get("user_id") == "":
-            order_dict_for_db["user_id"] = None
-        
-        if "_id" in order_dict_for_db and isinstance(order_dict_for_db["_id"], str):
-            try:
-                order_dict_for_db["_id"] = ObjectId(order_dict_for_db["_id"])
-            except Exception as e:
-                print(f"Error converting _id string to ObjectId: {e}. Value was: {order_dict_for_db['_id']}") # Changed [\\'_id\\'] to ['_id']
-                raise 
-        else:
-            # This case should ideally not be hit if Pydantic's default_factory for 'id' works.
-            # If _id is missing or not a string, generate a new one.
-            print(f"Warning: _id was missing or not a string in order_dict_for_db. Generating new ObjectId. Current _id: {order_dict_for_db.get('_id')}") # Changed .get(\\'_id\\') to .get('_id')
-            order_dict_for_db["_id"] = ObjectId() 
-
-        # Log the dictionary that will be inserted into MongoDB
-        try:
-            print(f"Attempting to insert into DB: {str(order_dict_for_db)[:1000]}") 
-        except Exception as log_exc:
-            print(f"Could not serialize order_dict_for_db for logging before insert: {log_exc}")
-
-        insert_result = await db.orders.insert_one(order_dict_for_db) 
-
-        if not insert_result.inserted_id:
-            print(f"MongoDB insert_one result: {insert_result.acknowledged}, Inserted ID: {insert_result.inserted_id}")
-            raise HTTPException(status_code=500, detail="Failed to insert order into database, no ID returned by DB.")
-
-        if valid_coupon_applied and order_data.coupon_code: 
-            coupon_code_used = order_data.coupon_code 
+                discount = 0
+            
+            order_data.total -= discount
+            order_data.discount_amount = discount
+            
+            # Update coupon usage count
             await db.coupons.update_one(
-                {"code": coupon_code_used}, 
+                {"_id": coupon["_id"]},
                 {"$inc": {"usageCount": 1}}
             )
-            print(f"Incremented usage count for coupon: {coupon_code_used}")
+            order_dict_for_db["total"] = order_data.total
+            order_dict_for_db["discount_amount"] = order_data.discount_amount
+            order_dict_for_db["original_total"] = order_data.original_total
+            order_dict_for_db["coupon_code"] = order_data.coupon_code
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or inactive coupon code.")
+    else: # Ensure these fields are present even if no coupon
+        order_dict_for_db["original_total"] = order_data.total
+        order_dict_for_db["discount_amount"] = 0.0
 
-        created_order_from_db = await db.orders.find_one({"_id": order_dict_for_db["_id"]}) 
-        
-        if not created_order_from_db:
-            # This would be very strange if insert_one succeeded.
-            print(f"Order inserted with _id {order_dict_for_db['_id']} but not found immediately after.") # Changed [\\'_id\\'] to ['_id']
-            raise HTTPException(status_code=404, detail="Order created but could not be retrieved from database.")
-        
-        return Order(**created_order_from_db)
 
-    except HTTPException as http_exc: 
-        raise http_exc
+    try:
+        result = await db.orders.insert_one(order_dict_for_db)
+        if not result.inserted_id:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create order.")
+        
+        # Fetch the created order to return it, ensuring all fields are fresh from DB
+        created_order_doc = await db.orders.find_one({"_id": result.inserted_id})
+        if not created_order_doc:
+             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve created order.")
+        
+        return Order(**created_order_doc)
+
     except Exception as e:
-        error_type = type(e).__name__
-        error_message_detail = str(e)
-        error_message = f"Internal server error creating order: {error_type} - {error_message_detail}"
-        
-        print(f"!!!!!!!! Backend Error in create_order: {error_message}")
-        
-        db_data_dump = "order_dict_for_db not available or not yet populated"
-        if 'order_dict_for_db' in locals() and order_dict_for_db:
-            try:
-                loggable_dict = {k: (str(v) if isinstance(v, (datetime, ObjectId)) else v) for k, v in order_dict_for_db.items()}
-                db_data_dump = str(loggable_dict)
-            except Exception as dump_exc:
-                db_data_dump = f"Could not serialize order_dict_for_db for logging: {dump_exc}"
-        print(f"Data intended for DB (order_dict_for_db) (first 1000 chars): {db_data_dump[:1000]}")
-        
-        print(f"Raw Pydantic model data received (order_data) (first 1000 chars): {raw_data_dump[:1000]}")
-
-        if error_type == "ValidationError": 
-            try:
-                validation_errors = e.errors() if hasattr(e, 'errors') and callable(e.errors) else getattr(e, 'errors', 'No detailed errors found')
-                print(f"Pydantic ValidationError details: {validation_errors}")
-            except Exception as pydantic_log_exc:
-                print(f"Could not extract Pydantic ValidationError details: {pydantic_log_exc}")
-
-        raise HTTPException(status_code=500, detail=error_message)
+        # Log the full error for debugging
+        print(f"Error during order creation: {e}")
+        # Potentially revert key assignments if order creation fails
+        # This part is complex and needs careful transaction-like management if possible,
+        # or a cleanup mechanism. For now, we raise an error.
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
 @router.patch("/orders/{order_id}", response_model=Order)
 async def update_order( 

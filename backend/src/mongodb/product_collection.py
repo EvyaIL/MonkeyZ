@@ -3,19 +3,19 @@ from pymongo.database import Database
 from .mongodb import MongoDb
 from src.models.products.products import Product, CDKey, CDKeyUpdateRequest
 from src.singleton.singleton import Singleton
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import pymongo
 import logging
 
 class ProductCollection(MongoDb, metaclass=Singleton):
-    """Collection for managing admin products."""
+    """Collection for managing shop products."""
     
     async def initialize(self):
-        """Initialize the collection with the admin database."""
-        database_name = "admin"
+        """Initialize the collection with the shop database."""
+        database_name = "shop"  # Ensure this is 'shop'
         self.db = await self.add_new_collection(database_name)
-        await self.initialize_beanie(self.db, [Product])
+        await self.initialize_beanie(self.db, [Product]) # Ensure Product model is used
         
     async def add_keys_to_product(self, product_id: PydanticObjectId, keys: List[str]) -> Product:
         """Add a list of CD keys to a specific product."""
@@ -29,7 +29,7 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         new_cd_keys = []
         for key_string in keys:
             new_key = CDKey(
-                key=key_string,
+                key=string,
                 isUsed=False,
                 addedAt=datetime.utcnow()
             )
@@ -257,3 +257,22 @@ class ProductCollection(MongoDb, metaclass=Singleton):
             raise ValueError("Coupon not found")
             
         return {"message": "Coupon deleted successfully"}
+
+    async def get_best_sellers(self, limit: int = 10) -> List[Product]:
+        """Get best-selling products from the shop.Product collection."""
+        # Assumes 'best_seller' is a boolean field in the Product model.
+        # You might also want to sort by a sales metric if available, or by creation date as a fallback.
+        return await Product.find({"best_seller": True}).sort(-Product.created_at).limit(limit).to_list()
+
+    async def get_homepage_products(self, limit: int = 10) -> List[Product]:
+        """Get products to display on the homepage from the shop.Product collection."""
+        # Assumes 'displayOnHomePage' is a boolean field in the Product model.
+        return await Product.find({"displayOnHomePage": True}).sort(-Product.created_at).limit(limit).to_list()
+
+    async def get_recent_products(self, limit: int = 10) -> List[Product]:
+        """Get recently added products from the shop.Product collection."""
+        return await Product.find().sort(-Product.created_at).limit(limit).to_list()
+
+    async def get_product_by_slug(self, slug: str) -> Optional[Product]:
+        """Get a single product by its slug from the shop.Product collection."""
+        return await Product.find_one({Product.slug: slug})
