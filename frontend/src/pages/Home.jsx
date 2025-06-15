@@ -6,6 +6,7 @@ import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet";
 import { addStructuredData } from "../lib/seo-helper";
+import imagePreloadService from "../lib/imagePreloadService";
 
 const Home = () => {
   const [bestSellers, setBestSellers] = useState([]);
@@ -43,6 +44,25 @@ const Home = () => {
       if (script) script.remove();
     };
   }, []);
+
+  // Preload images when products are loaded
+  useEffect(() => {
+    if (bestSellers.length > 0) {
+      const imageUrls = bestSellers
+        .map(product => product.imageUrl || product.image)
+        .filter(Boolean);
+      imagePreloadService.preloadImages(imageUrls, 'high');
+    }
+  }, [bestSellers]);
+
+  useEffect(() => {
+    if (homeProducts.length > 0) {
+      const imageUrls = homeProducts
+        .map(product => product.imageUrl || product.image)
+        .filter(Boolean);
+      imagePreloadService.preloadImages(imageUrls, 'high');
+    }
+  }, [homeProducts]);
 
   useEffect(() => {
     document.title = t("home");

@@ -58,40 +58,14 @@ name: monkeyz
 region: fra
 services:
 - build_command: npm ci && npm run build
-  environment_slug: node-js
+  environment_slug: static-site
   github:
     branch: main
     deploy_on_push: true
     repo: YOURUSERNAME/YOURREPO
-  http_port: 8080
-  instance_count: 1
-  instance_size_slug: basic-xxs
   name: front-end
-  run_command: NODE_ENV=production node standalone-server.js
   source_dir: frontend/
-  health_check:
-    http_path: /health.json
-    port: 8080
-    initial_delay_seconds: 10
-    period_seconds: 5
-    timeout_seconds: 3
-    success_threshold: 1
-    failure_threshold: 3
-  envs:
-  - key: DATABASE_URL
-    scope: RUN_TIME
-    value: ${mongodb1.DATABASE_URL}
-  - key: CA_CERT
-    scope: RUN_TIME
-    value: ${mongodb1.CA_CERT}
-  health_check:
-    http_path: /health.json
-    port: 8080
-    initial_delay_seconds: 40
-    period_seconds: 10
-    timeout_seconds: 5
-    success_threshold: 1
-    failure_threshold: 3
+  output_dir: build
   routes:
   - path: /
   envs:

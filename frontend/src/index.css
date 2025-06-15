@@ -227,3 +227,27 @@ html[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
 .print-only {
   display: none;
 }
+
+/* Image optimization styles */
+img {
+  /* Enable hardware acceleration for smoother animations */
+  transform: translateZ(0);
+  /* Improve image rendering quality */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Optimize images for faster loading */
+.optimized-image {
+  /* Enable hardware acceleration */
+  will-change: transform, opacity;
+  /* Use GPU compositing */
+  transform: translateZ(0);
+  /* Smooth transitions */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Performance hint for images that will be animated */
+.image-will-animate {
+  will-change: transform;
+}
