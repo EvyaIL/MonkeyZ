@@ -34,6 +34,7 @@ else:
         "http://localhost:3000",
         "http://localhost:8080", 
         "https://monkeyz.co.il",
+        "https://api.monkeyz.co.il",
         "https://monkeyz-frontend.ondigitalocean.app"
     ]
     # Parse comma-separated list from env var if exists

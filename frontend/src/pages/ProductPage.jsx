@@ -10,7 +10,7 @@ import Spinner from "../components/Spinner";
 import { generateProductSchema, addStructuredData } from "../lib/seo-helper";
 
 const ProductPage = () => {
-  const { name } = useParams();
+  const { productIdentifier } = useParams(); // Changed from productName to productIdentifier
   const { addItemToCart, notify } = useGlobalProvider();
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
@@ -113,19 +113,20 @@ const ProductPage = () => {
 
   // Fetch product data
   const fetchProduct = useCallback(async () => {
-    if (!name) return;
+    if (!productIdentifier) return; // Changed from productName to productIdentifier
     
     setLoading(true);
     setErrorMsg("");
     try {
-      const decodedName = decodeURIComponent(name);
-      const isHebrew = /[\\u0590-\\u05FF]/.test(decodedName);
-      const nameParam = typeof decodedName === 'object' ? 
-        (decodedName[lang] || decodedName.en || Object.values(decodedName)[0]) : 
-        decodedName;
-      const encodedName = isHebrew ? encodeURI(nameParam) : encodeURIComponent(nameParam);
+      // The productIdentifier is already part of the URL, no need to extract from product.name here
+      // It will be the name (or slug, if backend supports it at this new unified endpoint)
+      const decodedIdentifier = decodeURIComponent(productIdentifier); // Changed from productName
       
-      const response = await apiService.get(`/product/${encodedName}`);
+      // The backend will handle if it's a name or slug
+      // No need for isHebrew or specific encoding logic here for the path param itself,
+      // as long as the server and client handle UTF-8 correctly in URLs.
+      // The `productIdentifier` from `useParams` is already decoded by react-router.
+      const response = await apiService.get(`/product/${encodeURIComponent(decodedIdentifier)}`); // Use productIdentifier directly
       
       if (response.data) {
         setProduct(response.data); // This will trigger the useEffect for related products
@@ -133,30 +134,8 @@ const ProductPage = () => {
         throw new Error("Product data is empty");
       }
     } catch (error) {
-      console.error("Error fetching product:", { /* ...error details... */ });
-      // Try admin products API as a fallback
-      try {
-        const { data: adminProducts } = await apiService.get('/admin/products');
-        if (adminProducts && adminProducts.length > 0) {
-          const decodedNameLower = decodeURIComponent(name).toLowerCase();
-          const matchedProduct = adminProducts.find(p => {
-            if (typeof p.name === "object") {
-              return (p.name.he && p.name.he.toLowerCase() === decodedNameLower) || 
-                     (p.name.en && p.name.en.toLowerCase() === decodedNameLower);
-            }
-            return p.name && p.name.toLowerCase() === decodedNameLower;
-          });
-          
-          if (matchedProduct) {
-            setProduct(matchedProduct); // This will trigger the useEffect for related products
-            return;
-          }
-        }
-      } catch (adminError) {
-        console.error("Error fetching from admin products as fallback:", adminError);
-      }
-
-      setErrorMsg(t("errors.productNotFound"));
+      console.error("Error fetching product:", error); // Keep original error for debugging
+      // setErrorMsg(t("errors.productNotFound")); // Simplified error message
       notify({
         type: "error",
         message: error.response?.status === 404 ? 
@@ -167,9 +146,9 @@ const ProductPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [name, lang, notify, t, setProduct, setLoading, setErrorMsg]); // apiService is stable import
+  }, [productIdentifier, lang, notify, t, setProduct, setLoading, setErrorMsg]); // Changed productName to productIdentifier
 
-  // Effect to fetch main product data when 'name' (from URL) or 'lang' changes
+  // Effect to fetch main product data when 'productIdentifier' (from URL) or 'lang' changes
   useEffect(() => {
     const loadProductData = async () => {
       // Reset product state before fetching new one if desired, or ensure loading states cover UI
@@ -177,10 +156,10 @@ const ProductPage = () => {
       // setRelatedProducts([]);
       await fetchProduct();
     };
-    if (name) {
+    if (productIdentifier) { // Changed from productName to productIdentifier
         loadProductData();
     }
-  }, [name, lang, fetchProduct]); // fetchProduct is a dependency
+  }, [productIdentifier, lang, fetchProduct]); // Changed productName to productIdentifier, fetchProduct is a dependency
 
   // Effect to fetch related products when the main product's data (id or category) changes
   useEffect(() => {
@@ -418,7 +397,7 @@ const ProductPage = () => {
                       return (
                         <Link 
                           key={relatedProduct.id} 
-                          to={`/product/${encodedName}`}
+                          to={`/product/${encodedName}`} // Changed from /product/name/ to /product/
                           className="group"
                         >
                           <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg p-4 shadow-lg transition-all duration-300 hover:shadow-xl backdrop-blur-sm h-full flex flex-col">

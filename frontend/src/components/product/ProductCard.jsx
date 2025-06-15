@@ -65,6 +65,15 @@ const ProductCard = ({ product, otherStyle }) => {
     const nameToUse = typeof product.name === "object" 
       ? (product.name[lang] || product.name.en || "") 
       : product.name || "";
+
+    if (!nameToUse) {
+      console.error("Product name is missing, cannot navigate:", product);
+      notify({
+        message: t("errors.productLinkError", "Cannot open product page, product name is missing."),
+        type: "error"
+      });
+      return;
+    }
     navigate(`/product/${encodeURIComponent(nameToUse)}`);
   };
 

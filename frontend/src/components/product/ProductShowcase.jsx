@@ -236,7 +236,19 @@ const ProductShowcase = ({ products, title }) => {
               return (                <div
                   key={productId || `product-slide-${index}`}
                   className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/20 rounded-lg transition-colors`}
-                  onClick={() => productId && navigate(`/product/${encodeURIComponent(typeof nameToDisplay === 'object' ? (nameToDisplay.en || Object.values(nameToDisplay)[0]) : nameToDisplay)}`)}
+                  onClick={() => {
+                    if (!productId) return;
+                    const navigateToName = typeof nameToDisplay === 'object' ? (nameToDisplay.en || Object.values(nameToDisplay)[0]) : nameToDisplay;
+                    if (!navigateToName) {
+                      console.error("Product name is missing for navigation in showcase:", p);
+                      notify({
+                        message: t("errors.productLinkError", "Cannot open product page, product name is missing."),
+                        type: "error"
+                      });
+                      return;
+                    }
+                    navigate(`/product/${encodeURIComponent(navigateToName)}`);
+                  }}
                   tabIndex={isActive ? 0 : -1} // Only allow focus on current slide
                   role="group"
                   aria-label={`${t("showcase_for", "Showcase for")} ${nameToDisplay}`}

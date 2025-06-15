@@ -6,6 +6,7 @@ from src.models.products.products import ProductRequest
 from src.lib.token_handler import get_current_user
 from src.models.user.user import User
 from beanie import PydanticObjectId
+from src.models.products.products_exception import NotFound
 
 
 
@@ -53,17 +54,67 @@ async def get_product(product_id:PydanticObjectId, products_controller:ProductsC
    return product
 
 
+# @product_router.get("/name/{product_name}", response_model=ProductResponse) # Keep this commented or remove
+# async def get_product_by_name_endpoint(product_name:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+#    # Use the existing get_product_by_name method from the collection
+#    # This method already handles case-insensitivity and multi-language names
+#    try:
+#       product = await products_controller.product_collection.get_product_by_name(product_name)
+#    except NotFound:
+#       # products_controller.product_collection.get_product_by_name raises NotFound if no product is found
+#       raise HTTPException(status_code=404, detail=f"Product with name {product_name} not found")
+#    
+#    if not product: # Should be redundant due to the try-except but as a safeguard
+#       raise HTTPException(status_code=404, detail=f"Product with name {product_name} not found")
+#    return product
+
 @product_router.get("/homepage", response_model=list[ProductResponse])
 async def get_homepage_products(limit:int = 6, products_controller:ProductsController = Depends(get_products_controller_dependency)):
    products = await products_controller.get_homepage_products(limit=limit)
    return products
 
-@product_router.get("/{product_slug}", response_model=ProductResponse)
-async def get_product_by_slug_endpoint(product_slug:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   product = await products_controller.product_collection.get_product_by_slug(product_slug) 
+# Make this the primary route for fetching by name, replacing the slug-based one or the /name/ one.
+@product_router.get("/{product_identifier}", response_model=ProductResponse)
+async def get_product_by_name_or_slug_endpoint(product_identifier:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+   product = None
+   # Try fetching by slug first if you have a clear distinction or expect slugs often
+   # For now, as per preference for name, let's prioritize name, or make it more robust.
+   # Assuming product_identifier can be a name.
+   try:
+      product = await products_controller.product_collection.get_product_by_name(product_identifier)
+      if product:
+         return product
+   except NotFound:
+      pass # Will try by slug or raise 404 later
+
+   # If not found by name, try by slug (if you still want to support slugs)
+   # This part can be removed if slugs are fully deprecated for direct URL access
    if not product:
-      raise HTTPException(status_code=404, detail=f"Product with slug {product_slug} not found")
+       try:
+           product = await products_controller.product_collection.get_product_by_slug(product_identifier)
+           if product:
+               return product
+       except NotFound:
+           pass # Will raise 404
+
+   if not product:
+      raise HTTPException(status_code=404, detail=f"Product with identifier '{product_identifier}' not found")
    return product
+
+
+# Comment out or remove the old slug-specific endpoint if it's fully replaced by the one above.
+# @product_router.get("/{product_slug}", response_model=ProductResponse)
+# async def get_product_by_slug_endpoint(product_slug:str, products_controller:ProductsController = Depends(get_products_controller_dependency)):
+#    product = await products_controller.product_collection.get_product_by_slug(product_slug) 
+#    if not product:
+#       # Try to find by name if slug is not found, assuming slug might be a name
+#       try:
+#          product = await products_controller.product_collection.get_product_by_name(product_slug)
+#       except NotFound:
+#          raise HTTPException(status_code=404, detail=f"Product with slug or name '{product_slug}' not found")
+#       if not product:
+#           raise HTTPException(status_code=404, detail=f"Product with slug or name '{product_slug}' not found")
+#    return product
 
 
 @product_router.put("")

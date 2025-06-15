@@ -113,7 +113,8 @@ function AppRouter() {
 
         {/* Other routes */}
         <Route path="/products" element={<AllProducts />} />
-        <Route path="/product/:name" element={<ProductPage />} />
+        {/* Changed route to /product/:productIdentifier */}
+        <Route path="/product/:productIdentifier" element={<ProductPage />} /> 
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />

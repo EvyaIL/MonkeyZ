@@ -4,7 +4,7 @@ from src.controller.user_controller import UserController
 from src.mongodb.users_collection import UserCollection
 from src.mongodb.keys_collection import KeysCollection
 from src.controller.product_controller import ProductsController
-from src.mongodb.product_collection import ProductCollection # This is the correct one, configured for 'shop'
+from src.mongodb.products_collection import ProductsCollection # Use ProductsCollection which has get_product_by_name
 from src.controller.key_metrics_controller import KeyMetricsController
 from src.mongodb.orders_collection import OrdersCollection
 
@@ -12,10 +12,10 @@ def get_user_collection_dependency() -> UserCollection:
     user_collection = UserCollection()
     return user_collection
 
-# This function will provide the ProductCollection (hardcoded to use 'shop' db)
-def get_product_collection_dependency() -> ProductCollection:
-    product_collection = ProductCollection() # ProductCollection now defaults to 'shop'
-    # Ensure it's initialized if ProductCollection has an async init method that needs calling here.
+# This function will provide the ProductsCollection (which has get_product_by_name method)
+def get_product_collection_dependency() -> ProductsCollection:
+    product_collection = ProductsCollection() # ProductsCollection has the required methods
+    # Ensure it's initialized if ProductsCollection has an async init method that needs calling here.
     # However, singletons usually handle their init. If direct init is needed:
     # await product_collection.initialize() # This would make the dependency async
     return product_collection
@@ -25,12 +25,12 @@ def get_keys_collection_dependency() -> KeysCollection:
     return keys_collection
 
 # We can deprecate/remove get_admin_product_collection_dependency if get_product_collection_dependency serves the purpose for shop.Product
-# For now, let's keep it but ensure it also returns the shop-configured ProductCollection or remove its usage.
+# For now, let's keep it but ensure it also returns the shop-configured ProductsCollection or remove its usage.
 # To avoid confusion, let's alias it or ensure ProductController uses the main one.
 
-def get_admin_product_collection_dependency() -> ProductCollection:
-    # This should also point to the shop.Product collection as per requirements
-    admin_product_collection = ProductCollection() 
+def get_admin_product_collection_dependency() -> ProductsCollection:
+    # This should also point to the ProductsCollection as per requirements
+    admin_product_collection = ProductsCollection() 
     return admin_product_collection
 
 def get_order_collection_dependency() -> OrdersCollection:

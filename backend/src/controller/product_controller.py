@@ -2,7 +2,6 @@ from src.models.products.products import Product
 # Using Product from product_collection as AdminProduct since there's no separate AdminProduct class
 from src.mongodb.product_collection import Product as AdminProduct
 from src.mongodb.products_collection import ProductsCollection
-from src.mongodb.product_collection import ProductCollection
 from src.mongodb.keys_collection import KeysCollection
 from src.mongodb.users_collection import UserCollection
 import datetime
@@ -12,14 +11,14 @@ class ProductsController:
     """Controller for managing products, including creation, editing, and deletion."""
     
     def __init__(self, product_collection: ProductsCollection, keys_collection: KeysCollection, 
-                 user_collection: UserCollection, admin_product_collection: ProductCollection):
+                 user_collection: UserCollection, admin_product_collection: ProductsCollection):
         """Initialize the controller with required collections.
         
         Args:
             product_collection: The main products collection for frontend display
             keys_collection: Collection for managing keys/IDs
             user_collection: Collection for user management
-            admin_product_collection: The admin product collection
+            admin_product_collection: The admin product collection (same as product_collection)
         """
         self.product_collection = product_collection
         self.keys_collection = keys_collection

@@ -351,41 +351,103 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         await product.update({'$set': data})
         return product
 
-    async def get_product_by_name(self, name: str) -> Product:
+    async def get_product_by_name(self, name: str) -> Optional[Product]:
         """
-        Retrieves a product by its name (matches either English or Hebrew name, case-insensitive, trimmed).
+        Retrieves a product by its name.
+        Handles both string names and multilingual dictionary names.
 
         Args:
-            name (str): The name of the product to retrieve.
+            name (str): The name of the product to find.
 
         Returns:
-            Product: The product with the given name, or None if not found.
+            Optional[Product]: The product if found, otherwise None.
         """
-        # Clean up the input name
-        name = name.strip()
-        # Try to match either English or Hebrew name, case-insensitive
-        product = await Product.find_one({
-            "$or": [
-                {"name.en": {"$regex": f"^{name}$", "$options": "i"}},
-                {"name.he": {"$regex": f"^{name}$", "$options": "i"}},
-                {"name": {"$regex": f"^{name}$", "$options": "i"}}  # fallback for string name fields
-            ]
-        })
-        if not product:
-            raise NotFound(f"not found product with the name: {name}")
-        return product
+        try:
+            # Attempt to find by exact match on string name (for older data or simple names)
+            product = await Product.find_one({"name": name, "active": True})
+            if product:
+                return product
 
-    async def get_product_by_id(self, product_id: PydanticObjectId) -> Product:
+            # Attempt to find by matching within the name dictionary (for multilingual names)
+            # This searches if the provided name matches any of the language versions.
+            # It's a common pattern to search for name.en == name or name.he == name etc.
+            # For a direct match of the identifier against any language's name:
+            product = await Product.find_one(
+                {
+                    "$or": [
+                        {"name.en": name},
+                        {"name.he": name},
+                        # Add other languages if supported
+                    ],
+                    "active": True
+                }
+            )
+            if product:
+                return product
+            
+            # Fallback: Case-insensitive search for English name if others fail
+            # This is often useful but can be slow without proper indexing.
+            # Consider if this is needed or if exact matches are sufficient.
+            # For now, let's assume the above exact matches are preferred.
+            # If you need regex search:
+            # product = await Product.find_one({\"name.en\": {\"$regex\": f\"^{re.escape(name)}$\", \"$options\": \"i\"}, \"active\": True})
+            # if product:
+            # return product
+
+            # If no product is found by any method, raise NotFound
+            raise NotFound(f"Product with name \'{name}\' not found")
+        except NotFound: # Re-raise NotFound to be caught by the router
+            raise
+        except Exception as e:
+            print(f"Error in get_product_by_name: {str(e)}")
+            # For other exceptions, you might want to log and return None or raise a different error
+            # For now, let's conform to raising NotFound or letting other errors propagate if they are unexpected
+            raise NotFound(f"An error occurred while searching for product \'{name}\'")
+
+
+    async def get_product_by_id(self, product_id: PydanticObjectId) -> Optional[Product]:
         """
         Retrieves a product by its ID.
 
         Args:
-            product_id (PydanticObjectId): The ID of the product to retrieve.
+            product_id (PydanticObjectId): The ID of the product.
 
         Returns:
-            Product: The product with the given ID, or None if not found.
+            Optional[Product]: The product if found, otherwise None.
         """
-        return await Product.find_one(Product.id == product_id)
+        try:
+            product = await Product.get(product_id)
+            if product and product.active: # Ensure product is active
+                return product
+            if not product:
+                raise NotFound(f"Product with id \'{product_id}\' not found")
+            if not product.active:
+                raise NotFound(f"Product with id \'{product_id}\' is not active")
+            return None # Should be covered by raises
+        except Exception as e: # Catch potential Beanie errors if ID format is wrong, etc.
+            print(f"Error in get_product_by_id: {str(e)}")
+            raise NotFound(f"Product with id \'{product_id}\' not found or error occurred.")
+
+    async def get_product_by_slug(self, product_slug: str) -> Optional[Product]:
+        """
+        Retrieves a product by its slug.
+
+        Args:
+            product_slug (str): The slug of the product.
+
+        Returns:
+            Optional[Product]: The product if found, otherwise None.
+        """
+        try:
+            product = await Product.find_one({"slug": product_slug, "active": True})
+            if not product:
+                raise NotFound(f"Product with slug \'{product_slug}\' not found")
+            return product
+        except NotFound: # Re-raise NotFound
+            raise
+        except Exception as e:
+            print(f"Error in get_product_by_slug: {str(e)}")
+            raise NotFound(f"An error occurred while searching for product slug \'{product_slug}\'")
 
     async def delete_product(self, product_id: PydanticObjectId):
         """
