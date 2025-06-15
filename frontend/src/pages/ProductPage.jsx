@@ -41,24 +41,7 @@ const ProductPage = () => {
 
   const displayCategory = product.category || "";
   const formattedPrice = product.price ? product.price.toFixed(2) : "0.00";
-
-  // Extract search terms from product name for related products (currently unused in this logic)
-  const extractSearchTerm = useCallback((productName) => {
-    if (!productName) return "";
-    
-    const name = typeof productName === "object" 
-      ? (productName[lang] || productName.en || "") 
-      : productName;
-      
-    // Get the first meaningful word (3+ characters)
-    const words = name.split(/\s+/);
-    for (const word of words) {
-      if (word.length >= 3 && !["the", "and", "for", "with", "של"].includes(word.toLowerCase())) {
-        return word;
-      }
-    }
-    return name.split(/\s+/)[0] || "";
-  }, [lang]);
+  // Removed unused extractSearchTerm function
 
   // Fetch related products
   const fetchRelatedProducts = useCallback(async () => {
@@ -146,7 +129,7 @@ const ProductPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [productIdentifier, lang, notify, t, setProduct, setLoading, setErrorMsg]); // Changed productName to productIdentifier
+  }, [productIdentifier, notify, t, setProduct, setLoading, setErrorMsg]); // Removed lang as it's not used in callback
 
   // Effect to fetch main product data when 'productIdentifier' (from URL) or 'lang' changes
   useEffect(() => {
@@ -166,7 +149,7 @@ const ProductPage = () => {
     if (product && product.id) { // Ensure product is loaded
       fetchRelatedProducts();
     }
-  }, [product.id, product.category, fetchRelatedProducts]); // Dependencies
+  }, [product, fetchRelatedProducts]); // Added product to dependencies
 
   // Add structured data when product data changes
   useEffect(() => {

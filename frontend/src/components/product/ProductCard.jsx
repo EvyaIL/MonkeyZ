@@ -1,8 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react"; // Added useEffect
-import placeholderImage from '../../assets/placeholder-product.svg';
 import OptimizedImage from '../OptimizedImage';
 
 const ProductCard = ({ product, otherStyle }) => {

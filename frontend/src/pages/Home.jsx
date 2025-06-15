@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import ProductCard from "../components/product/ProductCard";
 import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
@@ -11,11 +11,40 @@ import imagePreloadService from "../lib/imagePreloadService";
 const Home = () => {
   const [bestSellers, setBestSellers] = useState([]);
   const [homeProducts, setHomeProducts] = useState([]);
-  const [loadingBest, setLoadingBest] = useState(true);
-  const [loadingHome, setLoadingHome] = useState(true);
+  const [loadingBest, setLoadingBest] = useState(true);  const [loadingHome, setLoadingHome] = useState(true);
   const [errorBest, setErrorBest] = useState("");
   const [errorHome, setErrorHome] = useState("");
   const { t } = useTranslation();
+
+  const getBestSellers = useCallback(async () => {
+    setLoadingBest(true);
+    setErrorBest("");
+    const { data, error } = await apiService.get("/product/best-sellers");
+    if (error) {
+      console.error("Failed to load best sellers:", error);
+      setErrorBest(t("failed_to_load_best_sellers"));
+    } else if (!data || !Array.isArray(data) || data.length === 0) {
+      setErrorBest(t("no_best_sellers_found"));
+    } else {
+      setBestSellers(data);
+    }
+    setLoadingBest(false);
+  }, [t]);
+
+  const getHomeProducts = useCallback(async () => {
+    setLoadingHome(true);
+    setErrorHome("");
+    const { data, error } = await apiService.get("/product/homepage", { limit: 8 });
+    if (error) {
+      console.error("Failed to load home products:", error);
+      setErrorHome(t("failed_to_load_products"));
+    } else if (!data || !Array.isArray(data) || data.length === 0) {
+      setErrorHome(t("no_products_found"));
+    } else {
+      setHomeProducts(data);
+    }
+    setLoadingHome(false);
+  }, [t]);
 
   useEffect(() => {
     getBestSellers();
@@ -43,7 +72,7 @@ const Home = () => {
       const script = document.getElementById('structured-data');
       if (script) script.remove();
     };
-  }, []);
+  }, [getBestSellers, getHomeProducts]); // Added missing dependencies
 
   // Preload images when products are loaded
   useEffect(() => {
@@ -63,38 +92,9 @@ const Home = () => {
       imagePreloadService.preloadImages(imageUrls, 'high');
     }
   }, [homeProducts]);
-
   useEffect(() => {
     document.title = t("home");
-  }, [t]);  const getBestSellers = async () => {
-    setLoadingBest(true);
-    setErrorBest("");
-    const { data, error } = await apiService.get("/product/best-sellers");
-    if (error) {
-      console.error("Failed to load best sellers:", error);
-      setErrorBest(t("failed_to_load_best_sellers"));
-    } else if (!data || !Array.isArray(data) || data.length === 0) {
-      setErrorBest(t("no_best_sellers_found"));
-    } else {
-      setBestSellers(data);
-    }
-    setLoadingBest(false);
-  };
-
-  const getHomeProducts = async () => {
-    setLoadingHome(true);
-    setErrorHome("");
-    const { data, error } = await apiService.get("/product/homepage", { limit: 8 });
-    if (error) {
-      console.error("Failed to load home products:", error);
-      setErrorHome(t("failed_to_load_products"));
-    } else if (!data || !Array.isArray(data) || data.length === 0) {
-      setErrorHome(t("no_products_found"));
-    } else {
-      setHomeProducts(data);
-    }
-    setLoadingHome(false);
-  };
+  }, [t]);
 
   return (
     <>

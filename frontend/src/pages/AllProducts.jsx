@@ -190,7 +190,7 @@ const AllProducts = () => {
     ];
   };
 
-  const getDemoCategories = () => ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
+  // Removed unused getDemoCategories function
 
   return (
     <>

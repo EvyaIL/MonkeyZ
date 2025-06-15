@@ -17,10 +17,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     total: 0, // final total: original_total - discount_amount
     notes: '',
   });
-
   const [users, /* setUsers */] = useState([]); // Commented out setUsers
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [coupons, setCoupons] = useState([]);
+  // Removed unused: loadingUsers, setLoadingUsers, coupons, setCoupons
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
   

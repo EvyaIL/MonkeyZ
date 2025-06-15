@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import placeholderImage from '../assets/placeholder-product.svg';
 
 // Image cache to store loaded images

@@ -66,15 +66,14 @@ function AdminCoupons() {
         active: coupon.active !== undefined ? coupon.active : true
       }));
       
-      setCoupons(formattedCoupons);
-    } catch (error) {
-      console.error('Error fetching coupons:', error);
+      setCoupons(formattedCoupons);    } catch (error) {      console.error('Error fetching coupons:', error);
       setError(`Failed to load coupons: ${error.message || 'Unknown error'}`);
       setCoupons([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: isLoading is intentionally excluded to avoid infinite re-renders
 
   useEffect(() => {
     fetchCoupons();

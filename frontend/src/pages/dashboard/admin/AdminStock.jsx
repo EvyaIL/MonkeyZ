@@ -451,11 +451,11 @@ function AdminStock() {
                           </IconButton>
                         </Tooltip>
                       </Box>
-                    </TableCell>
-                  </TableRow>
+                    </TableCell>                  </TableRow>
                 );
               })
-            )}          </TableBody>
+            )}
+          </TableBody>
           <TableFooter>
             <TableRow sx={{ '& > *': { fontWeight: 'bold', backgroundColor: 'action.hover' } }}>
               <TableCell>Overall Totals / Average</TableCell>

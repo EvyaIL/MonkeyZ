@@ -11,7 +11,6 @@ import {
   ShoppingCartIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
-  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 export default function DashboardLayout({ children, isAdmin }) {  const location = useLocation();

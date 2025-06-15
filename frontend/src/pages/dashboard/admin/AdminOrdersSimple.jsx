@@ -81,10 +81,8 @@ function AdminOrdersSimple() {
   const [analyticsDetailTitle, setAnalyticsDetailTitle] = useState('');
   const [analyticsDetailData, setAnalyticsDetailData] = useState(null);
   const [analyticsDetailType, setAnalyticsDetailType] = useState(''); // 'customers' or 'products'
-
   // State for revenue breakdown modal (placeholder for now)
-  const [showRevenueBreakdownModal, setShowRevenueBreakdownModal] = useState(false);
-  const [revenueBreakdownType, setRevenueBreakdownType] = useState(''); // 'original' or 'final'
+  // Removed unused: showRevenueBreakdownModal, revenueBreakdownType, handleCloseRevenueBreakdownModal
 
 
   const handleOpenAnalyticsDetailModal = (title, data, type) => {
@@ -98,25 +96,15 @@ function AdminOrdersSimple() {
     setShowAnalyticsDetailModal(false);
     setAnalyticsDetailTitle('');
     setAnalyticsDetailData(null);
-    setAnalyticsDetailType('');
-  };
-
+    setAnalyticsDetailType('');  };
+  
   const handleOpenRevenueBreakdownModal = (type) => {
-    setRevenueBreakdownType(type);
-    setShowRevenueBreakdownModal(true);
     // For now, using notify as a placeholder for the actual modal.
     // The modal UI can be implemented in a subsequent step.
     notify({ 
       message: t('admin.analytics.revenueBreakdownClicked', `Revenue breakdown for ${type} revenue clicked. Details view pending.`), 
       type: 'info' 
     });
-    // Example: You might want to close it automatically if it's just a notification
-    // setTimeout(() => setShowRevenueBreakdownModal(false), 3000); 
-  };
-
-  const handleCloseRevenueBreakdownModal = () => {
-    setShowRevenueBreakdownModal(false);
-    setRevenueBreakdownType('');
   };
 
   const handleOpenStatusBreakdownModal = () => {
@@ -125,6 +113,39 @@ function AdminOrdersSimple() {
 
   const handleCloseStatusBreakdownModal = () => {
     setShowStatusBreakdownModal(false);
+  };
+  const handleOrderStatusUpdate = async (orderId, newStatus, note = '') => {
+    try {
+      setLoadingOrders(true);
+      const { error } = await apiService.put(`/orders/${orderId}/status`, {
+        status: newStatus,
+        note: note
+      });
+      
+      if (error) {
+        notify({
+          message: error.message || 'Failed to update order status',
+          type: 'error'
+        });
+        return;
+      }
+      
+      // Refresh orders after successful update
+      await refreshOrders();
+      
+      notify({
+        message: `Order status updated to ${newStatus}`,
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      notify({
+        message: 'Failed to update order status',
+        type: 'error'
+      });
+    } finally {
+      setLoadingOrders(false);
+    }
   };
 
   const calculateAnalytics = useCallback((ordersData) => {
@@ -320,25 +341,6 @@ function AdminOrdersSimple() {
       setLoadingOrders(false); // Ensure loading is stopped
     }
   };
-    const handleOrderStatusUpdate = async (orderId, newStatus, note = null) => {
-    setLoadingOrders(true);
-    try {
-      const payload = { status: newStatus };
-      if (note) payload.note = note;
-      await apiService.put(`/api/orders/${orderId}/status`, payload);
-      await refreshOrders();
-      if (selectedOrderDetails && (selectedOrderDetails.id === orderId || selectedOrderDetails._id === orderId)) {
-        setSelectedOrderDetails(prev => prev ? { ...prev, status: newStatus } : null);
-      }
-      notify({ message: t('admin.orders.statusUpdatedSuccess', 'Order status updated!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      const errorMessage = error.response?.data?.detail || t('admin.orders.statusUpdateError', 'Failed to update order status.');
-      notify({ message: errorMessage, type: 'error', icon: <ErrorOutlineIcon /> });
-    }
-    setLoadingOrders(false);
-  };
-
 
   const filteredOrders = orders.filter(order => 
     orderStatusFilter === 'all' ? true : order.status === orderStatusFilter
@@ -537,7 +539,7 @@ function AdminOrdersSimple() {
       {/* Orders Table */}
       {!loadingOrders && filteredOrders.length > 0 && (
         <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
-          <Table sx={{ minWidth: 750 }} aria-label="simple table"> {/* Increased minWidth */}
+          <Table sx={{ minWidth: 750 }} aria-label="simple table">
             <TableHead sx={{ backgroundColor: (theme) => theme.palette.mode === 'dark' ? theme.palette.grey[700] : theme.palette.grey[200]}}>
               <TableRow>
                 <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderId', 'Order ID')}</TableCell>

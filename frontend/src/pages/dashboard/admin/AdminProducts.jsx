@@ -51,16 +51,11 @@ import CategoryIcon from '@mui/icons-material/Category'; // For Category icon
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'; // For error messages
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For success messages
 
-export default function AdminProducts() {
-  const { t } = useTranslation();
+export default function AdminProducts() {  const { t } = useTranslation();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [productError, setProductError] = useState(null);
-  const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
