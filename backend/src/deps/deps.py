@@ -5,6 +5,7 @@ from src.mongodb.users_collection import UserCollection
 from src.mongodb.keys_collection import KeysCollection
 from src.controller.product_controller import ProductsController
 from src.mongodb.products_collection import ProductsCollection # Use ProductsCollection which has get_product_by_name
+from src.mongodb.product_collection import ProductCollection # Add ProductCollection for coupon methods
 from src.controller.key_metrics_controller import KeyMetricsController
 from src.mongodb.orders_collection import OrdersCollection
 
@@ -18,6 +19,11 @@ def get_product_collection_dependency() -> ProductsCollection:
     # Ensure it's initialized if ProductsCollection has an async init method that needs calling here.
     # However, singletons usually handle their init. If direct init is needed:
     # await product_collection.initialize() # This would make the dependency async
+    return product_collection
+
+# This function provides ProductCollection (which has coupon methods)
+def get_product_collection_with_coupons_dependency() -> ProductCollection:
+    product_collection = ProductCollection()
     return product_collection
 
 def get_keys_collection_dependency() -> KeysCollection:
@@ -43,8 +49,8 @@ def get_order_collection_dependency() -> OrdersCollection:
 def get_user_controller_dependency() -> UserController:
     keys_collection = get_keys_collection_dependency()
     user_collection = get_user_collection_dependency()
-    # UserController should use the single source of truth for products
-    shop_product_collection = get_product_collection_dependency() 
+    # UserController should use ProductCollection which has coupon methods
+    shop_product_collection = get_product_collection_with_coupons_dependency() 
     user_controller = UserController(keys_collection, user_collection, shop_product_collection, shop_product_collection)
     return user_controller
     

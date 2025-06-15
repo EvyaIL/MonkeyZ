@@ -156,10 +156,9 @@ const ProductShowcase = ({ products, title }) => {
   };
 
   // Loading state
-  if (!isLoaded) {
-    return (
+  if (!isLoaded) {    return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
-        <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
+        <h2 className="text-center text-primary dark:text-accent font-bold text-3xl mb-6">
           {title}
         </h2>
         <div className="flex justify-center items-center h-[200px]">
@@ -168,12 +167,11 @@ const ProductShowcase = ({ products, title }) => {
       </div>
     );
   }
-
   // No products state
   if (validProducts.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
-        <h2 className="text-center text-primary dark:text-accent font-bold text-2xl mb-6">
+        <h2 className="text-center text-primary dark:text-accent font-bold text-3xl mb-6">
           {title}
         </h2>
         <div className="py-8 flex flex-col items-center">
@@ -201,9 +199,7 @@ const ProductShowcase = ({ products, title }) => {
       onKeyDown={handleKeyDown}
       tabIndex="0"
       role="region"
-      aria-label={title}
-    >
-      <h2 className={`text-center text-accent font-bold text-2xl mb-6 ${lang === "he" ? "text-right" : "text-left"}`}>
+      aria-label={title}    >      <h2 className="text-center text-accent font-bold text-3xl mb-6">
         {title}
       </h2>
       <>

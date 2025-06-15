@@ -285,22 +285,21 @@ const Navbar = () => {
             )}
           </div>
         </div>
-      )}
-
-      {/* Shopping Cart Drawer */}
+      )}      {/* Shopping Cart Drawer */}
       <div
         ref={cartRef}
-        className={`fixed top-0 right-0 h-full bg-white dark:bg-gray-800 shadow-lg border-l border-gray-200 dark:border-gray-700 p-6 overflow-y-auto overflow-x-hidden rounded-l-md w-full max-w-md ${
-          openCart ? "translate-x-0" : "translate-x-full"
+        className={`fixed top-0 ${i18n.language === "he" ? "left-0 border-r rounded-r-md" : "right-0 border-l rounded-l-md"} h-full bg-white dark:bg-gray-800 shadow-lg border-gray-200 dark:border-gray-700 p-6 overflow-y-auto overflow-x-hidden w-full max-w-md ${
+          openCart ? "translate-x-0" : i18n.language === "he" ? "-translate-x-full" : "translate-x-full"
         } transition-transform duration-300`}
         aria-label={t("cart")}
         aria-hidden={!openCart}
         tabIndex={openCart ? 0 : -1}
+        dir={i18n.language === "he" ? "rtl" : "ltr"}
       >
         {/* Cart Header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className={`flex justify-between items-center mb-6 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>
           <h2 className="text-xl font-bold text-primary dark:text-white">{t("cart")}</h2>          <button
-            className="text-gray-400 hover:text-white p-1"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 transition-colors"
             onClick={() => {
               setOpenCart(false);
               setMobileMenuOpen(false);
@@ -333,41 +332,67 @@ const Navbar = () => {
         ) : (
           <div className="space-y-4 flex flex-col h-[calc(100%-120px)]">
             {/* Cart Items List */}
-            <div className="flex-grow overflow-y-auto space-y-4 pr-2">
-              {Object.values(cartItems).map((item) => (
+            <div className="flex-grow overflow-y-auto space-y-4 pr-2">              {Object.values(cartItems).map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between border-b border-gray-700 pb-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={item.image} 
-                      alt={item.name} 
-                      className="w-16 h-16 object-cover rounded"
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/100?text=Product";
-                      }}
-                    />
-                    <div>
-                      <h3 className="text-white font-medium">{typeof item.name === "object" ? (item.name[i18n.language] || item.name.en) : item.name}</h3>
-                      <p className="text-gray-400 text-sm">
+                  className={`flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-4 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}
+                >                  <div className={`flex items-center gap-3 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>                    <div className="relative w-16 h-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 overflow-hidden">
+                      <img 
+                        src={
+                          item.image || 
+                          item.images?.[0] || 
+                          (typeof item.images === "string" ? item.images : null) ||
+                          "/placeholder-product.svg"
+                        }
+                        alt={typeof item.name === "object" ? (item.name[i18n.language] || item.name.en) : item.name} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          console.log("Cart image failed to load. Item data:", {
+                            id: item.id,
+                            image: item.image,
+                            images: item.images,
+                            name: item.name,
+                            fullItem: item
+                          });
+                          
+                          // Try different image sources
+                          if (e.target.src.includes("placeholder-product.svg")) {
+                            // Already tried placeholder, show a colored background instead
+                            e.target.style.display = "none";
+                            e.target.parentElement.innerHTML = `
+                              <div class="w-full h-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">
+                                ${typeof item.name === "object" ? (item.name[i18n.language] || item.name.en || "Product").charAt(0) : (item.name || "P").charAt(0)}
+                              </div>
+                            `;
+                          } else {
+                            e.target.src = "/placeholder-product.svg";
+                          }
+                        }}
+                        onLoad={(e) => {
+                          console.log("Cart image loaded successfully:", e.target.src);
+                        }}
+                      />
+                    </div>
+                    <div className={i18n.language === "he" ? "text-right" : "text-left"}>
+                      <h3 className="text-gray-800 dark:text-white font-medium">{typeof item.name === "object" ? (item.name[i18n.language] || item.name.en) : item.name}</h3>
+                      <p className="text-gray-600 dark:text-gray-400 text-sm">
                         ₪{item.price.toFixed(2)} × {item.count}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center border border-gray-700 rounded">
+                  <div className={`flex items-center gap-2 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>
+                    <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded">
                       <button
-                        className="px-2 py-1 text-white hover:bg-gray-700"
+                        className="px-2 py-1 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         onClick={() => removeItemFromCart(item.id, 1, item)}
                         aria-label="Decrease quantity"
                       >
                         -
                       </button>
-                      <span className="px-3 text-white">{item.count}</span>
+                      <span className="px-3 text-gray-800 dark:text-white min-w-[2rem] text-center">{item.count}</span>
                       <button
-                        className="px-2 py-1 text-white hover:bg-gray-700"
+                        className="px-2 py-1 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                         onClick={() => addItemToCart(item.id, 1, item)}
                         aria-label="Increase quantity"
                       >

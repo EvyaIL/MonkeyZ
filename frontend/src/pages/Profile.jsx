@@ -8,7 +8,9 @@ import { apiService } from "../lib/apiService";
 const Profile = () => {
   const { user, logout, isLoading } = useGlobalProvider();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language || "he";
+  const isRTL = lang === "he";
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
 
@@ -58,59 +60,51 @@ const Profile = () => {
       </main>
     );
   }
-
   return (
-    <main className="min-h-[calc(100vh-120px)] py-10 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-120px)] py-10 px-4 sm:px-6 lg:px-8" dir={isRTL ? "rtl" : "ltr"}>
       <div className="max-w-5xl mx-auto space-y-10">
         {/* Profile Details Section */}
-        <section className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="bg-accent rounded-full p-3 text-white mr-0 sm:mr-5 mb-4 sm:mb-0">
+        <section className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">          <div className={`flex flex-col sm:flex-row items-start sm:items-center mb-8 pb-6 border-b border-gray-200 dark:border-gray-700 ${isRTL ? "" : ""}`}>
+            <div className={`bg-accent rounded-full p-3 text-white ${isRTL ? "ml-0 sm:ml-5 mr-0 sm:mr-0 order-2 sm:order-1" : "mr-0 sm:mr-5"} mb-4 sm:mb-0`}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-primary dark:text-white">
+            </div>            <div className={`${isRTL ? "text-right w-full order-1 sm:order-2" : "text-left"}`}>
+              <h1 className={`text-3xl sm:text-4xl font-bold text-primary dark:text-white ${isRTL ? "text-right" : "text-left"}`}>
                 {t("my_account", "My Account")}
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">{t("manage_profile_info", "View and manage your profile information.")}</p>
+              <p className={`text-gray-500 dark:text-gray-400 mt-1 ${isRTL ? "text-right" : "text-left"}`}>{t("manage_profile_info", "View and manage your profile information.")}</p>
             </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 text-gray-700 dark:text-gray-300 mb-8">
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <span className="font-medium text-gray-500 dark:text-gray-400 block mb-1 text-sm">{t("username_label", "Username:")}</span>
-              <p className="text-lg font-semibold text-gray-800 dark:text-white">{user.username}</p>
+          </div>          <div className={`grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 text-gray-700 dark:text-gray-300 mb-8 ${isRTL ? "text-right" : "text-left"}`}>
+            <div className={`p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg ${isRTL ? "text-right" : "text-left"}`}>
+              <span className={`font-medium text-gray-500 dark:text-gray-400 block mb-1 text-sm ${isRTL ? "text-right" : "text-left"}`}>{t("username_label", "Username:")}</span>
+              <p className={`text-lg font-semibold text-gray-800 dark:text-white ${isRTL ? "text-right" : "text-left"}`}>{user.username}</p>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-              <span className="font-medium text-gray-500 dark:text-gray-400 block mb-1 text-sm">{t("email_label", "Email:")}</span>
-              <p className="text-lg font-semibold text-gray-800 dark:text-white">{user.email}</p>
+            <div className={`p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg ${isRTL ? "text-right" : "text-left"}`}>
+              <span className={`font-medium text-gray-500 dark:text-gray-400 block mb-1 text-sm ${isRTL ? "text-right" : "text-left"}`}>{t("email_label", "Email:")}</span>
+              <p className={`text-lg font-semibold text-gray-800 dark:text-white ${isRTL ? "text-right" : "text-left"}`}>{user.email}</p>
             </div>
             {user.phone_number && (
-              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg md:col-span-2">
-                <span className="font-medium text-gray-500 dark:text-gray-400 block mb-1 text-sm">{t("phone_label", "Phone:")}</span>
-                <p className="text-lg font-semibold text-gray-800 dark:text-white">{user.phone_number}</p>
+              <div className={`p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg md:col-span-2 ${isRTL ? "text-right" : "text-left"}`}>
+                <span className={`font-medium text-gray-500 dark:text-gray-400 block mb-1 text-sm ${isRTL ? "text-right" : "text-left"}`}>{t("phone_label", "Phone:")}</span>
+                <p className={`text-lg font-semibold text-gray-800 dark:text-white ${isRTL ? "text-right" : "text-left"}`}>{user.phone_number}</p>
               </div>
             )}
-          </div>
-          <div className="mt-10 flex justify-end">
+          </div>          <div className={`mt-10 flex ${isRTL ? "justify-start" : "justify-end"}`}>
             <PrimaryButton title={t("logout", "Logout")} onClick={logout} otherStyle="px-8 py-3 text-base" />
           </div>
-        </section>
-
-        {/* Past Orders Section */}
+        </section>        {/* Past Orders Section */}
         <section className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center mb-8 pb-6 border-b border-gray-200 dark:border-gray-700">
-             <div className="bg-accent rounded-full p-3 text-white mr-0 sm:mr-5 mb-4 sm:mb-0">
+          <div className={`flex flex-col sm:flex-row items-start sm:items-center mb-8 pb-6 border-b border-gray-200 dark:border-gray-700 ${isRTL ? "sm:flex-row-reverse" : ""}`}>
+             <div className={`bg-accent rounded-full p-3 text-white ${isRTL ? "ml-0 sm:ml-5 mr-0 sm:mr-0" : "mr-0 sm:mr-5"} mb-4 sm:mb-0`}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
-            </div>
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-primary dark:text-white">
+            </div>            <div className={`${isRTL ? "text-right w-full" : "text-left"}`}>
+              <h2 className={`text-3xl sm:text-4xl font-bold text-primary dark:text-white ${isRTL ? "text-right" : "text-left"}`}>
                 {t("past_orders", "Past Orders")}
               </h2>
-              <p className="text-gray-500 dark:text-gray-400 mt-1">{t("view_order_history", "Review your previous purchases.")}</p>
+              <p className={`text-gray-500 dark:text-gray-400 mt-1 ${isRTL ? "text-right" : "text-left"}`}>{t("view_order_history", "Review your previous purchases.")}</p>
             </div>
           </div>
           {ordersLoading ? (
@@ -121,28 +115,27 @@ const Profile = () => {
               </svg>
               <p className="text-lg font-medium">{t("loading_orders", "Loading your orders...")}</p>
             </div>
-          ) : orders.length > 0 ? (
-            <div className="space-y-6">
+          ) : orders.length > 0 ? (            <div className="space-y-6">
               {orders.map((order) => (
                 <div key={order.id || order._id} className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl hover:shadow-lg transition-all duration-300 ease-in-out bg-gray-50 dark:bg-gray-700/30 hover:bg-white dark:hover:bg-gray-700/60">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
-                    <h3 className="font-semibold text-lg text-accent dark:text-sky-400 mb-2 sm:mb-0">{t("order_id_label", "Order ID:")} {order.id || order._id}</h3>
+                  <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 ${isRTL ? "sm:flex-row-reverse" : ""}`}>
+                    <h3 className={`font-semibold text-lg text-accent dark:text-sky-400 mb-2 sm:mb-0 ${isRTL ? "text-right" : "text-left"}`}>{t("order_id_label", "Order ID:")} {order.id || order._id}</h3>
                     <span className={`px-4 py-1.5 text-xs font-semibold rounded-full ${order.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : order.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' : order.status === 'Shipped' ? 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100' : 'bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200'}`}>
                       {t(order.status?.toLowerCase() || 'status_unknown', order.status || 'Unknown Status')}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-gray-400 ${isRTL ? "text-right" : "text-left"}`}>
                     <p><span className="font-medium">{t("order_date_label", "Date:")}</span> {new Date(order.createdAt || order.date).toLocaleDateString()}</p>
                     <p><span className="font-medium">{t("order_total_label", "Total:")}</span> ${order.total?.toFixed(2) || 'N/A'}</p> {/* Changed totalAmount to total */}
                   </div>
                   {/* Display Order Items */}
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t("order_items_label", "Items:")}</h4>
+                    <h4 className={`text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? "text-right" : "text-left"}`}>{t("order_items_label", "Items:")}</h4>
                     {order.items && order.items.length > 0 ? (
                       <ul className="space-y-2">
                         {order.items.map((item, index) => (
-                          <li key={index} className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
-                            <span>
+                          <li key={index} className={`flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 ${isRTL ? "flex-row-reverse" : ""}`}>
+                            <span className={isRTL ? "text-right" : "text-left"}>
                               {item.name} (x{item.quantity})
                             </span>
                             <span>${(item.price * item.quantity).toFixed(2)}</span>
@@ -150,20 +143,19 @@ const Profile = () => {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{t("no_items_in_order", "No items found in this order.")}</p>
+                      <p className={`text-sm text-gray-500 dark:text-gray-400 ${isRTL ? "text-right" : "text-left"}`}>{t("no_items_in_order", "No items found in this order.")}</p>
                     )}
                   </div>
                   {/* You could add a button/link here to view order details if you have a separate order details page */}
                   {/* e.g., <PrimaryButton title={t("view_details", "View Details")} onClick={() => navigate(`/order/${order.id}`)} otherStyle="mt-4 text-sm py-1.5 px-3" /> */}
                 </div>
               ))}
-            </div>
-          ) : (
+            </div>          ) : (
             <div className="text-center py-10">
               <svg className="mx-auto h-16 w-16 text-gray-400 dark:text-gray-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              <p className="text-lg text-gray-500 dark:text-gray-400 font-medium">
+              <p className={`text-lg text-gray-500 dark:text-gray-400 font-medium ${isRTL ? "text-center" : "text-center"}`}>
                 {t("no_orders_found", "You have no past orders.")}
               </p>
               <PrimaryButton title={t("shop_now_cta", "Shop Now")} onClick={() => navigate("/products")} otherStyle="mt-6 py-2.5 px-6" />
