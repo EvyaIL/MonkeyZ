@@ -455,8 +455,7 @@ function AdminStock() {
                   </TableRow>
                 );
               })
-            )}
-          </TableBody>
+            )}          </TableBody>
           <TableFooter>
             <TableRow sx={{ '& > *': { fontWeight: 'bold', backgroundColor: 'action.hover' } }}>
               <TableCell>Overall Totals / Average</TableCell>
@@ -476,8 +475,8 @@ function AdminStock() {
                   </Typography>
                 </Box>
               </TableCell>
-              <TableCell align="center">-</TableCell> {/* Placeholder for Status */}
-              <TableCell align="center">-</TableCell> {/* Placeholder for Actions */}
+              <TableCell align="center">-</TableCell>
+              <TableCell align="center">-</TableCell>
             </TableRow>
           </TableFooter>
         </Table>

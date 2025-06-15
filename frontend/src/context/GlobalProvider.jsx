@@ -115,23 +115,24 @@ const GlobalProvider = ({ children }) => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
   const checkToken = async (token) => {
     if (token) {
       apiService.setToken(token); // Ensure apiService has the token
       const { data, error } = await apiService.get("/user/me");
-      if (!error && data && data.user) { // Check if data.user is present
-        setUser(data.user); // Set user from LoginResponse
+      if (!error && data) { 
+        // Backend /user/me now returns SelfResponse directly (user object)
+        setUser(data); // Set user from the response data directly
         return;
       }
-      if (error) { // It's good practice to show error if the call fails
-        showError(error.message || "Failed to fetch user details.");
+      if (error) { 
+        // Only show error if it's not a 401 (unauthorized) - those are expected when token expires
+        if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+          showError(error.message || "Failed to fetch user details.");
+        }
       }
     }
-    // If no token, or if /user/me failed and didn't set user, then logout.
-    // However, if there was an error but data was somehow set, we might not want to logout immediately.
-    // For now, if we reach here means token is invalid or /user/me failed to provide user data.
-    if (!user) { // only logout if user wasn't set by a successful /user/me
+    // If no token, or if /user/me failed, then logout
+    if (!user) { 
         await logout();
     }
   };

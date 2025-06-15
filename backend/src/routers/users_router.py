@@ -72,11 +72,7 @@ async def get_all_users(user_controller:UserController = Depends(get_user_contro
    users = await user_controller.user_collection.get_all_users() 
    return users
 
-@users_router.get("/me" ,response_model=LoginResponse)
-async def get_current_user_(user_controller:UserController = Depends(get_user_controller_dependency), current_user:TokenData = Depends(get_current_user)):
-   user:UserResponse = await user_controller.get_user_by_token(current_user.username)
-   response = LoginResponse(access_token=current_user.access_token, user=user,token_type="Bearer")
-   return response
+# Removed duplicate /me endpoint - using the one below with SelfResponse
 
 class GoogleAuthRequest(BaseModel):
     credential: str
