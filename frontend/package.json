@@ -53,7 +53,7 @@
     "react-app-rewired": "^2.2.1"
   },
   "scripts": {
-    "start": "set PORT=3000 && react-scripts start",
+    "start": "node server.js",
     "start:prod": "node server.js",
     "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "prod": "serve -s build -l 3000",
