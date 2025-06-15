@@ -342,11 +342,11 @@ function AdminStock() {
       {/* Filters */}
       <Box mb={3}>
         <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Filter by Status</InputLabel>
-          <Select
+          <InputLabel>Filter by Status</InputLabel>          <Select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             label="Filter by Status"
+            displayEmpty
           >
             <MenuItem value="all">All Products</MenuItem>
             <MenuItem value="in-stock">In Stock</MenuItem>
@@ -378,7 +378,8 @@ function AdminStock() {
                     No stock items found.
                   </Typography>
                 </TableCell>
-              </TableRow>            ) : (
+              </TableRow>
+            ) : (
               filteredStockItems.map((item) => {
                 const usagePercentage = item.totalKeys > 0 ? (item.usedKeys / item.totalKeys) * 100 : 0;
                 return (
@@ -448,9 +449,9 @@ function AdminStock() {
                           >
                             <EditIcon /> {/* Changed icon */}
                           </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>                  </TableRow>
+                        </Tooltip>                      </Box>
+                    </TableCell>
+                  </TableRow>
                 );
               })
             )}

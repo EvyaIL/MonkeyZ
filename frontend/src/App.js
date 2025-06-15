@@ -8,6 +8,7 @@ import { initAnalytics } from "./lib/analytics";
 import ErrorBoundary from './components/ErrorBoundary';
 import { ThemeProvider, createTheme } from '@mui/material/styles'; // MUI imports
 import CssBaseline from '@mui/material/CssBaseline'; // MUI imports
+import { HelmetProvider } from 'react-helmet-async'; // Add HelmetProvider
 
 // Import ThemeToggle with require to troubleshoot potential import issues
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
@@ -104,14 +105,15 @@ const App = () => {
         <p className="mt-4 text-sm text-gray-500">Please check your environment variables or .env file.</p>
       </div>
     );
-  }
-  return (
+  }  return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <GlobalProvider>
-        <ErrorBoundary>
-          <MuiThemedAppStructure />
-        </ErrorBoundary>
-      </GlobalProvider>
+      <HelmetProvider>
+        <GlobalProvider>
+          <ErrorBoundary>
+            <MuiThemedAppStructure />
+          </ErrorBoundary>
+        </GlobalProvider>
+      </HelmetProvider>
     </GoogleOAuthProvider>
   );
 };
