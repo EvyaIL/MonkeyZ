@@ -93,14 +93,13 @@ const Profile = () => {
           </div>          <div className={`mt-10 flex ${isRTL ? "justify-start" : "justify-end"}`}>
             <PrimaryButton title={t("logout", "Logout")} onClick={logout} otherStyle="px-8 py-3 text-base" />
           </div>
-        </section>        {/* Past Orders Section */}
-        <section className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">
-          <div className={`flex flex-col sm:flex-row items-start sm:items-center mb-8 pb-6 border-b border-gray-200 dark:border-gray-700 ${isRTL ? "sm:flex-row-reverse" : ""}`}>
-             <div className={`bg-accent rounded-full p-3 text-white ${isRTL ? "ml-0 sm:ml-5 mr-0 sm:mr-0" : "mr-0 sm:mr-5"} mb-4 sm:mb-0`}>
+        </section>        {/* Past Orders Section */}        <section className="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-shadow duration-300 ease-in-out">
+          <div className={`flex flex-col sm:flex-row items-start sm:items-center mb-8 pb-6 border-b border-gray-200 dark:border-gray-700 ${isRTL ? "" : ""}`}>
+             <div className={`bg-accent rounded-full p-3 text-white ${isRTL ? "ml-0 sm:ml-5 mr-0 sm:mr-0 order-2 sm:order-1" : "mr-0 sm:mr-5"} mb-4 sm:mb-0`}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
-            </div>            <div className={`${isRTL ? "text-right w-full" : "text-left"}`}>
+            </div>            <div className={`${isRTL ? "text-right w-full order-1 sm:order-2" : "text-left"}`}>
               <h2 className={`text-3xl sm:text-4xl font-bold text-primary dark:text-white ${isRTL ? "text-right" : "text-left"}`}>
                 {t("past_orders", "Past Orders")}
               </h2>

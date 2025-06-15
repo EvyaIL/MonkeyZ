@@ -216,39 +216,22 @@ class KeyMetricsController:
             'expiredKeys': expired_keys, 
             'lowStockProducts': low_stock_products,
             'averageKeyUsageTime': average_key_usage_time_val,
-            'keyUsageByProduct': key_usage_by_product
-        }
+            'keyUsageByProduct': key_usage_by_product        }
         logger.info(f"KeyMetricsController: FINAL metrics from product.cdKeys being returned: {final_metrics_to_return}")
         return final_metrics_to_return
 
     async def get_key_metrics_diagnostic(self, current_user: dict) -> dict:
         """
-        Diagnostic version of get_key_metrics with direct prints for tracing execution and full metric calculation.
+        Get metrics about key usage and availability, sourcing keys from product.cdKeys.
         """
-        print("\\n[DIAGNOSTIC PRINT - KeyMetricsController] get_key_metrics_diagnostic CALLED.")
-        print("[DIAGNOSTIC PRINT - KeyMetricsController] Cache check SKIPPED. Attempting to calculate fresh metrics")
-
         products_for_metrics = []
         try:
-            print("[DIAGNOSTIC PRINT - KeyMetricsController] Attempting to call self.admin_product_collection.get_all_products()...")
             products_for_metrics = await self.admin_product_collection.get_all_products()
-            print(f"[DIAGNOSTIC PRINT - KeyMetricsController] Received {len(products_for_metrics)} products from get_all_products().")
             if not products_for_metrics:
-                print("[DIAGNOSTIC PRINT - KeyMetricsController] WARNING: get_all_products() returned an empty list or None.")
+                logger.warning("get_all_products() returned an empty list or None.")
         except Exception as e:
-            print(f"[DIAGNOSTIC PRINT - KeyMetricsController] ERROR calling get_all_products(): {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Error calling get_all_products(): {e}")
             products_for_metrics = []
-
-        if products_for_metrics:
-            product_names_for_print = [
-                p.name.get('en', 'Unknown') if isinstance(p.name, dict) else str(p.name) 
-                for p in products_for_metrics
-            ]
-            print(f"[DIAGNOSTIC PRINT - KeyMetricsController] Products to be processed for metrics ({len(products_for_metrics)}): {product_names_for_print}")
-        else:
-            print("[DIAGNOSTIC PRINT - KeyMetricsController] No products to process for metrics.")
 
         total_keys_overall = 0
         available_keys_overall = 0
@@ -257,8 +240,6 @@ class KeyMetricsController:
         low_stock_products_overall = 0
         key_usage_by_product_list = []
         usage_times_overall = [] # For average calculation
-
-        print(f"[DIAGNOSTIC PRINT - KeyMetricsController] Initialized overall counters: total={total_keys_overall}, available={available_keys_overall}, used={used_keys_overall}, low_stock={low_stock_products_overall}")
 
         for i, product in enumerate(products_for_metrics):
             product_id_str = str(product.id) if product.id else f"N/A_ID_IDX_{i}"
@@ -269,8 +250,6 @@ class KeyMetricsController:
                 product_name_str = str(product.name) if product.name else f'Unnamed Product IDX {i}'
             
             manages_cd_keys_attr = getattr(product, 'manages_cd_keys', False)
-            
-            print(f"  [DIAGNOSTIC PRINT - KeyMetricsController] Processing product #{i}: ID={product_id_str}, Name='{product_name_str}', ManagesCDKeys={manages_cd_keys_attr}, ImageUrl='{getattr(product, 'imageUrl', 'N/A')}'")
 
             product_total_keys = 0
             product_available_keys = 0
@@ -278,7 +257,6 @@ class KeyMetricsController:
 
             if manages_cd_keys_attr and hasattr(product, 'cdKeys') and product.cdKeys:
                 embedded_keys = product.cdKeys # Should be List[CDKey]
-                print(f"    [DIAGNOSTIC PRINT - KeyMetricsController] Product '{product_name_str}' (ID: {product_id_str}) has {len(embedded_keys)} embedded cdKeys.")
                 
                 if isinstance(embedded_keys, list):
                     product_total_keys = len(embedded_keys)
@@ -286,13 +264,6 @@ class KeyMetricsController:
                         # Assuming key_obj is an instance of CDKey model or a dict-like object
                         key_value_str = getattr(key_obj, 'key', 'N/A_KEY_VALUE')
                         is_used_attr = getattr(key_obj, 'isUsed', False) 
-                        
-                        # More detailed print for the key object itself if it's small
-                        key_obj_repr = str(key_obj)
-                        if len(key_obj_repr) > 150: # Avoid overly long prints
-                            key_obj_repr = key_obj_repr[:150] + "..."
-
-                        print(f"      [DIAGNOSTIC PRINT - KeyMetricsController] cdKey #{emb_key_idx}: Value='{key_value_str}', isUsed={is_used_attr}. Raw key_obj: {key_obj_repr}")
                         
                         if is_used_attr:
                             product_used_keys += 1
@@ -313,19 +284,9 @@ class KeyMetricsController:
                                         if time_diff_seconds >= 0:
                                             usage_times_overall.append(time_diff_seconds / 3600) # hours
                                         else:
-                                            print(f"        [DIAGNOSTIC PRINT - KeyMetricsController] WARNING: Key '{key_value_str}' (Product: {product_id_str}) has usedAt ({used_at_val}) before addedAt ({added_at_val}). Skipping for avg time.")
+                                            logger.warning(f"Key '{key_value_str}' (Product: {product_id_str}) has usedAt before addedAt. Skipping for avg time.")
                                 except Exception as e_date:
-                                    print(f"        [DIAGNOSTIC PRINT - KeyMetricsController] WARNING: Error parsing dates for key '{key_value_str}' (Product: {product_id_str}): {e_date}. AddedAt: {added_at_val}, UsedAt: {used_at_val}")
-                    
-                    print(f"    [DIAGNOSTIC PRINT - KeyMetricsController] Product '{product_name_str}' (ID: {product_id_str}) calculated counts: Total={product_total_keys}, Available={product_available_keys}, Used={product_used_keys}")
-                else:
-                    print(f"    [DIAGNOSTIC PRINT - KeyMetricsController] Product '{product_name_str}' (ID: {product_id_str}) - 'cdKeys' attribute is not a list (type: {type(embedded_keys)}). No keys processed from this attribute.")
-            else:
-                reason = []
-                if not manages_cd_keys_attr: reason.append("'manages_cd_keys' is False")
-                if not hasattr(product, 'cdKeys'): reason.append("'cdKeys' attribute missing")
-                elif not product.cdKeys: reason.append("'cdKeys' list is empty or None")
-                print(f"    [DIAGNOSTIC PRINT - KeyMetricsController] Product '{product_name_str}' (ID: {product_id_str}) - Not processing keys. Reasons: {', '.join(reason) if reason else 'Unknown (check product structure)'}.")
+                                    logger.warning(f"Error parsing dates for key '{key_value_str}' (Product: {product_id_str}): {e_date}")
 
             total_keys_overall += product_total_keys
             available_keys_overall += product_available_keys
@@ -337,7 +298,6 @@ class KeyMetricsController:
             
             if manages_cd_keys_attr and product_available_keys <= min_stock_threshold and product_total_keys > 0 : # Only count if it manages keys and has keys
                 low_stock_products_overall += 1
-                print(f"    [DIAGNOSTIC PRINT - KeyMetricsController] Product '{product_name_str}' (ID: {product_id_str}) is LOW STOCK (Available: {product_available_keys}, Threshold: {min_stock_threshold})")
             
             key_usage_by_product_list.append({
                 "productId": product_id_str,
@@ -347,14 +307,10 @@ class KeyMetricsController:
                 "usedKeys": product_used_keys
                 # Add other per-product stats if needed by frontend, e.g., status counts
             })
-            print(f"  [DIAGNOSTIC PRINT - KeyMetricsController] After product '{product_name_str}', aggregated overall counts: Total={total_keys_overall}, Available={available_keys_overall}, Used={used_keys_overall}, LowStockProducts={low_stock_products_overall}")
 
         average_key_usage_time_final = None
         if usage_times_overall:
             average_key_usage_time_final = sum(usage_times_overall) / len(usage_times_overall)
-            print(f"[DIAGNOSTIC PRINT - KeyMetricsController] Calculated average key usage time: {average_key_usage_time_final:.2f} hours from {len(usage_times_overall)} usage samples.")
-        else:
-            print("[DIAGNOSTIC PRINT - KeyMetricsController] No usage times recorded for average calculation (or all keys unused/invalid dates).")
 
         final_metrics = {
             "totalKeys": total_keys_overall,
@@ -365,9 +321,8 @@ class KeyMetricsController:
             "averageKeyUsageTime": average_key_usage_time_final,
             "keyUsageByProduct": key_usage_by_product_list
         }
-        # Pretty print the final metrics for easier reading in logs
-        import json
-        print(f"[DIAGNOSTIC PRINT - KeyMetricsController] FINAL metrics being returned:\n{json.dumps(final_metrics, indent=2)}")
+        
+        logger.info(f"Key metrics calculated: {total_keys_overall} total, {available_keys_overall} available, {used_keys_overall} used, {low_stock_products_overall} low stock products")
         return final_metrics
 
     # ... (other methods, if any)

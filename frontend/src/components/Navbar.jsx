@@ -339,6 +339,7 @@ const Navbar = () => {
                 >                  <div className={`flex items-center gap-3 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>                    <div className="relative w-16 h-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 overflow-hidden">
                       <img 
                         src={
+                          item.imageUrl || 
                           item.image || 
                           item.images?.[0] || 
                           (typeof item.images === "string" ? item.images : null) ||
@@ -347,29 +348,33 @@ const Navbar = () => {
                         alt={typeof item.name === "object" ? (item.name[i18n.language] || item.name.en) : item.name} 
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          console.log("Cart image failed to load. Item data:", {
-                            id: item.id,
-                            image: item.image,
-                            images: item.images,
-                            name: item.name,
-                            fullItem: item
-                          });
+                          // Try alternative image sources on error
+                          const currentSrc = e.target.src;
                           
-                          // Try different image sources
-                          if (e.target.src.includes("placeholder-product.svg")) {
+                          if (currentSrc.includes("placeholder-product.svg")) {
                             // Already tried placeholder, show a colored background instead
                             e.target.style.display = "none";
+                            const productInitial = typeof item.name === "object" ? 
+                              (item.name[i18n.language] || item.name.en || "Product").charAt(0) : 
+                              (item.name || "P").charAt(0);
                             e.target.parentElement.innerHTML = `
                               <div class="w-full h-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">
-                                ${typeof item.name === "object" ? (item.name[i18n.language] || item.name.en || "Product").charAt(0) : (item.name || "P").charAt(0)}
+                                ${productInitial}
                               </div>
                             `;
+                          } else if (item.image && !currentSrc.includes(item.image)) {
+                            // Try the 'image' field if we haven't tried it yet
+                            e.target.src = item.image;
+                          } else if (item.images?.[0] && !currentSrc.includes(item.images[0])) {
+                            // Try the first image from images array
+                            e.target.src = item.images[0];
                           } else {
+                            // Fallback to placeholder
                             e.target.src = "/placeholder-product.svg";
                           }
                         }}
-                        onLoad={(e) => {
-                          console.log("Cart image loaded successfully:", e.target.src);
+                        onLoad={() => {
+                          // Image loaded successfully, no need for console logging in production
                         }}
                       />
                     </div>

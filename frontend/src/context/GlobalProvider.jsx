@@ -163,14 +163,20 @@ const GlobalProvider = ({ children }) => {
    * @param {string|number} id
    * @param {number} count
    * @param {object} item
-   */
-  const addItemToCart = (id, count, item) => {
+   */  const addItemToCart = (id, count, item) => {
     setCartItems((prev) => {
       const newCart = { ...prev };
       if (id in newCart) {
         newCart[id].count += count;
       } else {
-        newCart[id] = { ...item, count: count };
+        // Ensure we have a consistent image field for cart display
+        const cartItem = { 
+          ...item, 
+          count: count,
+          // Prioritize imageUrl, then image for cart display
+          image: item.imageUrl || item.image || item.images?.[0] || null
+        };
+        newCart[id] = cartItem;
       }
       
       // Save cart to localStorage for persistence
