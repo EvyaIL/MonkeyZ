@@ -55,9 +55,20 @@ export default function AdminOrderCreate() {
         if (response.error) {
           throw new Error(response.error);
         }
-        setProducts(response.data || []);
+        const fetchedProducts = response.data || [];
+        console.log("[AdminOrderCreate] Fetched products from API:", fetchedProducts);
+        
+        const formattedProducts = fetchedProducts.map(p => ({
+          id: String(p.id), // Ensure ID is a string
+          name: typeof p.name === 'object' ? (p.name.en || p.name.he || 'Unnamed Product') : (p.name || 'Unnamed Product'),
+          price: p.price !== undefined && p.price !== null ? p.price : 0, // Default price to 0 if null/undefined
+          manages_cd_keys: p.manages_cd_keys 
+        }));
+        console.log("[AdminOrderCreate] Formatted products for dropdown:", formattedProducts);
+        setProducts(formattedProducts);
+
       } catch (err) {
-        console.error('Error loading products:', err);
+        console.error('[AdminOrderCreate] Error loading products:', err);
         setError('Failed to load products. Please refresh the page.');
       } finally {
         setLoading(false);
@@ -75,13 +86,13 @@ export default function AdminOrderCreate() {
     const newItems = [...order.items];
     
     if (field === 'productId' && value) {
-      // Find the selected product
       const selectedProduct = products.find(p => p.id === value);
       if (selectedProduct) {
         newItems[index] = {
           ...newItems[index],
           productId: value,
-          name: selectedProduct.name,
+          // Use the processed name for display
+          name: selectedProduct.name, 
           price: selectedProduct.price || 0
         };
       }
@@ -264,18 +275,24 @@ export default function AdminOrderCreate() {
                           <FormControl fullWidth>
                             <InputLabel>Product</InputLabel>
                             <Select
+                              labelId={`product-select-label-${index}`}
                               value={item.productId}
                               onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
-                              label="Product"
+                              fullWidth
+                              size="small"
                             >
-                              <MenuItem value="">
-                                <em>Select a product</em>
+                              <MenuItem value="" disabled>
+                                -- Select Product --
                               </MenuItem>
-                              {products.map((product) => (
-                                <MenuItem key={product.id} value={product.id}>
-                                  {product.name}
-                                </MenuItem>
-                              ))}
+                              {products.map((product, prodIndex) => {
+                                // Log each product being mapped to a MenuItem
+                                console.log(`[AdminOrderCreate] Rendering MenuItem ${prodIndex}:`, product);
+                                return (
+                                  <MenuItem key={product.id || `product-${prodIndex}`} value={product.id}>
+                                    {`ID: ${product.id} | Name: ${product.name} | Price: ${product.price}`}
+                                  </MenuItem>
+                                );
+                              })}
                             </Select>
                           </FormControl>
                         </TableCell>

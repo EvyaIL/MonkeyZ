@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
 from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
+from datetime import datetime, timedelta # Added datetime
+from bson.objectid import ObjectId # Added ObjectId
+from beanie import PydanticObjectId # Added PydanticObjectId for Beanie
 
 from src.models.user.user import Role
 from src.deps.deps import (
@@ -13,16 +16,15 @@ from src.deps.deps import (
 )
 from src.mongodb.product_collection import ProductCollection
 from src.controller.key_controller import KeyController
-from src.lib.token_handler import get_current_user
-from src.models.token.token import TokenData
-from src.models.user.user_exception import UserException
-from datetime import datetime, timedelta
-from bson.objectid import ObjectId
-from beanie import PydanticObjectId
+from src.lib.token_handler import get_current_user # Added get_current_user
+from src.models.token.token import TokenData # Added TokenData
+from src.models.user.user_exception import UserException # Added UserException
 
-from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest
+from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest, AddKeysRequest
 from src.models.admin.analytics import AdminAnalytics, DailySale
 from src.models.products.products_exception import NotFound, NotValid
+from ..mongodb.mongodb import MongoDb 
+from .orders import retry_failed_orders_internal
 
 class ProductBase(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -61,7 +63,7 @@ class CouponBase(BaseModel):
         "populate_by_name": True
     }
     
-    @field_validator('discountValue') # Changed from @validator to @field_validator
+    @field_validator('discountValue')
     def validate_discount(cls, v, values, **kwargs):
         if v is None:
             raise ValueError('discountValue is required')
@@ -157,7 +159,11 @@ class ProductKeysRequest(BaseModel):
 class CDKeysAddRequest(BaseModel):
     keys: List[CDKey] # Expecting a list of CDKey objects
 
-admin_router = APIRouter(prefix="/admin", tags=["admin"])
+admin_router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+)
+mongo_db_instance = MongoDb()
 
 async def verify_admin(user_controller: UserController, current_user: TokenData):
     """Verify that the current user has admin privileges."""
@@ -177,61 +183,89 @@ async def get_products(
 ):
     await verify_admin(user_controller, current_user)
     try:
-        # Get real products from the shop.Product collection
-        products = await user_controller.product_collection.get_all_products() # Changed from admin_product_collection
-          # Convert backend model to frontend format for each product
+        products_from_db = await user_controller.product_collection.get_all_products()
         result = []
-        for product in products:
-            try:                # Handle both dict and document objects
-                product_dict = product.dict() if hasattr(product, 'dict') else (
-                    product.model_dump() if hasattr(product, 'model_dump') else product
-                )
+        for p_doc in products_from_db:
+            p_data = {} # Initialize p_data to ensure it's defined in case of early continue
+            try:
+                # Convert Beanie doc to dict, excluding fields that are None
+                p_data = p_doc.model_dump(exclude_none=True)
+
+                # 1. Ensure 'id' is a string
+                # Beanie's model_dump (by_alias=False) should provide 'id' if field is named 'id'
+                # If original field is _id aliased to id, model_dump(by_alias=True) gives _id
+                # Assuming ProductModel has 'id: PydanticObjectId' (possibly aliased from '_id')
+                # If model_dump gives '_id', we need to handle that.
+                # For simplicity, let's assume model_dump gives 'id' or we fetch it.
                 
-                # Ensure _id is properly converted to string id
-                if "_id" in product_dict and "id" not in product_dict:
-                    product_dict["id"] = str(product_dict.pop("_id"))
-                elif "_id" in product_dict:
-                    product_dict.pop("_id")
-                      # Convert ObjectId to string if it exists
-                if "id" in product_dict and isinstance(product_dict["id"], ObjectId):
-                    product_dict["id"] = str(product_dict["id"])
-                
-                # Convert snake_case to camelCase fields
-                if "created_at" in product_dict and "createdAt" not in product_dict:
-                    product_dict["createdAt"] = product_dict.pop("created_at")
-                if "updated_at" in product_dict and "updatedAt" not in product_dict:
-                    product_dict["updatedAt"] = product_dict.pop("updated_at")
-                
-                # Ensure required fields exist with default values
-                if "imageUrl" not in product_dict:
-                    product_dict["imageUrl"] = product_dict.get("image", "")  # Use image if available, otherwise empty
-                elif not product_dict["imageUrl"]:  # Empty imageUrl
-                    product_dict["imageUrl"] = ""  # Ensure it's an empty string, not None
-                    
-                # Add current time to createdAt/updatedAt if missing
-                if "createdAt" not in product_dict:
-                    product_dict["createdAt"] = datetime.utcnow()
-                if "updatedAt" not in product_dict:
-                    product_dict["updatedAt"] = datetime.utcnow()
-                    
-                # Make sure boolean fields are properly set
-                if "best_seller" in product_dict:
-                    product_dict["best_seller"] = bool(product_dict["best_seller"])
-                if "displayOnHomePage" in product_dict:
-                    product_dict["displayOnHomePage"] = bool(product_dict["displayOnHomePage"])
-                
-                result.append(product_dict)
+                doc_id = getattr(p_doc, "id", None) # Get id attribute
+                if doc_id is None and hasattr(p_doc, "_id"): # Fallback to _id if id is not present
+                    doc_id = getattr(p_doc, "_id", None)
+
+                if doc_id is not None:
+                    p_data['id'] = str(doc_id)
+                else:
+                    print(f"Product document missing 'id' or '_id'. Raw doc: {p_doc}")
+                    continue # Skip product if no ID can be found
+
+                # Remove '_id' if 'id' is now set, to avoid conflicts if both were in p_data
+                if '_id' in p_data:
+                    del p_data['_id']
+
+                # 2. 'name' (dict) and 'price' (float) are expected from p_doc.model_dump()
+                # ProductModel.name (LocalizedString) should dump to a dict.
+                # ProductModel.price (float) should dump as float.
+                # These will be validated when creating Product(**p_data)
+
+                # 3. Handle camelCasing for timestamps if ProductModel uses snake_case
+                if "created_at" in p_data and "createdAt" not in p_data:
+                    p_data["createdAt"] = p_data.pop("created_at")
+                if "updated_at" in p_data and "updatedAt" not in p_data:
+                    p_data["updatedAt"] = p_data.pop("updated_at")
+
+                # 4. Ensure timestamps exist, defaulting to now if not present
+                p_data["createdAt"] = p_data.get("createdAt", datetime.utcnow())
+                p_data["updatedAt"] = p_data.get("updatedAt", datetime.utcnow())
+                # Ensure they are datetime objects if they came as strings from somewhere
+                if isinstance(p_data["createdAt"], str):
+                    p_data["createdAt"] = datetime.fromisoformat(p_data["createdAt"].replace("Z", "+00:00"))
+                if isinstance(p_data["updatedAt"], str):
+                    p_data["updatedAt"] = datetime.fromisoformat(p_data["updatedAt"].replace("Z", "+00:00"))
+
+
+                # 5. Ensure imageUrl, defaulting to empty string
+                p_data["imageUrl"] = p_data.get("imageUrl", p_data.get("image", ""))
+
+                # 6. Ensure boolean fields conform to ProductBase definition (type and default)
+                for field_name, field_model in ProductBase.model_fields.items():
+                    if field_model.annotation == bool:
+                        p_data[field_name] = bool(p_data.get(field_name, field_model.default))
+                    elif field_name == 'manages_cd_keys' and field_model.annotation == Optional[bool]: # Specifically for Optional[bool]
+                        # If key exists in p_data, use its value (or None if it was None and not excluded)
+                        # If key doesn't exist, use default from ProductBase (which is None)
+                        current_value = p_data.get(field_name, field_model.default)
+                        p_data[field_name] = None if current_value is None else bool(current_value)
+
+
+                # Create a Product instance to validate structure and types.
+                # This will raise ValidationError if p_data doesn't match Product schema.
+                validated_product_model = Product(**p_data)
+                result.append(validated_product_model.model_dump())
+
+            except ValidationError as ve:
+                product_identifier = p_data.get('id', getattr(p_doc, "id", "Unknown ID"))
+                print(f"Validation error processing product {product_identifier}: {ve.errors()}")
+                continue 
             except Exception as e:
-                # Log error but continue processing other products
-                print(f"Error processing product: {e}")
+                product_identifier = p_data.get('id', getattr(p_doc, "id", "Unknown ID"))
+                print(f"Error processing product {product_identifier}: {e}")
                 continue
         
         return result
     except Exception as e:
-        # Log the actual error but return a user-friendly message
-        print(f"Error in get_products: {str(e)}")
-        products = []  # Return empty list instead of failing
-        return products
+        print(f"Critical error in get_products: {str(e)}")
+        # Consider raising HTTPException for server-side errors
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error fetching products")
 
 @admin_router.post("/products", response_model=Product)
 async def create_product(
@@ -968,3 +1002,56 @@ async def update_product_cd_key(
         # import traceback
         # print(traceback.format_exc()) # Uncomment for full traceback during debugging
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+@admin_router.post("/products/{product_id}/add-cd-keys", status_code=status.HTTP_200_OK)
+async def add_cd_keys_to_product(
+    product_id: str, # Should this be PydanticObjectId if using Beanie?
+    request: AddKeysRequest,
+    product_collection: ProductCollection = Depends(get_admin_product_collection_dependency),
+    current_user: TokenData = Depends(get_current_user), 
+    user_controller = Depends(get_user_controller_dependency)
+):
+    if not await user_controller.has_role(current_user.username, Role.manager):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    try:
+        # If product_id is expected to be an ObjectId string for query
+        # No direct conversion to PydanticObjectId here unless ProductCollection expects it.
+        # product_id_obj = PydanticObjectId(product_id) # Example if needed by collection
+        product = await product_collection.get_product_by_id(product_id) 
+        if not product:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        
+        if not product.manages_cd_keys:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This product does not manage CD keys.")
+
+    # except NotFound: # This was from products_exception, ensure it's the one raised by get_product_by_id
+    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    except Exception as e: 
+        # Catching generic Exception might be too broad. 
+        # Consider specific exceptions from get_product_by_id or ObjectId validation if applicable.
+        if isinstance(e, NotFound): # More specific handling if NotFound is raised
+             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid product ID or error: {e}")
+
+    new_cd_keys_objects = [CDKey(key=key_str) for key_str in request.keys]
+
+    db = await mongo_db_instance.get_db()
+    
+    # product.id here should be the _id (ObjectId) of the product document
+    # If product is a Beanie document, product.id is PydanticObjectId
+    update_result = await db.Product.update_one(
+        {"_id": product.id if isinstance(product.id, ObjectId) else ObjectId(product.id)}, # Ensure it's ObjectId for query
+        {"$push": {"cdKeys": {"$each": [k.model_dump() for k in new_cd_keys_objects]}}}
+    )
+
+    if update_result.modified_count == 0:
+        # This could mean product not found (already checked) or keys were not added.
+        # Consider if this is an error or just an info.
+        # For now, we assume it's not a critical error if product exists.
+        pass
+        
+    # After adding keys, trigger the retry mechanism for orders awaiting stock
+    await retry_failed_orders_internal(db, product_collection)
+    
+    return {"message": f"{len(new_cd_keys_objects)} CD keys added to product {product_id} and order retry initiated."}
