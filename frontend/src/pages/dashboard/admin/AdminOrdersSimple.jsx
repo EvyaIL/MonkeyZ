@@ -644,14 +644,14 @@ function AdminOrdersSimple() {
                     <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> <span style={{ color: 'red' }}>{`-₪${selectedOrderDetails.discount_amount?.toFixed(2)}`}</span></Typography>
                   </>
                 )}
-                <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> <span style={{ fontWeight: 'bold' }}>{`₪${selectedOrderDetails.total?.toFixed(2)}`}</span></Typography>
-                <Typography><strong>{t('admin.orderStatus', 'Status')}:</strong> 
+                <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> <span style={{ fontWeight: 'bold' }}>{`₪${selectedOrderDetails.total?.toFixed(2)}`}</span></Typography>                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography component="span"><strong>{t('admin.orderStatus', 'Status')}:</strong></Typography>
                   <Chip 
                     label={t(`admin.status${selectedOrderDetails.status}`, selectedOrderDetails.status)}
                     size="small"
                     sx={{ ml:1, color: 'white', fontWeight: 'bold', backgroundColor: selectedOrderDetails.status === 'Completed' ? 'success.main' : selectedOrderDetails.status === 'Pending' ? 'warning.main' : selectedOrderDetails.status === 'Processing' ? 'info.main' : selectedOrderDetails.status === 'Cancelled' ? 'error.main' : 'grey.500' }}
                   />
-                </Typography>
+                </Box>
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mt:1 }}>{t('admin.orderItems', 'Items')}</Typography>

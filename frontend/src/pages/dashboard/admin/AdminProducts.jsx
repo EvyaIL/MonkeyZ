@@ -719,7 +719,14 @@ export default function AdminProducts() {  const { t } = useTranslation();
       )}
 
       {/* Product Edit/Create Dialog - Enhanced */}
-      <Dialog open={showDialog} onClose={() => { setShowDialog(false); setEditingProduct(null); setEditingCategory(""); setError(""); }} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <Dialog 
+        open={showDialog} 
+        onClose={() => { setShowDialog(false); setEditingProduct(null); setEditingCategory(""); setError(""); }} 
+        maxWidth="md" 
+        fullWidth 
+        disableRestoreFocus
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
           {editingProduct?.id ? t('admin.editProduct', 'Edit Product') : t('admin.newProduct', 'Create New Product')}
           <IconButton onClick={() => { setShowDialog(false); setEditingProduct(null); setEditingCategory(""); setError(""); }} size="small">

@@ -482,12 +482,12 @@ function AdminStock() {
         </Table>
       </TableContainer>
 
-      {/* Add Keys Dialog */}
-      <Dialog
+      {/* Add Keys Dialog */}      <Dialog
         open={openAddKeysDialog}
         onClose={() => setOpenAddKeysDialog(false)}
         maxWidth="md"
         fullWidth
+        disableRestoreFocus
       >
         <DialogTitle>
           Add Keys to {selectedProduct?.productName}
@@ -547,12 +547,12 @@ function AdminStock() {
         </DialogActions>
       </Dialog>
 
-      {/* Manage CD Keys Dialog */}
-      <Dialog
+      {/* Manage CD Keys Dialog */}      <Dialog
         open={openManageKeysDialog}
         onClose={handleCloseManageKeysDialog}
         maxWidth="md"
         fullWidth
+        disableRestoreFocus
       >
         <DialogTitle>
           Manage CD Keys {selectedProductName && `for ${selectedProductName}`}
