@@ -207,15 +207,14 @@ const AllProducts = () => {
         </h1>
 
         <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-7xl flex flex-col lg:flex-row gap-6 backdrop-blur-sm">
-          {/* Filters - Mobile Toggle */}
-          <div className="lg:hidden w-full mb-4">
-            <details className="bg-gray-800 rounded-lg">
+          {/* Filters - Mobile Toggle */}          <div className="lg:hidden w-full mb-4">
+            <details className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
               <summary className="text-accent font-semibold p-4 cursor-pointer flex items-center justify-between">
                 <span>{t("filters")}</span>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </summary>              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+              </summary><div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 {/* Filter Content - Mobile */}
                 {renderFilters()}
               </div>
@@ -255,11 +254,10 @@ const AllProducts = () => {
                 </select>
               </div>
             </div>
-            
-            {loading ? (
+              {loading ? (
               <div className="flex flex-col items-center justify-center p-8">
                 <Spinner />
-                <p className="text-white text-center mt-4" aria-live="polite">
+                <p className="text-gray-900 dark:text-white text-center mt-4" aria-live="polite">
                   {t("loading_products", "Loading products...")}
                 </p>
               </div>
@@ -276,11 +274,10 @@ const AllProducts = () => {
             ) : filteredProducts.length === 0 ? (              <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg border border-accent/30 dark:border-accent/30">
                 <p className="text-gray-600 dark:text-gray-400 text-lg mb-4" aria-live="polite">
                   {t("no_products_found")}
-                </p>
-                <PrimaryButton
+                </p>                <PrimaryButton
                   title={t("clear_filters", "Clear Filters")}
                   onClick={clearFilters}
-                  otherStyle="mt-2"
+                  otherStyle="mt-2 bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
                 />
               </div>
             ) : (
@@ -310,20 +307,18 @@ const AllProducts = () => {
     return (
       <>
         <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
-        
-        <PrimaryInput
+          <PrimaryInput
           type="search"
           title={t("search")}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("search_products_placeholder")}
           value={searchQuery}
-          otherStyle="bg-gray-900 mb-6"
+          otherStyle="mb-6"
           aria-label={t("search_products")}
         />
         
-        <div className="mb-6">
-          <label
-            className="block text-white text-sm font-medium mb-2"
+        <div className="mb-6">          <label
+            className="block text-gray-900 dark:text-white text-sm font-medium mb-2"
             htmlFor="price-range"
           >
             {t("price_range")}: {lang === "he" ? `₪${filterPriceRange.max} - ₪${filterPriceRange.min}` : `₪${filterPriceRange.min} - ₪${filterPriceRange.max}`}
@@ -345,7 +340,7 @@ const AllProducts = () => {
             {categories.map((category) => (
               <label 
                 key={category} 
-                className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-700 border-gray-600 text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-700/50'}`}
+                className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-200 dark:hover:bg-gray-700/50'}`}
                 style={{ minWidth: '100px' }}
               >
                 <input 
@@ -360,12 +355,10 @@ const AllProducts = () => {
             ))}
           </div>
         </div>
-        
-        <div className="pt-4 border-t border-gray-700">
-          <PrimaryButton
+          <div className="pt-4 border-t border-gray-300 dark:border-gray-700">          <PrimaryButton
             title={t("clear_filters", "Clear Filters")}
             onClick={clearFilters}
-            otherStyle="w-full bg-gray-700 hover:bg-gray-600"
+            otherStyle="w-full bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
             ariaLabel={t("clear_all_filters", "Clear all filters")}
           />
         </div>

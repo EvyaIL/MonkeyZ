@@ -23,24 +23,21 @@ function PrivacyPolicy() {
         </h1>
         <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-4xl backdrop-blur-sm">
           <section className="mb-8">
-            <h2 className="text-xl font-semibold text-accent mb-4">1. {t("information_collection")}</h2>
-            <p className="text-white mb-4">
+            <h2 className="text-xl font-semibold text-accent mb-4">1. {t("information_collection")}</h2>            <p className="text-gray-900 dark:text-white mb-4">
               {t("privacy_info_collection_text")}
             </p>
-            <ul className="list-disc list-inside text-white ml-4 space-y-2">
+            <ul className="list-disc list-inside text-gray-900 dark:text-white ml-4 space-y-2">
               <li>{t("privacy_personal_info")}</li>
               <li>{t("privacy_usage_info")}</li>
               <li>{t("privacy_transaction_info")}</li>
               <li>{t("privacy_technical_info")}</li>
             </ul>
-          </section>
-
-          <section className="mb-8">
+          </section>          <section className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">2. {t("information_usage")}</h2>
-            <p className="text-white mb-4">
+            <p className="text-gray-900 dark:text-white mb-4">
               {t("privacy_usage_text")}
             </p>
-            <ul className="list-disc list-inside text-white ml-4 space-y-2">
+            <ul className="list-disc list-inside text-gray-900 dark:text-white ml-4 space-y-2">
               <li>{t("privacy_usage_improve")}</li>
               <li>{t("privacy_usage_communicate")}</li>
               <li>{t("privacy_usage_process")}</li>
@@ -50,35 +47,33 @@ function PrivacyPolicy() {
 
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">3. {t("information_sharing")}</h2>
-            <p className="text-white mb-4">
+            <p className="text-gray-900 dark:text-white mb-4">
               {t("privacy_sharing_text")}
             </p>
           </section>
 
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">4. {t("cookies_policy")}</h2>
-            <p className="text-white mb-4">
+            <p className="text-gray-900 dark:text-white mb-4">
               {t("privacy_cookies_text")}
             </p>
-          </section>
-
-          <section className="mb-8">
+          </section>          <section className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">5. {t("data_security")}</h2>
-            <p className="text-white mb-4">
+            <p className="text-gray-900 dark:text-white mb-4">
               {t("privacy_security_text")}
             </p>
           </section>
 
           <section className="mb-8">
             <h2 className="text-xl font-semibold text-accent mb-4">6. {t("user_rights")}</h2>
-            <p className="text-white mb-4">
+            <p className="text-gray-900 dark:text-white mb-4">
               {t("privacy_rights_text")}
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-accent mb-4">7. {t("contact")}</h2>
-            <p className="text-white">
+            <p className="text-gray-900 dark:text-white">
               {t("privacy_contact_text")}{" "}
               <a href="mailto:support@monkeyz.co.il" className="text-accent hover:underline transition">
                 support@monkeyz.co.il
@@ -86,7 +81,7 @@ function PrivacyPolicy() {
             </p>
           </section>
           
-          <p className="text-white mt-8 text-sm">
+          <p className="text-gray-900 dark:text-white mt-8 text-sm">
             {t("last_updated")}: {t("may")} 19, 2025
           </p>
         </div>

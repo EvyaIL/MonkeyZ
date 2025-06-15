@@ -27,6 +27,8 @@ import AdminStock from "./pages/dashboard/admin/AdminStock";
 import AdminOrderCreate from "./pages/dashboard/admin/AdminOrderCreate";
 import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 function AppRouter() {
   const location = useLocation();
@@ -118,6 +120,8 @@ function AppRouter() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
         
         {/* Blog routes */}
         <Route path="/blog" element={<BlogPage />} />
@@ -130,6 +134,10 @@ function AppRouter() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/success" element={<PaymentSuccess />} />
         <Route path="/fail" element={<PaymentFailed />} />
+        
+        {/* Privacy Policy and Terms of Service */}
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
         
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />

@@ -91,29 +91,30 @@ const RangeInput = ({ value, onChange }) => {
           '& .MuiSlider-track': {
             height: 8,
             backgroundColor: '#22c55e',
-          },
-          '& .MuiSlider-rail': {
+          },          '& .MuiSlider-rail': {
             height: 8,
-            backgroundColor: '#374151',
+            backgroundColor: 'var(--color-bg-secondary, #e5e7eb)',
+            '@media (prefers-color-scheme: dark)': {
+              backgroundColor: '#374151',
+            },
           },
         }}
       />
-      <div className={`flex justify-between items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-        {isRTL ? (
+      <div className={`flex justify-between items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>        {isRTL ? (
           <>
             <input
               type="number"
-              className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
+              className="w-24 p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md text-center"
               value={minInputValue}
               min={sliderMin}
               max={sliderMax}
               onChange={handleMinInput}
               onBlur={handleMinBlur}
             />
-            <span className="text-white mx-2">-</span>
+            <span className="text-gray-900 dark:text-white mx-2">-</span>
             <input
               type="number"
-              className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
+              className="w-24 p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md text-center"
               value={maxInputValue}
               min={sliderMin}
               max={sliderMax}
@@ -125,17 +126,17 @@ const RangeInput = ({ value, onChange }) => {
           <>
             <input
               type="number"
-              className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
+              className="w-24 p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md text-center"
               value={minInputValue}
               min={sliderMin}
               max={sliderMax}
               onChange={handleMinInput}
               onBlur={handleMinBlur}
             />
-            <span className="text-white mx-2">-</span>
+            <span className="text-gray-900 dark:text-white mx-2">-</span>
             <input
               type="number"
-              className="w-24 p-2 bg-gray-900 text-white border border-gray-600 rounded-md text-center"
+              className="w-24 p-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-md text-center"
               value={maxInputValue}
               min={sliderMin}
               max={sliderMax}

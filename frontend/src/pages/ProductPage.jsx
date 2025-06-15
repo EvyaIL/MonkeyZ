@@ -307,9 +307,8 @@ const ProductPage = () => {
                       {displayCategory}
                     </Link>
                   )}
-                  
-                  <div className="prose prose-invert max-w-none">
-                    <p className="text-lg leading-relaxed whitespace-pre-line">
+                    <div className="prose dark:prose-invert max-w-none">
+                    <p className="text-lg leading-relaxed whitespace-pre-line text-gray-900 dark:text-white">
                       {displayDesc || t("no_description_available", "No description available.")}
                     </p>
                   </div>
@@ -328,14 +327,13 @@ const ProductPage = () => {
                           aria-label={t("decrease_quantity", "Decrease quantity")}
                         >
                           −
-                        </button>
-                        <PrimaryInput
+                        </button>                        <PrimaryInput
                           id="quantity"
                           type="number"
                           min={1}
                           value={quantity}
                           onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                          otherStyle="w-16 mx-0 bg-white dark:bg-gray-800 text-center h-10 rounded-none border-x-0 text-gray-800 dark:text-white border border-gray-300 dark:border-gray-600"
+                          otherStyle="w-16 mx-0 bg-white dark:bg-gray-800 text-center h-10 rounded-none border-x-0 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
                           aria-label={t("quantity", "Quantity")}
                         />
                         <button 

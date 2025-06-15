@@ -28,7 +28,7 @@ const PrimaryInput = ({
         min={min}
         max={max}
         placeholder={placeholder}
-        className={`bg-secondary p-2 rounded-lg shadow-sm text-white outline-none focus:ring-2 focus:ring-accent ring-2 ring-border transition-all duration-200 text-right rtl:text-right ltr:text-left ${otherStyle}`}
+        className={`bg-white dark:bg-secondary border border-gray-300 dark:border-border p-2 rounded-lg shadow-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-accent ring-2 ring-gray-300 dark:ring-border transition-all duration-200 text-right rtl:text-right ltr:text-left ${otherStyle}`}
         onChange={onChange}
         {...rest}
       />

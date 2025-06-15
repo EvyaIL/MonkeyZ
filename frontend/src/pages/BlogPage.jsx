@@ -76,8 +76,7 @@ const BlogPage = () => {
           <header className="mb-12 text-center">
             <h1 className="text-5xl font-extrabold text-accent tracking-tight">
               {t('blog_header') || (lang === 'he' ? 'הבלוג שלנו' : 'Our Blog')}
-            </h1>
-            <p className="mt-4 text-xl text-gray-300 max-w-2xl mx-auto">
+            </h1>            <p className="mt-4 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               {t('blog_subheader') || (lang === 'he' ? 'חדשות, עדכונים ומחשבות מצוות MonkeyZ.' : 'News, updates, and thoughts from the MonkeyZ team.')}
             </p>
           </header>

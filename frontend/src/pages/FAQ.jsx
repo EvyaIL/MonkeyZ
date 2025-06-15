@@ -49,20 +49,18 @@ const FAQ = () => {
         <meta name="twitter:description" content={t("faq_meta_description") || "Get answers to frequently asked questions about MonkeyZ products, services, digital licenses, support, and more."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/logo512.png" />
       </Helmet>      
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        {/* Breadcrumb */}
+      <div className="min-h-screen flex flex-col items-center justify-center p-6">        {/* Breadcrumb */}
         <nav className="w-full max-w-3xl mb-4 text-sm text-gray-500 dark:text-gray-400">
           <ol className="flex flex-wrap items-center space-x-1 rtl:space-x-reverse">
             <li><a href="/" className="hover:text-accent">{t('home')}</a></li>
             <li><span className="mx-1">›</span></li>
             <li className="text-accent font-medium">{t('faq')}</li>
-          </ol>
-        </nav>
+          </ol>        </nav>
         
-        <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
-          {t("faq")}
-        </h1>
         <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-3xl backdrop-blur-sm">
+          <h1 className="text-accent font-bold text-3xl mb-6" tabIndex={0}>
+            {t("faq")}
+          </h1>
           {faqs.map((faq, idx) => (
             <div key={idx} className="mb-6">
               <h2 className="text-lg font-semibold text-accent mb-2">{faq.question}</h2>

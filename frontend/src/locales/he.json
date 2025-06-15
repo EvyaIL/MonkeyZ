@@ -1,6 +1,6 @@
-{
-  "welcome": "ברוך הבא, {{username}}!",
+{  "welcome": "ברוך הבא, {{username}}!",
   "all_products": "כל המוצרים",
+  "featured_products": "מוצרים מומלצים",
   "about_us": "אודות",
   "contact": "צור קשר",
   "faq": "שאלות נפוצות",
