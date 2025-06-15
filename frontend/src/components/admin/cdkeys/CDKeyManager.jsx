@@ -124,16 +124,13 @@ function CDKeyManager({ productId, productName }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {cdKeys.map((keyItem, index) => (
-                            <tr key={keyItem.key + '-' + index}> {/* Use a more robust key if possible, e.g., key string + index */}
+                        {cdKeys.map((keyItem, index) => (                            <tr key={keyItem.key + '-' + index}>
                                 <td>{keyItem.key}</td>
                                 <td>{keyItem.isUsed ? 'Yes' : 'No'}</td>
                                 <td>{keyItem.usedAt ? new Date(keyItem.usedAt).toLocaleString() : 'N/A'}</td>
                                 <td>{keyItem.orderId || 'N/A'}</td>
                                 <td className="cd-key-actions">
-                                    {/* Pass index to handleEdit */}
                                     <button onClick={() => handleEdit(keyItem, index)} className="edit-btn">Edit</button>
-                                    {/* handleDelete already correctly receives the index */}
                                     <button onClick={() => handleDelete(keyItem._id, index)} className="delete-btn">Delete</button>
                                 </td>
                             </tr>

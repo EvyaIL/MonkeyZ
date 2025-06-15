@@ -66,9 +66,9 @@ export default function AdminProducts() {  const { t } = useTranslation();
   // const [showKeyManagement, setShowKeyManagement] = useState(false); // Removed
   const [categories, setCategories] = useState([]);
   const [displayOnHomePage, setDisplayOnHomePage] = useState(false);
-  const [bestSeller, setBestSeller] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  const [bestSeller, setBestSeller] = useState(false);  const [isActive, setIsActive] = useState(true);
   const [isNewProduct, setIsNewProduct] = useState(false);
+  const [editingCategory, setEditingCategory] = useState("");
   // const [keyReuse, setKeyReuse] = useState(false); // Removed
   // const [keyExpiry, setKeyExpiry] = useState(false); // Removed
   // const [autoGenerateKeys, setAutoGenerateKeys] = useState(false); // Removed
@@ -199,10 +199,10 @@ export default function AdminProducts() {  const { t } = useTranslation();
   // Sync state with editingProduct when it changes
   useEffect(() => {
     if (editingProduct) {
-      setBestSeller(editingProduct?.best_seller ?? false);
-      setDisplayOnHomePage(editingProduct?.displayOnHomePage ?? editingProduct?.display_on_homepage ?? false);
+      setBestSeller(editingProduct?.best_seller ?? false);      setDisplayOnHomePage(editingProduct?.displayOnHomePage ?? editingProduct?.display_on_homepage ?? false);
       setIsActive(editingProduct?.active ?? true);
       setIsNewProduct(editingProduct?.is_new ?? false);
+      setEditingCategory(editingProduct?.category ?? "");
       // setKeyReuse(editingProduct?.keyReuse ?? false); // Removed
       // setKeyExpiry(editingProduct?.keyExpiry ?? false); // Removed
       // setAutoGenerateKeys(editingProduct?.autoGenerateKeys ?? false); // Removed
@@ -232,10 +232,9 @@ export default function AdminProducts() {  const { t } = useTranslation();
       description: {
         en: formData.get('description_en') || '',
         he: formData.get('description_he') || ''
-      },
-      price: parseFloat(formData.get('price')) || 0,
+      },      price: parseFloat(formData.get('price')) || 0,
       imageUrl: formData.get('imageUrl') || formData.get('image') || '',
-      category: formData.get('category') || '',
+      category: editingCategory || formData.get('category') || '',
       active: isActive,
       inStock: true, // This might need re-evaluation or removal if stock is entirely separate
       // keyManagement: { // Removed
@@ -300,10 +299,10 @@ export default function AdminProducts() {  const { t } = useTranslation();
       
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
-      
-      await loadProducts();
+        await loadProducts();
       setShowDialog(false);
       setEditingProduct(null);
+      setEditingCategory("");
     } catch (error) {
       console.error('Error saving product:', error);
       setError(error.message || t('admin.saveError'));
@@ -720,10 +719,10 @@ export default function AdminProducts() {  const { t } = useTranslation();
       )}
 
       {/* Product Edit/Create Dialog - Enhanced */}
-      <Dialog open={showDialog} onClose={() => { setShowDialog(false); setEditingProduct(null); setError(""); }} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <Dialog open={showDialog} onClose={() => { setShowDialog(false); setEditingProduct(null); setEditingCategory(""); setError(""); }} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
           {editingProduct?.id ? t('admin.editProduct', 'Edit Product') : t('admin.newProduct', 'Create New Product')}
-          <IconButton onClick={() => { setShowDialog(false); setEditingProduct(null); setError(""); }} size="small">
+          <IconButton onClick={() => { setShowDialog(false); setEditingProduct(null); setEditingCategory(""); setError(""); }} size="small">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -802,10 +801,10 @@ export default function AdminProducts() {  const { t } = useTranslation();
                   </Grid>
                   <Grid item xs={12} sm={6} md={4}>
                     <FormControl fullWidth variant="outlined">
-                      <InputLabel>{t('admin.category', 'Category')}</InputLabel>
-                      <Select
+                      <InputLabel>{t('admin.category', 'Category')}</InputLabel>                      <Select
                         name="category"
-                        defaultValue={editingProduct?.category || ''}
+                        value={editingCategory}
+                        onChange={(e) => setEditingCategory(e.target.value)}
                         label={t('admin.category', 'Category')}
                         required
                       >
@@ -904,7 +903,7 @@ export default function AdminProducts() {  const { t } = useTranslation();
             </Grid>
           </DialogContent>
           <DialogActions sx={{ borderTop: (theme) => `1px solid ${theme.palette.divider}`, p: 2 }}>
-            <Button onClick={() => { setShowDialog(false); setEditingProduct(null); setError(""); }} variant="outlined" color="secondary" startIcon={<CancelIcon />}>
+            <Button onClick={() => { setShowDialog(false); setEditingProduct(null); setEditingCategory(""); setError(""); }} variant="outlined" color="secondary" startIcon={<CancelIcon />}>
               {t('common.cancel', 'Cancel')}
             </Button>
             <Button 
