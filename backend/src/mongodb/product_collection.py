@@ -20,16 +20,17 @@ class ProductCollection(MongoDb, metaclass=Singleton):
     async def add_keys_to_product(self, product_id: PydanticObjectId, keys: List[str]) -> Product:
         """Add a list of CD keys to a specific product."""
         product = await Product.get(product_id)
+        
         if not product:
-            raise ValueError(f"Product with id {product_id} not found" )
-
+            raise ValueError(f"Product with id {product_id} not found")
+        
         if not product.manages_cd_keys:
             raise ValueError(f"Product {product.name} does not manage CD keys.")
-
+        
         new_cd_keys = []
         for key_string in keys:
             new_key = CDKey(
-                key=string,
+                key=key_string,
                 isUsed=False,
                 addedAt=datetime.utcnow()
             )

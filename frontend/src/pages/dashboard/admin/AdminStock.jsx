@@ -378,8 +378,7 @@ function AdminStock() {
                     No stock items found.
                   </Typography>
                 </TableCell>
-              </TableRow>
-            ) : (
+              </TableRow>            ) : (
               filteredStockItems.map((item) => {
                 const usagePercentage = item.totalKeys > 0 ? (item.usedKeys / item.totalKeys) * 100 : 0;
                 return (

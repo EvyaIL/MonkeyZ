@@ -71,9 +71,8 @@ function AdminCoupons() {
       setCoupons([]);
     } finally {
       setIsLoading(false);
-    }
-  }, [api]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Note: isLoading is intentionally excluded to avoid infinite re-renders
+    }  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: apiService and isLoading are intentionally excluded to avoid infinite re-renders
 
   useEffect(() => {
     fetchCoupons();
