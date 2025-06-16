@@ -667,7 +667,7 @@ function AdminOrdersSimple() {
                           <div key={idx} style={{ marginBottom: 4 }}>
                             <span style={{ fontWeight: 500 }}>{item.name || `Product ID: ${item.productId}`}:</span>
                             {item.assigned_keys.map((key, i) => (
-                              <span key={i} style={{ fontFamily: 'monospace', background: '#e3f2fd', padding: '2px 6px', borderRadius: 4, marginRight: 4 }}>{key}</span>
+                              <span key={i} style={{ fontFamily: 'monospace', background: '#fff', color: '#222', padding: '2px 6px', borderRadius: 4, marginRight: 4, boxShadow: '0 1px 4px rgba(0,0,0,0.12)' }}>{key}</span>
                             ))}
                           </div>
                         ) : null
