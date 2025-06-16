@@ -70,6 +70,9 @@ function AdminOrdersSimple() {
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
 
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
 
@@ -234,6 +237,22 @@ function AdminOrdersSimple() {
     setLoadingProducts(false);
   }, [notify, t]);
 
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await apiService.get('/user/all');
+      if (response.data) {
+        setUsers(response.data);
+      } else {
+        notify({ message: t('admin.orders.loadUsersError', "Failed to load users for order form."), type: 'error' });
+      }
+    } catch (err) {
+      console.error("Error loading users:", err);
+      notify({ message: t('admin.orders.loadUsersError', "Failed to load users for order form."), type: 'error' });
+    }
+    setLoadingUsers(false);
+  }, [notify, t]);
+
   const refreshOrders = useCallback(async () => {
     if (!apiService.token && !token) { // Check both apiService.token and context token
       setOrderError(t('admin.orders.loadErrorNotAuthenticated', 'Not authenticated. Please log in.'));
@@ -268,13 +287,14 @@ function AdminOrdersSimple() {
     if (token) { 
       refreshOrders();
       loadProducts();
+      loadUsers();
     } else {
       setLoadingOrders(false);
       setOrders([]);
       setAnalyticsData(null);
-      setOrderError(t('admin.orders.loadErrorNotAuthenticated', 'Not authenticated. Please log in.')); // Show error if no token
+      setOrderError(t('admin.orders.loadErrorNotAuthenticated', 'Not authenticated. Please log in.'));
     }
-  }, [refreshOrders, loadProducts, token, t]); // Added t to dependency array
+  }, [refreshOrders, loadProducts, loadUsers, token, t]); // Added t to dependency array
 
   const handleCreateNewOrder = () => {
     setEditingOrder(null);
@@ -324,7 +344,7 @@ function AdminOrdersSimple() {
         await apiService.patch(`/api/orders/${editingOrder.id || editingOrder._id}`, orderData);
         notify({ message: t('admin.orders.updatedSuccess', 'Order updated successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       } else {
-        const payload = { ...orderData };
+        const payload = { ...orderData, autoAssignKeys: true };
         if (payload.user_id === '') delete payload.user_id;
         await apiService.post('/api/orders', payload);
         notify({ message: t('admin.orders.createdSuccess', 'Order created successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
@@ -351,6 +371,7 @@ function AdminOrdersSimple() {
       <OrderForm
         order={editingOrder}
         allProducts={products}
+        allUsers={users}
         // Pass coupons if OrderForm needs them directly
         onSubmit={handleOrderSubmit}
         onCancel={() => {
@@ -551,6 +572,7 @@ function AdminOrdersSimple() {
                 <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderCoupon', 'Coupon')}</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', textAlign: 'center', color: 'text.primary' }}>{t('admin.orderStatus', 'Status')}</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderActions', 'Actions')}</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: 'text.primary' }}>{t('admin.orderAssignedKeys', 'Assigned Keys')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -603,6 +625,22 @@ function AdminOrdersSimple() {
                     <IconButton onClick={() => handleOpenDeleteDialog(order)} color="error" aria-label={t('admin.deleteButton', 'Delete')} size="small">
                       <DeleteIcon />
                     </IconButton>
+                  </TableCell>
+                  <TableCell>
+                    {order.items && order.items.length > 0 ? (
+                      order.items.map((item, idx) => (
+                        Array.isArray(item.assigned_keys) && item.assigned_keys.length > 0 ? (
+                          <div key={idx} style={{ marginBottom: 4 }}>
+                            <span style={{ fontWeight: 500 }}>{item.name || `Product ID: ${item.productId}`}:</span>
+                            {item.assigned_keys.map((key, i) => (
+                              <span key={i} style={{ fontFamily: 'monospace', background: '#e3f2fd', padding: '2px 6px', borderRadius: 4, marginRight: 4 }}>{key}</span>
+                            ))}
+                          </div>
+                        ) : null
+                      ))
+                    ) : (
+                      <span style={{ color: '#aaa' }}>{t('admin.orderForm.noKeys', 'No Keys')}</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -657,9 +695,24 @@ function AdminOrdersSimple() {
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', mt:1 }}>{t('admin.orderItems', 'Items')}</Typography>
                 <List dense sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: 1, p:1 }}>
                   {selectedOrderDetails.items.map((item, index) => (
-                    <ListItem key={index} divider={index < selectedOrderDetails.items.length - 1}>
+                    <ListItem key={index} divider={index < selectedOrderDetails.items.length - 1} alignItems="flex-start">
                       <ListItemText 
-                        primary={`${item.name || `Product ID: ${item.productId}`}`}
+                        primary={
+                          <>
+                            {item.name || `Product ID: ${item.productId}`}
+                            {Array.isArray(item.assigned_keys) && item.assigned_keys.length > 0 && (
+                              <>
+                                <br />
+                                <span style={{ color: '#1976d2', fontWeight: 500 }}>
+                                  {t('admin.orderForm.assignedKeys', 'Assigned Keys')}:<br />
+                                  {item.assigned_keys.map((key, i) => (
+                                    <span key={i} style={{ fontFamily: 'monospace', background: '#e3f2fd', padding: '2px 6px', borderRadius: 4, marginRight: 4 }}>{key}</span>
+                                  ))}
+                                </span>
+                              </>
+                            )}
+                          </>
+                        }
                         secondary={`${t('admin.orderForm.quantity', 'Qty')}: ${item.quantity} × ₪${item.price?.toFixed(2)} = ₪${(item.quantity * item.price).toFixed(2)}`}
                       />
                     </ListItem>

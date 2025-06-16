@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], loading, error, t }) => {
+const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], allUsers = [], loading, error, t }) => {
   // const { t } = useTranslation(); // t is now passed as a prop
   const [formData, setFormData] = useState({
     customerName: '',
@@ -17,7 +17,7 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     total: 0, // final total: original_total - discount_amount
     notes: '',
   });
-  const [users, /* setUsers */] = useState([]); // Commented out setUsers
+  const [users, setUsers] = useState(allUsers);
   // Removed unused: loadingUsers, setLoadingUsers, coupons, setCoupons
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -202,6 +202,22 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
 
   const inputClass = "mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm";
   const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
+
+  useEffect(() => {
+    setUsers(allUsers);
+  }, [allUsers]);
+
+  useEffect(() => {
+    if (searchTerm && users.length > 0) {
+      const lower = searchTerm.toLowerCase();
+      setFilteredUsers(users.filter(u =>
+        (u.username && u.username.toLowerCase().includes(lower)) ||
+        (u.email && u.email.toLowerCase().includes(lower))
+      ));
+    } else {
+      setFilteredUsers([]);
+    }
+  }, [searchTerm, users]);
 
   return (
     <div className="my-6 p-6 bg-white dark:bg-gray-800 shadow-xl rounded-lg">

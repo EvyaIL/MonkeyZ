@@ -73,7 +73,7 @@ async def create_order(
     all_items_have_keys = True
 
     for item_index, item in enumerate(order_data.items):
-        if item.quantity <= 0: # Skip if quantity is zero or negative
+        if item.quantity <= 0:
             continue
 
         product = await product_collection.get_product_by_id(item.productId)
@@ -81,26 +81,31 @@ async def create_order(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product with ID {item.productId} not found.")
 
         if product.manages_cd_keys:
-            # For simplicity, this example assigns one key per OrderItem.
-            # If an OrderItem has quantity > 1, you'll need to adapt this logic
-            # to assign multiple keys or create multiple OrderItems (one per key).
-            # Here, we assume quantity means one unit of a product that needs one key.
-            
-            key_assigned = await assign_key_to_order_item(order_data.id, item, product_collection, db)
-            
-            if not key_assigned:
+            assigned_keys = []
+            # Use Beanie model for updating and saving
+            product_doc = await ProductModel.get(product.id)
+            available_keys = [k for k in product_doc.cdKeys if not k.isUsed]
+            if len(available_keys) < item.quantity:
                 all_items_have_keys = False
-                # Update product stock to indicate a key was attempted but failed (e.g., available_keys: -1)
-                # This requires a method in ProductCollection or direct update here.
-                # For now, we'll mark order as AWAITING_STOCK.
-                # You might want to add a field to the product like `failed_key_assignments`
                 await db.Product.update_one(
                     {"_id": product.id},
-                    {"$inc": {"failed_key_assignments": 1}} # Example field
+                    {"$inc": {"failed_key_assignments": 1}}
                 )
-                print(f"Order {order_data.id}, Item {item.productId}: No available key. Marked for AWAITING_STOCK.")
-
-
+                print(f"Order {order_data.id}, Item {item.productId}: Not enough available keys. Marked for AWAITING_STOCK.")
+            else:
+                for i in range(item.quantity):
+                    key_obj = available_keys[i]
+                    key_obj.isUsed = True
+                    key_obj.usedAt = datetime.now(timezone.utc)
+                    key_obj.orderId = order_data.id
+                    assigned_keys.append(key_obj.key)
+                # Save the updated product with used keys
+                await product_doc.save()
+            item.assigned_keys = assigned_keys
+            # item.assigned_key = assigned_key_to_item # This is now a list, so not needed
+            # key_updated_in_product = True
+            # break
+    
     if not all_items_have_keys:
         current_order_status = StatusEnum.AWAITING_STOCK
     else:
