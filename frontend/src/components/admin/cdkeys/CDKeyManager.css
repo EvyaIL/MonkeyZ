@@ -159,3 +159,46 @@
 }
 
 /* Add any additional specific styles you need below */
+
+/* Dark Mode Styles */
+@media (prefers-color-scheme: dark) {
+    .cd-key-manager-container {
+        background-color: #333; /* Darker background for dark mode */
+        color: #f0f0f0; /* Lighter text for dark mode */
+        border: 1px solid #555;
+    }
+
+    .cd-key-manager-container h2 {
+        color: #f0f0f0; /* Lighter text for dark mode */
+    }
+
+    .cd-keys-table th {
+        background-color: #444; /* Darker header for dark mode */
+        color: #f0f0f0; /* Lighter text for dark mode */
+        border-color: #555;
+    }
+
+    .cd-keys-table td {
+        color: #f0f0f0; /* Lighter text for dark mode */
+        border-color: #555;
+    }
+
+    .cd-keys-table tr:nth-child(even) {
+        background-color: #3a3a3a; /* Slightly different dark background for even rows */
+    }
+
+    .cd-keys-table tr:hover {
+        background-color: #4a4a4a; /* Darker hover for dark mode */
+    }
+
+    .cdkey-manager .error-message {
+      color: #f8d7da; /* Lighter red for dark mode error text */
+      background-color: #721c24; /* Darker red background for dark mode error */
+      border-color: #f5c6cb;
+    }
+
+    .loading-message p,
+    .cd-key-manager-container p {
+        color: #f0f0f0;
+    }
+}
