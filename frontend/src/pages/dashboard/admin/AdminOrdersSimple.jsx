@@ -350,7 +350,7 @@ function AdminOrdersSimple() {
     return (
       <OrderForm
         order={editingOrder}
-        products={products}
+        allProducts={products}
         // Pass coupons if OrderForm needs them directly
         onSubmit={handleOrderSubmit}
         onCancel={() => {
