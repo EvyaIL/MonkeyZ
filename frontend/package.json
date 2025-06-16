@@ -53,6 +53,7 @@
     "react-app-rewired": "^2.2.1"
   },
   "scripts": {
+    "postinstall": "npm install typescript",
     "build": "react-scripts build",
     "start": "node server.js",
     "dev": "react-scripts start"
