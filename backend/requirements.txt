@@ -32,3 +32,4 @@ typing_extensions==4.12.2
 uvicorn==0.30.6
 pyyaml
 cryptography>=36.0.0  # Required for python-jose to support HS256
+unidecode
