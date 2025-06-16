@@ -32,7 +32,8 @@ else:
     # In production, use specific origins
     DEFAULT_ALLOWED_ORIGINS = [
         "http://localhost:3000",
-        "http://localhost:8080", 
+        "http://localhost:8080",
+        "https://www.monkeyz.co.il", 
         "https://monkeyz.co.il",
         "https://api.monkeyz.co.il",
         "https://monkeyz-frontend.ondigitalocean.app"
