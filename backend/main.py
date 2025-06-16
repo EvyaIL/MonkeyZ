@@ -25,21 +25,16 @@ load_dotenv()
 IS_DEV = os.getenv("ENVIRONMENT", "development").lower() == "development"
 
 # Set CORS settings based on environment
-if IS_DEV:
-    # In development, use wildcard to allow all origins
-    ALLOWED_ORIGINS = ["*"]  # This will allow requests from any origin
-else:
-    # In production, use specific origins
-    DEFAULT_ALLOWED_ORIGINS = [
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "https://www.monkeyz.co.il", 
-        "https://monkeyz.co.il",
-        "https://api.monkeyz.co.il",
-        "https://monkeyz-frontend.ondigitalocean.app"
-    ]
-    # Parse comma-separated list from env var if exists
-    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS)).split(",")
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "https://www.monkeyz.co.il", 
+    "https://monkeyz.co.il",
+    "https://api.monkeyz.co.il",
+    "https://monkeyz-frontend.ondigitalocean.app"
+]
+# Parse comma-separated list from env var if exists
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS)).split(",")
 
 app = FastAPI(
     title="MonkeyZ API",
