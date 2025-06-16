@@ -322,7 +322,7 @@ function AdminOrdersSimple() {
     if (!orderToDelete) return;
     setLoadingOrders(true);
     try {
-      await apiService.delete(`/api/orders/${orderToDelete.id || orderToDelete._id}`);
+      await apiService.delete(`/api/orders/${orderToDelete._id}`);
       notify({ message: t('admin.orders.deletedSuccess', 'Order deleted successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       await refreshOrders();
       handleCloseDeleteDialog();
@@ -340,8 +340,8 @@ function AdminOrdersSimple() {
     setLoadingOrders(true);
     setOrderError(null);
     try {
-      if (editingOrder?.id || editingOrder?._id) {
-        await apiService.patch(`/api/orders/${editingOrder.id || editingOrder._id}`, orderData);
+      if (editingOrder?._id) {
+        await apiService.patch(`/api/orders/${editingOrder._id}`, orderData);
         notify({ message: t('admin.orders.updatedSuccess', 'Order updated successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       } else {
         const payload = { ...orderData, autoAssignKeys: true };
@@ -578,7 +578,7 @@ function AdminOrdersSimple() {
             <TableBody>
               {filteredOrders.map((order, index) => (
                 <TableRow
-                  key={order.id || order._id}
+                  key={order._id}
                   sx={{ 
                     '&:last-child td, &:last-child th': { border: 0 },
                     '&:nth-of-type(odd)': { backgroundColor: (theme) => theme.palette.action.hover },
@@ -586,7 +586,7 @@ function AdminOrdersSimple() {
                   }}
                 >
                   <TableCell component="th" scope="row">
-                    <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{order.id || order._id}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{order._id}</Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">{order.customerName}</Typography>
@@ -659,7 +659,7 @@ function AdminOrdersSimple() {
           PaperProps={{ sx: { borderRadius: 2 } }}
         >
           <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}>
-            {t('admin.orderDetailsTitle', 'Order Details')} - {selectedOrderDetails.id || selectedOrderDetails._id}
+            {t('admin.orderDetailsTitle', 'Order Details')} - {selectedOrderDetails._id}
             <IconButton onClick={() => setSelectedOrderDetails(null)} size="small">
               <CloseIcon />
             </IconButton>
@@ -740,7 +740,7 @@ function AdminOrdersSimple() {
                     const newStatus = e.target.value;
                     // Consider a more user-friendly confirmation, perhaps a small dialog
                     if (window.confirm(t('admin.orders.confirmStatusChange', `Change status to ${newStatus}?`))) {
-                       handleOrderStatusUpdate(selectedOrderDetails.id || selectedOrderDetails._id, newStatus, `Status changed via details modal by admin.`);
+                       handleOrderStatusUpdate(selectedOrderDetails._id, newStatus, `Status changed via details modal by admin.`);
                     }
                   }}
                   disabled={loadingOrders}
@@ -774,7 +774,7 @@ function AdminOrdersSimple() {
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-dialog-description">
-            {t('admin.orders.confirmDeleteText', `Are you sure you want to delete order ${orderToDelete?.id || orderToDelete?._id}? This action cannot be undone.`)}
+            {t('admin.orders.confirmDeleteText', `Are you sure you want to delete order ${orderToDelete?._id}? This action cannot be undone.`)}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p:2 }}>

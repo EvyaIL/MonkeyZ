@@ -221,13 +221,10 @@ async def get_orders(
     
     processed_orders = []
     for order_doc in orders_from_db:
-        # _id is already string if inserted via Pydantic model with alias
-        # but if fetched directly, it might be ObjectId
         if '_id' in order_doc and isinstance(order_doc['_id'], ObjectId):
-             order_doc['id'] = str(order_doc.pop('_id')) # Ensure 'id' field is populated
+            order_doc['_id'] = str(order_doc['_id'])  # Always stringify, do not pop or move to 'id'
         processed_orders.append(Order(**order_doc))
-    
-    return processed_orders
+    return [order.model_dump(by_alias=True) for order in processed_orders]
 
 # GET /orders/{order_id}
 @router.get("/orders/{order_id}", response_model=Order)
@@ -251,9 +248,8 @@ async def get_order(
     
     # Ensure 'id' field is populated from '_id'
     if '_id' in order_from_db and isinstance(order_from_db['_id'], ObjectId):
-        order_from_db['id'] = str(order_from_db.pop('_id'))
-        
-    return Order(**order_from_db)
+        order_from_db['_id'] = str(order_from_db['_id'])
+    return Order(**order_from_db).model_dump(by_alias=True)
 
 # PUT /orders/{order_id}/status
 @router.put("/orders/{order_id}/status", response_model=Order)
@@ -302,6 +298,6 @@ async def update_order_status(
         raise HTTPException(status_code=404, detail="Order not found after update attempt.")
 
     if '_id' in updated_order_doc and isinstance(updated_order_doc['_id'], ObjectId):
-        updated_order_doc['id'] = str(updated_order_doc.pop('_id'))
+        updated_order_doc['_id'] = str(updated_order_doc['_id'])
         
     return Order(**updated_order_doc)
