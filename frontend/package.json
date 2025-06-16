@@ -53,9 +53,11 @@
     "react-app-rewired": "^2.2.1"
   },
   "scripts": {
-    "build": "npm install; react-scripts build",
-    "start": "node server.js",
-    "dev": "react-scripts start"
+    "start": "set PORT=3000 && react-scripts start",
+    "start:prod": "node server.js",
+    "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "prod": "serve -s build -l 3000",
+    "start:debug": "cross-env NODE_DEBUG=http,fs node standalone-server.js"
   },
   "proxy": "http://localhost:8000",
   "engines": {
@@ -78,7 +80,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
-}
   }
 }
