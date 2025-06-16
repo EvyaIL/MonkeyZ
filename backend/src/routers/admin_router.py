@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
 from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
 from datetime import datetime, timedelta # Added datetime
@@ -25,6 +25,8 @@ from src.models.admin.analytics import AdminAnalytics, DailySale
 from src.models.products.products_exception import NotFound, NotValid
 from ..mongodb.mongodb import MongoDb 
 from .orders import retry_failed_orders_internal
+from ..services.coupon_service import CouponService
+from fastapi.responses import JSONResponse
 
 class ProductBase(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -196,7 +198,6 @@ async def get_products(
                 # If original field is _id aliased to id, model_dump(by_alias=True) gives _id
                 # Assuming ProductModel has 'id: PydanticObjectId' (possibly aliased from '_id')
                 # If model_dump gives '_id', we need to handle that.
-                # For simplicity, let's assume model_dump gives 'id' or we fetch it.
                 
                 doc_id = getattr(p_doc, "id", None) # Get id attribute
                 if doc_id is None and hasattr(p_doc, "_id"): # Fallback to _id if id is not present
@@ -957,6 +958,16 @@ async def get_key_metrics(
     metrics = await key_metrics_controller.get_key_metrics_diagnostic(current_user=current_user)
     return metrics
 
-# Removed duplicate endpoint - already exists above
+@admin_router.post("/api/coupons/validate")
+async def validate_coupon(request: Request):
+    data = await request.json()
+    code = data.get("code")
+    amount = data.get("amount", 0)
+    db = await MongoDb().get_db()
+    coupon_service = CouponService(db)
+    discount, coupon, error = await coupon_service.validate_and_apply_coupon(code, amount)
+    if error:
+        return JSONResponse({"discount": 0, "message": error}, status_code=400)
+    return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}
 
 # End of file

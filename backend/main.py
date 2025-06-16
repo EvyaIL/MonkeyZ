@@ -86,6 +86,26 @@ app.include_router(admin_router)  # Add admin router
 app.include_router(admin_key_router) # Add admin_key_router
 app.include_router(orders_router, prefix="/api", tags=["orders"])  # Add orders router
 
+# Add coupon validation endpoint
+@app.post("/api/coupons/validate")
+async def validate_coupon(request: Request):
+    from src.services.coupon_service import CouponService
+    from src.mongodb.mongodb import MongoDb
+    
+    data = await request.json()
+    code = data.get("code")
+    amount = data.get("amount", 0)
+    
+    mongo_db = MongoDb()
+    db = await mongo_db.get_db()
+    coupon_service = CouponService(db)
+    # Use validate_coupon (no usage increment) for validation endpoint
+    discount, coupon, error = await coupon_service.validate_coupon(code, amount)
+    
+    if error:
+        return JSONResponse({"discount": 0, "message": error}, status_code=400)
+    return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}
+
 @app.exception_handler(BaseException)
 async def custom_exception_handler(request: Request, exc: BaseException):
     return JSONResponse(

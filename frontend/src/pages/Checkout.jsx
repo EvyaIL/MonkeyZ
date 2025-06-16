@@ -6,6 +6,9 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 const Checkout = () => {
   const [amount, setAmount] = useState("");
   const [email, setEmail] = useState("");
+  const [coupon, setCoupon] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [couponMsg, setCouponMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { cartItems } = useGlobalProvider();
@@ -41,6 +44,29 @@ const Checkout = () => {
     });
   }, [cartItems]);
 
+  // Validate coupon with backend
+  const handleCouponCheck = async () => {
+    setCouponMsg("");
+    setDiscount(0);
+    if (!coupon) return;
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: coupon, amount: parseInt(amount) / 100 })
+      });
+      const data = await res.json();
+      if (res.ok && data.discount > 0) {
+        setDiscount(data.discount);
+        setCouponMsg(`Coupon applied! Discount: ₪${data.discount}`);
+      } else {
+        setCouponMsg(data.message || "Invalid coupon");
+      }
+    } catch (e) {
+      setCouponMsg("Coupon validation failed");
+    }
+  };
+
   const handlePay = async (e) => {
     e.preventDefault();
     setErrorMsg("");
@@ -60,6 +86,7 @@ const Checkout = () => {
         amount: parseInt(amount), // in agorot (e.g. 1000 = ₪10)
         email: email,
         currency: "ILS",
+        coupon_code: coupon,
         successUrl: process.env.REACT_APP_PAYMENT_SUCCESS_URL || "https://monkeyz.co.il/success",
         failUrl: process.env.REACT_APP_PAYMENT_FAIL_URL || "https://monkeyz.co.il/fail",
         description: "CDMonkey Payment",
@@ -146,6 +173,28 @@ const Checkout = () => {
           autoComplete="email"
           pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
         />
+        <label htmlFor="coupon" className="text-base-content dark:text-white font-medium text-left">
+          Coupon Code (optional)
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="coupon"
+            type="text"
+            placeholder="Enter coupon code"
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+            className="p-2 border border-base-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-base-content dark:text-white flex-1"
+          />
+          <button type="button" onClick={handleCouponCheck} className="p-2 bg-primary text-white rounded font-semibold hover:bg-primary/80 transition">
+            Apply
+          </button>
+        </div>
+        {couponMsg && (
+          <div className={discount > 0 ? "text-green-600" : "text-red-500"} role="alert">{couponMsg}</div>
+        )}
+        {discount > 0 && (
+          <div className="text-green-700 font-bold text-center">Discount: ₪{discount} <br/> New Total: ₪{(parseInt(amount)/100 - discount).toFixed(2)}</div>
+        )}
         <button
           type="submit"
           className="p-2 bg-accent text-white rounded font-semibold hover:bg-accent/80 transition"

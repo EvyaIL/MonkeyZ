@@ -12,6 +12,7 @@ from pymongo.database import Database
 from bson import ObjectId
 from ..models.token.token import TokenData
 from .orders_key_release_utils import release_keys_for_order
+from ..services.coupon_service import CouponService
 
 router = APIRouter()
 
@@ -121,26 +122,13 @@ async def create_order(
     original_total = sum(item.price * item.quantity for item in order_data.items)
     discount_amount = 0.0
     coupon_code = order_data.coupon_code
+    coupon_obj = None
+    coupon_error = None
     if coupon_code:
-        # Use admin.coupons collection instead of shop.coupons
-        coupon = await db['admin.coupons'].find_one({'code': coupon_code, 'active': True})
-        if not coupon:
-            print(f"Coupon code '{coupon_code}' not found or not active in admin.coupons.")
-        if coupon:
-            if coupon.get('discountType') == 'percentage' and coupon.get('discountValue'):
-                try:
-                    discount_amount = (original_total * float(coupon['discountValue'])) / 100.0
-                except Exception as e:
-                    print(f"Error calculating percentage discount: {e}")
-                    discount_amount = 0.0
-            elif coupon.get('discountType') == 'fixed' and coupon.get('discountValue'):
-                try:
-                    discount_amount = float(coupon['discountValue'])
-                except Exception as e:
-                    print(f"Error calculating fixed discount: {e}")
-                    discount_amount = 0.0
-            discount_amount = min(discount_amount, original_total)
-        # If coupon not found or inactive, no discount applied
+        coupon_service = CouponService(db)
+        discount_amount, coupon_obj, coupon_error = await coupon_service.validate_and_apply_coupon(coupon_code, original_total)
+        if coupon_error:
+            print(f"Coupon error: {coupon_error}")
     order_data.discount_amount = discount_amount
     order_data.original_total = original_total
     order_data.total = original_total - discount_amount

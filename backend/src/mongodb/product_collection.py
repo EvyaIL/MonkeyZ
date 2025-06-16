@@ -214,6 +214,8 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         admin_db = self.client.get_database("admin")
         collection = admin_db.get_collection("coupons")
         coupon_data["createdAt"] = datetime.utcnow()
+        # Normalize code to lowercase and trim spaces
+        coupon_data["code"] = coupon_data["code"].strip().lower()
         result = await collection.insert_one(coupon_data)
         return {"id": str(result.inserted_id), **coupon_data}
 
@@ -225,6 +227,8 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         cursor = collection.find({})
         async for coupon in cursor:
             coupon["id"] = str(coupon.pop("_id"))
+            # Normalize code for frontend
+            coupon["code"] = coupon["code"].strip().lower()
             coupons.append(coupon)
         return coupons
 
@@ -237,10 +241,14 @@ class ProductCollection(MongoDb, metaclass=Singleton):
             raise ValueError("Invalid coupon ID format")
         admin_db = self.client.get_database("admin")
         collection = admin_db.get_collection("coupons")
+        # Normalize code to lowercase and trim spaces
+        if "code" in coupon_data:
+            coupon_data["code"] = coupon_data["code"].strip().lower()
         await collection.update_one({"_id": coupon_object_id}, {"$set": coupon_data})
         updated_coupon = await collection.find_one({"_id": coupon_object_id})
         if updated_coupon:
             updated_coupon["id"] = str(updated_coupon.pop("_id"))
+            updated_coupon["code"] = updated_coupon["code"].strip().lower()
         return updated_coupon
 
     async def delete_coupon(self, coupon_id: str):
