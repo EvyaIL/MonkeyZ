@@ -35,7 +35,17 @@ DEFAULT_ALLOWED_ORIGINS = [
     "https://monkeyz-frontend.ondigitalocean.app"
 ]
 # Parse comma-separated list from env var if exists
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", ",".join(DEFAULT_ALLOWED_ORIGINS)).split(",")
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS")
+if ALLOWED_ORIGINS_ENV:
+    PARSED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",")]
+else:
+    PARSED_ORIGINS = DEFAULT_ALLOWED_ORIGINS
+
+# Ensure localhost:3000 is always allowed, especially for development
+if "http://localhost:3000" not in PARSED_ORIGINS:
+    PARSED_ORIGINS.append("http://localhost:3000")
+
+ALLOWED_ORIGINS = PARSED_ORIGINS # Define ALLOWED_ORIGINS here for global scope
 
 app = FastAPI(
     title="MonkeyZ API",
@@ -56,7 +66,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS, # Use the processed list
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
