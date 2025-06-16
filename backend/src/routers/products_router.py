@@ -7,6 +7,10 @@ from src.lib.token_handler import get_current_user
 from src.models.user.user import User
 from beanie import PydanticObjectId
 from src.models.products.products_exception import NotFound
+from src.routers.orders import retry_failed_orders_internal
+from src.mongodb.product_collection import ProductCollection
+from src.deps.deps import get_product_collection_with_coupons_dependency
+from src.mongodb.mongodb import MongoDb
 
 
 
@@ -126,3 +130,23 @@ async def edit_product(product_id:PydanticObjectId, product_request:ProductReque
 async def delete_product(product_id:PydanticObjectId, products_controller:ProductsController = Depends(get_products_controller_dependency), current_user:User = Depends(get_current_user)):
    product_id = await products_controller.delete_product(product_id,current_user.username)
    return product_id
+
+@product_router.post("/add-keys", response_model=ProductResponse)
+async def add_keys_to_product(
+    product_id: PydanticObjectId,
+    keys: list[str],
+    products_controller: ProductsController = Depends(get_products_controller_dependency),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Add new CD keys to a product and auto-fulfill any 'AWAITING STOCK' orders.
+    """
+    # Add keys to the product
+    product = await products_controller.product_collection.add_keys_to_product(product_id, keys)
+
+    # Trigger retry for failed/awaiting stock orders
+    db = await MongoDb().get_db()
+    product_collection = ProductCollection()
+    await retry_failed_orders_internal(db, product_collection)
+
+    return product

@@ -371,6 +371,24 @@ function AdminOrdersSimple() {
     orderStatusFilter === 'all' ? true : order.status === orderStatusFilter
   );
 
+  // --- Refresh Awaiting Stock Orders ---
+  const handleRefreshAwaitingStock = async () => {
+    try {
+      setLoadingOrders(true);
+      const { error } = await apiService.post('/api/orders/retry-failed');
+      if (error) {
+        notify({ message: t('admin.orders.refreshAwaitingStockError', 'Failed to refresh awaiting stock orders.'), type: 'error' });
+      } else {
+        notify({ message: t('admin.orders.refreshAwaitingStockSuccess', 'Awaiting stock orders refreshed!'), type: 'success' });
+        await refreshOrders();
+      }
+    } catch (err) {
+      notify({ message: t('admin.orders.refreshAwaitingStockError', 'Failed to refresh awaiting stock orders.'), type: 'error' });
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
   if (showOrderForm) {
     return (
       <OrderForm
@@ -536,6 +554,17 @@ function AdminOrdersSimple() {
           </Select>
         </FormControl>
       </Paper>
+
+      {/* Refresh Awaiting Stock Orders Button */}
+      <Button
+        variant="contained"
+        color="info"
+        onClick={handleRefreshAwaitingStock}
+        sx={{ mb: 2 }}
+        disabled={loadingOrders}
+      >
+        {t('admin.orders.refreshAwaitingStock', 'Refresh Awaiting Stock Orders')}
+      </Button>
 
       {loadingOrders && (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">

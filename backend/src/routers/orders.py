@@ -122,17 +122,22 @@ async def create_order(
     discount_amount = 0.0
     coupon_code = order_data.coupon_code
     if coupon_code:
-        coupon = await db['coupons'].find_one({'code': coupon_code, 'active': True})
+        # Use admin.coupons collection instead of shop.coupons
+        coupon = await db['admin.coupons'].find_one({'code': coupon_code, 'active': True})
+        if not coupon:
+            print(f"Coupon code '{coupon_code}' not found or not active in admin.coupons.")
         if coupon:
             if coupon.get('discountType') == 'percentage' and coupon.get('discountValue'):
                 try:
                     discount_amount = (original_total * float(coupon['discountValue'])) / 100.0
-                except Exception:
+                except Exception as e:
+                    print(f"Error calculating percentage discount: {e}")
                     discount_amount = 0.0
             elif coupon.get('discountType') == 'fixed' and coupon.get('discountValue'):
                 try:
                     discount_amount = float(coupon['discountValue'])
-                except Exception:
+                except Exception as e:
+                    print(f"Error calculating fixed discount: {e}")
                     discount_amount = 0.0
             discount_amount = min(discount_amount, original_total)
         # If coupon not found or inactive, no discount applied
@@ -165,25 +170,44 @@ async def retry_failed_orders_internal(db: Database, product_collection: Product
     """
     orders_to_retry_cursor = db.orders.find({"status": {"$in": [StatusEnum.AWAITING_STOCK, StatusEnum.FAILED]}})
     async for order_doc in orders_to_retry_cursor:
+        # Convert ObjectId to string for '_id' to satisfy Pydantic validation
+        if '_id' in order_doc and not isinstance(order_doc['_id'], str):
+            order_doc['_id'] = str(order_doc['_id'])
         order = Order(**order_doc)
         all_items_processed_successfully = True
         needs_update = False
 
         for item in order.items:
-            if item.assigned_key: # Skip if key already assigned
+            # Check both assigned_key and assigned_keys (list)
+            already_assigned = False
+            if hasattr(item, 'assigned_keys') and item.assigned_keys:
+                already_assigned = True
+            if hasattr(item, 'assigned_key') and item.assigned_key:
+                already_assigned = True
+            if already_assigned:
                 continue
 
             product = await product_collection.get_product_by_id(item.productId)
             if product and product.manages_cd_keys:
-                key_assigned = await assign_key_to_order_item(order.id, item, product_collection, db)
-                if key_assigned:
+                # Assign as many keys as needed for the quantity
+                assigned_keys = []
+                available_keys = [k for k in product.cdKeys if not k.isUsed]
+                if len(available_keys) >= item.quantity:
+                    for i in range(item.quantity):
+                        key_obj = available_keys[i]
+                        key_obj.isUsed = True
+                        key_obj.usedAt = datetime.now(timezone.utc)
+                        key_obj.orderId = order.id
+                        assigned_keys.append(key_obj.key)
+                    # Save the updated product with used keys
+                    await product.save()
+                    item.assigned_keys = assigned_keys
                     needs_update = True
-                    print(f"Retry successful: Key assigned to item {item.productId} in order {order.id}")
+                    print(f"Retry successful: Keys assigned to item {item.productId} in order {order.id}")
                 else:
                     all_items_processed_successfully = False
-                    print(f"Retry failed: No key for item {item.productId} in order {order.id}")
-                    # Optionally, increment a retry counter on the order or item
-                    break # Stop processing this order if one item fails to get a key
+                    print(f"Retry failed: Not enough keys for item {item.productId} in order {order.id}")
+                    break
 
         if needs_update: # If any key was assigned in this retry attempt
             if all_items_processed_successfully:
@@ -213,7 +237,6 @@ async def retry_failed_orders_endpoint(
 ):
     if not await user_controller.has_role(current_user.username, Role.manager):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    
     db = await mongo_db.get_db()
     await retry_failed_orders_internal(db, product_collection)
     return {"message": "Retry process for failed orders initiated."}
