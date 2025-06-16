@@ -341,7 +341,12 @@ function AdminOrdersSimple() {
     setOrderError(null);
     try {
       if (editingOrder?._id) {
-        await apiService.patch(`/api/orders/${editingOrder._id}`, orderData);
+        // If only status is being changed, use the status endpoint
+        if (orderData.status && Object.keys(orderData).length === 1) {
+          await apiService.put(`/api/orders/${editingOrder._id}/status`, { status: orderData.status });
+        } else {
+          await apiService.patch(`/api/orders/${editingOrder._id}`, orderData);
+        }
         notify({ message: t('admin.orders.updatedSuccess', 'Order updated successfully!'), type: 'success', icon: <CheckCircleOutlineIcon /> });
       } else {
         const payload = { ...orderData, autoAssignKeys: true };

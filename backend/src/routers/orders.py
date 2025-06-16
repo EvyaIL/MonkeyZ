@@ -11,6 +11,7 @@ from datetime import datetime, timezone # Import timezone
 from pymongo.database import Database
 from bson import ObjectId
 from ..models.token.token import TokenData
+from .orders_key_release_utils import release_keys_for_order
 
 router = APIRouter()
 
@@ -116,6 +117,29 @@ async def create_order(
     order_data.createdAt = datetime.now(timezone.utc)
     order_data.updatedAt = datetime.now(timezone.utc)
     
+    # --- Coupon Discount Logic ---
+    original_total = sum(item.price * item.quantity for item in order_data.items)
+    discount_amount = 0.0
+    coupon_code = order_data.coupon_code
+    if coupon_code:
+        coupon = await db['coupons'].find_one({'code': coupon_code, 'active': True})
+        if coupon:
+            if coupon.get('discountType') == 'percentage' and coupon.get('discountValue'):
+                try:
+                    discount_amount = (original_total * float(coupon['discountValue'])) / 100.0
+                except Exception:
+                    discount_amount = 0.0
+            elif coupon.get('discountType') == 'fixed' and coupon.get('discountValue'):
+                try:
+                    discount_amount = float(coupon['discountValue'])
+                except Exception:
+                    discount_amount = 0.0
+            discount_amount = min(discount_amount, original_total)
+        # If coupon not found or inactive, no discount applied
+    order_data.discount_amount = discount_amount
+    order_data.original_total = original_total
+    order_data.total = original_total - discount_amount
+    # --- End Coupon Discount Logic ---
     # Prepare order for insertion
     order_to_insert = order_data.model_dump(by_alias=True) # Use model_dump for Pydantic v2
     order_to_insert["_id"] = order_id_obj # Ensure _id is ObjectId
@@ -126,6 +150,9 @@ async def create_order(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create order")
 
     created_order = await db.orders.find_one({"_id": insert_result.inserted_id})
+    # Ensure _id is a string for Pydantic validation
+    if created_order and isinstance(created_order.get('_id'), ObjectId):
+        created_order['_id'] = str(created_order['_id'])
     return Order(**created_order)
 
 # ... (rest of the existing router code for get_orders, get_order, update_order_status, etc.)
@@ -288,6 +315,13 @@ async def update_order_status(
         }
     )
 
+    # If status is being set to Cancelled and it wasn't previously Cancelled, release keys
+    previous_status = order_from_db.get('status')
+    if status_update.status == StatusEnum.CANCELLED and previous_status != StatusEnum.CANCELLED:
+        from .orders_key_release_utils import release_keys_for_order
+        await release_keys_for_order(order_from_db, db)
+        print(f"Order {order_id}: Released keys on cancel.")
+
     if update_result.modified_count == 0:
         # This might happen if the status is the same or order not found (already checked)
         # For simplicity, we'll refetch, but ideally, handle more gracefully
@@ -301,3 +335,66 @@ async def update_order_status(
         updated_order_doc['_id'] = str(updated_order_doc['_id'])
         
     return Order(**updated_order_doc)
+
+@router.delete("/orders/{order_id}")
+async def delete_order(
+    order_id: str,
+    current_user: TokenData = Depends(get_current_user),
+    user_controller = Depends(get_user_controller_dependency)
+):
+    if not await user_controller.has_role(current_user.username, Role.manager):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    db = await mongo_db.get_db()
+    try:
+        obj_order_id = ObjectId(order_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Order ID format")
+
+    order_from_db = await db.orders.find_one({"_id": obj_order_id})
+    if not order_from_db:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Release keys before deleting
+    await release_keys_for_order(order_from_db, db)
+    print(f"Order {order_id}: Released keys before deletion.")
+    await db.orders.delete_one({"_id": obj_order_id})
+    return {"detail": "Order deleted and keys released."}
+
+@router.patch("/orders/{order_id}", response_model=Order)
+async def patch_order(
+    order_id: str,
+    order_update: dict,
+    current_user: TokenData = Depends(get_current_user),
+    user_controller = Depends(get_user_controller_dependency)
+):
+    if not await user_controller.has_role(current_user.username, Role.manager):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    db = await mongo_db.get_db()
+    try:
+        obj_order_id = ObjectId(order_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Order ID format")
+
+    order_from_db = await db.orders.find_one({"_id": obj_order_id})
+    if not order_from_db:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # If status is being changed to Cancelled, release keys
+    previous_status = order_from_db.get('status')
+    new_status = order_update.get('status')
+    if new_status == StatusEnum.CANCELLED and previous_status != StatusEnum.CANCELLED:
+        from .orders_key_release_utils import release_keys_for_order
+        await release_keys_for_order(order_from_db, db)
+        print(f"Order {order_id}: Released keys on cancel (PATCH endpoint).")
+
+    # Update the order with provided fields
+    update_fields = {k: v for k, v in order_update.items() if k != '_id'}
+    update_fields['updatedAt'] = datetime.now(timezone.utc)
+    await db.orders.update_one({"_id": obj_order_id}, {"$set": update_fields})
+
+    updated_order_doc = await db.orders.find_one({"_id": obj_order_id})
+    if '_id' in updated_order_doc and isinstance(updated_order_doc['_id'], ObjectId):
+        updated_order_doc['_id'] = str(updated_order_doc['_id'])
+    return Order(**updated_order_doc).model_dump(by_alias=True)

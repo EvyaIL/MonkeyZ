@@ -36,6 +36,7 @@ class Product(Document):
     slug: Optional[str] = None  # Unique URL-friendly identifier
     category: Optional[str] = None # Product category
     imageUrl: Optional[str] = None # Product image URL
+    updatedAt: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
     class Settings:
         name = "Product" # Changed from "products" to "Product" to match MongoDB
