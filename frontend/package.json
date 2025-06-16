@@ -54,7 +54,7 @@
   },
   "scripts": {
     "postinstall": "npm install typescript",
-    "build": "react-scripts build",
+    "build": "EXTEND_ESLINT=false react-scripts build",
     "start": "node server.js",
     "dev": "react-scripts start"
   },
