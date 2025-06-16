@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
 import json
+from starlette.requests import Request as StarletteRequest
 
 from src.routers.users_router import users_router
 from src.routers.products_router import product_router
@@ -102,13 +103,20 @@ async def validate_coupon(request: Request):
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
     return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}
 
+def get_cors_origin(request: StarletteRequest):
+    origin = request.headers.get("origin")
+    if origin and origin in ALLOWED_ORIGINS:
+        return origin
+    return ""
+
 @app.exception_handler(BaseException)
 async def custom_exception_handler(request: Request, exc: BaseException):
+    origin = get_cors_origin(request)
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.msg, "path": exc.path},
         headers={
-            "Access-Control-Allow-Origin": "*" if IS_DEV else request.headers.get("Origin", ""),
+            "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
@@ -117,11 +125,12 @@ async def custom_exception_handler(request: Request, exc: BaseException):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    origin = get_cors_origin(request)
     return JSONResponse(
         status_code=500,
         content={"message": str(exc)},
         headers={
-            "Access-Control-Allow-Origin": "*" if IS_DEV else request.headers.get("Origin", ""),
+            "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
