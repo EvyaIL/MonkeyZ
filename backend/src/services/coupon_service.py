@@ -25,8 +25,12 @@ class CouponService:
             return 0.0, None, f"Coupon code '{coupon_code}' not found or not active."
         
         # Check expiry
-        if coupon.get('expiresAt') and coupon['expiresAt'] < datetime.now(timezone.utc):
-            return 0.0, None, 'Coupon expired.'
+        expires_at = coupon.get('expiresAt')
+        if expires_at:
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if expires_at < datetime.now(timezone.utc):
+                return 0.0, None, 'Coupon expired.'
         
         # Check max uses
         if coupon.get('maxUses') is not None and coupon.get('usageCount', 0) >= coupon['maxUses']:

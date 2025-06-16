@@ -319,9 +319,9 @@ export default function AdminProducts() {  const { t } = useTranslation();
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(product => 
-        (product.name?.toLowerCase().includes(term)) ||
-        (product.description?.toLowerCase().includes(term)) ||
-        (product.category?.toLowerCase().includes(term))
+        (typeof product.name === 'string' && product.name.toLowerCase().includes(term)) ||
+        (typeof product.description === 'string' && product.description.toLowerCase().includes(term)) ||
+        (typeof product.category === 'string' && product.category.toLowerCase().includes(term))
       );
     }
     
