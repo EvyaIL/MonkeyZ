@@ -54,14 +54,6 @@ app = FastAPI(
     ]
 )
 
-from src.routers import grow_router # Changed from 'from routers import grow_router'
-app.include_router(grow_router.router)
-
-# Health check endpoint for DigitalOcean App Platform
-@app.get("/health", tags=["health"])
-def health_check():
-    return {"status": "healthy"}
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -71,6 +63,14 @@ app.add_middleware(
     expose_headers=["Content-Type", "Authorization"],
     max_age=600  # Cache preflight requests for 10 minutes (600 seconds)
 )
+
+from src.routers import grow_router # Changed from 'from routers import grow_router'
+app.include_router(grow_router.router)
+
+# Health check endpoint for DigitalOcean App Platform
+@app.get("/health", tags=["health"])
+def health_check():
+    return {"status": "healthy"}
 
 @app.get("/health", tags=["default"])
 def health_check():
