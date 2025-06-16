@@ -210,53 +210,51 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         
     # Coupon related methods
     async def create_coupon(self, coupon_data: dict):
-        """Create a new coupon."""
-        collection = self.db.get_collection("coupons")
+        """Create a new coupon in admin.coupons."""
+        admin_db = self.client.get_database("admin")
+        collection = admin_db.get_collection("coupons")
         coupon_data["createdAt"] = datetime.utcnow()
         result = await collection.insert_one(coupon_data)
         return {"id": str(result.inserted_id), **coupon_data}
-        
+
     async def get_all_coupons(self):
-        """Get all coupons."""
-        collection = self.db.get_collection("coupons")
+        """Get all coupons from admin.coupons."""
+        admin_db = self.client.get_database("admin")
+        collection = admin_db.get_collection("coupons")
         coupons = []
         cursor = collection.find({})
         async for coupon in cursor:
             coupon["id"] = str(coupon.pop("_id"))
             coupons.append(coupon)
         return coupons
-        
+
     async def update_coupon(self, coupon_id: str, coupon_data: dict):
-        """Update a coupon."""
+        """Update a coupon in admin.coupons."""
         from bson.objectid import ObjectId
         try:
             coupon_object_id = ObjectId(coupon_id)
         except:
             raise ValueError("Invalid coupon ID format")
-            
-        collection = self.db.get_collection("coupons")
+        admin_db = self.client.get_database("admin")
+        collection = admin_db.get_collection("coupons")
         await collection.update_one({"_id": coupon_object_id}, {"$set": coupon_data})
-        
-        # Get the updated coupon
         updated_coupon = await collection.find_one({"_id": coupon_object_id})
         if updated_coupon:
             updated_coupon["id"] = str(updated_coupon.pop("_id"))
         return updated_coupon
-        
+
     async def delete_coupon(self, coupon_id: str):
-        """Delete a coupon."""
+        """Delete a coupon from admin.coupons."""
         from bson.objectid import ObjectId
         try:
             coupon_object_id = ObjectId(coupon_id)
         except:
             raise ValueError("Invalid coupon ID format")
-            
-        collection = self.db.get_collection("coupons")
+        admin_db = self.client.get_database("admin")
+        collection = admin_db.get_collection("coupons")
         result = await collection.delete_one({"_id": coupon_object_id})
-        
         if result.deleted_count == 0:
             raise ValueError("Coupon not found")
-            
         return {"message": "Coupon deleted successfully"}
 
     async def get_best_sellers(self, limit: int = 10) -> List[Product]:
