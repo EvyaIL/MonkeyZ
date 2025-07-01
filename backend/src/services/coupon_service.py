@@ -5,56 +5,56 @@ class CouponService:
         self.db = db
 
     async def validate_coupon(self, coupon_code, original_total):
-        """Validate coupon without applying (no usage increment)"""
-        if not coupon_code:
-            return 0.0, None, 'No coupon code provided.'
-        
-        # Coupons are stored in admin database, coupons collection
-        admin_db = self.db.client.admin
-        collection = admin_db.get_collection("coupons")
-        
-        # Try to find coupon with exact match first
-        coupon = await collection.find_one({'code': coupon_code.strip().lower(), 'active': True})
-        if not coupon:
-            # Fallback: try case-insensitive search
-            coupon = await collection.find_one({
-                'code': {'$regex': f'^{coupon_code.strip()}$', '$options': 'i'},
-                'active': True
-            })
-        if not coupon:
-            return 0.0, None, f"Coupon code '{coupon_code}' not found or not active."
-        
-        # Check expiry
-        expires_at = coupon.get('expiresAt')
-        if expires_at:
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
-            if expires_at < datetime.now(timezone.utc):
-                return 0.0, None, 'Coupon expired.'
-        
-        # Check max uses
-        if coupon.get('maxUses') is not None and coupon.get('usageCount', 0) >= coupon['maxUses']:
-            return 0.0, None, 'Coupon usage limit reached.'
-        
-        # Calculate discount
-        discount_amount = 0.0
-        if coupon.get('discountType', '').lower() == 'percentage' and coupon.get('discountValue'):
-            discount_amount = (original_total * float(coupon['discountValue'])) / 100.0
-        elif coupon.get('discountType', '').lower() == 'fixed' and coupon.get('discountValue'):
-            discount_amount = float(coupon['discountValue'])
-        
-        discount_amount = min(discount_amount, original_total)
-        return discount_amount, coupon, None
+        """Validate coupon without applying (no usage increment)."""
+        try:
+            if not coupon_code:
+                return 0.0, None, 'No coupon code provided.'
+            admin_db = self.db.client.admin
+            collection = admin_db.get_collection("coupons")
+            code = coupon_code.strip().lower()
+            coupon = await collection.find_one({'code': code, 'active': True})
+            if not coupon:
+                coupon = await collection.find_one({'code': {'$regex': f'^{code}$', '$options': 'i'}, 'active': True})
+            if not coupon:
+                return 0.0, None, f"Coupon code '{coupon_code}' not found or not active."
+            expires_at = coupon.get('expiresAt')
+            if expires_at:
+                # If expires_at is a string, parse to datetime
+                if isinstance(expires_at, str):
+                    try:
+                        expires_at = datetime.fromisoformat(expires_at)
+                    except Exception:
+                        # Unable to parse, skip expiration check
+                        expires_at = None
+                if expires_at:
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    if expires_at < datetime.now(timezone.utc):
+                        return 0.0, None, 'Coupon expired.'
+            if coupon.get('maxUses') is not None and coupon.get('usageCount', 0) >= coupon['maxUses']:
+                return 0.0, None, 'Coupon usage limit reached.'
+            discount = 0.0
+            dtype = coupon.get('discountType', '').lower()
+            dval = coupon.get('discountValue')
+            if dtype == 'percentage' and dval is not None:
+                discount = (original_total * float(dval)) / 100.0
+            elif dtype == 'fixed' and dval is not None:
+                discount = float(dval)
+            discount = min(discount, original_total)
+            return discount, coupon, None
+        except Exception as e:
+            return 0.0, None, str(e)
 
     async def validate_and_apply_coupon(self, coupon_code, original_total):
-        """Validate coupon and apply it (with usage increment)"""
-        discount_amount, coupon, error = await self.validate_coupon(coupon_code, original_total)
-        
+        """Validate coupon and apply it (with usage increment)."""
+        discount, coupon, error = await self.validate_coupon(coupon_code, original_total)
         if error or not coupon:
-            return discount_amount, coupon, error
-        
-        # Increment usage count
-        admin_db = self.db.client.admin
-        collection = admin_db.get_collection("coupons")
-        await collection.update_one({'_id': coupon['_id']}, {'$inc': {'usageCount': 1}})
-        return discount_amount, coupon, None
+            return discount, None, error
+        try:
+            admin_db = self.db.client.admin
+            collection = admin_db.get_collection("coupons")
+            await collection.update_one({'_id': coupon['_id']}, {'$inc': {'usageCount': 1}})
+        except Exception as e:
+            # Log but continue
+            print(f"Failed to increment coupon usage: {e}")
+        return discount, coupon, None

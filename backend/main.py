@@ -107,11 +107,11 @@ async def validate_coupon(request: Request):
     db = await mongo_db.get_db()
     coupon_service = CouponService(db)
     # Use validate_coupon (no usage increment) for validation endpoint
-    discount, coupon, error = await coupon_service.validate_coupon(code, amount)
+    discount, _, error = await coupon_service.validate_coupon(code, amount)
     
     if error:
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
-    return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}
+    return {"discount": discount, "message": "Coupon valid!"}
 
 def get_cors_origin(request: StarletteRequest):
     origin = request.headers.get("origin")

@@ -12,7 +12,10 @@ const GlobalProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState({});
   const [openCart, setOpenCart] = useState(false);
   const [notification, setNotification] = useState(null);
-  
+  // Coupon and customer email for checkout
+  const [couponCode, setCouponCode] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+
   // Theme state
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -287,24 +290,25 @@ const GlobalProvider = ({ children }) => {
     showSuccess,
     notification,
     theme,
-    toggleTheme
+    toggleTheme,
+    couponCode,
+    setCouponCode,
+    customerEmail,
+    setCustomerEmail
   };
   return (
     <GlobalContext.Provider
       value={{
         token,
-        setToken,
+        notify,
         user,
-        setUser,
         isLoading,
-        setIsLoading,
         cartItems,
-        setCartItems,
         openCart,
         setOpenCart,
         notification,
-        setNotification,
         theme,
+        setTheme,
         toggleTheme,
         logout,
         setUserAndToken,
@@ -312,9 +316,12 @@ const GlobalProvider = ({ children }) => {
         removeItemFromCart,
         deleteItemFromCart,
         clearCart,
-        notify,
         showError,
-        showSuccess
+        showSuccess,
+        couponCode,
+        setCouponCode,
+        customerEmail,
+        setCustomerEmail,
       }}
     >
       {children}

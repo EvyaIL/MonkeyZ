@@ -1,211 +1,182 @@
-import React, { useState } from "react";
-import { createPayment } from "../lib/paymentService";
-import { trackEvent } from "../lib/analytics";
+import React, { useState, useEffect } from "react";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import axios from "axios";
 import { useGlobalProvider } from "../context/GlobalProvider";
 
-const Checkout = () => {
-  const [amount, setAmount] = useState("");
+export default function Checkout() {
+  const { cartItems } = useGlobalProvider();
   const [email, setEmail] = useState("");
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
   const [couponMsg, setCouponMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { cartItems } = useGlobalProvider();
+  const [error, setError] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [orderID, setOrderID] = useState(null);
 
-  // Track begin_checkout event when component mounts
-  React.useEffect(() => {
-    const items = Object.values(cartItems).map(item => ({
-      item_id: item.id,
-      item_name: typeof item.name === 'object' ? item.name.en : item.name,
-      price: item.price,
-      quantity: item.count,
-      currency: 'ILS'
-    }));
+  const cartArray = Object.values(cartItems);
+  const subtotal = cartArray.reduce(
+    (sum, item) => sum + item.price * item.count,
+    0
+  );
+  const total = subtotal - discount;
 
-    // Calculate total from cart items
-    let calculatedAmount = 0;
-    items.forEach(item => {
-      calculatedAmount += item.price * item.quantity;
-    });
-
-    // Set initial amount if cart has items
-    if (calculatedAmount > 0) {
-      setAmount((calculatedAmount * 100).toString()); // Convert to agorot
-    }
-
-    // Track checkout initiation
-    trackEvent('begin_checkout', {
-      ecommerce: {
-        items: items,
-        value: calculatedAmount,
-        currency: 'ILS'
-      }
-    });
-  }, [cartItems]);
-
-  // Validate coupon with backend
-  const handleCouponCheck = async () => {
+  // Apply coupon
+  const handleCoupon = async () => {
     setCouponMsg("");
     setDiscount(0);
-    if (!coupon) return;
+    if (!coupon) return setCouponMsg("Enter a coupon code");
     try {
-      const res = await fetch("/api/coupons/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: coupon, amount: parseInt(amount) / 100 })
+      const res = await axios.post("/api/coupons/validate", {
+        code: coupon,
+        amount: subtotal,
       });
-      const data = await res.json();
-      if (res.ok && data.discount > 0) {
-        setDiscount(data.discount);
-        setCouponMsg(`Coupon applied! Discount: ₪${data.discount}`);
+      if (res.data.discount) {
+        setDiscount(res.data.discount);
+        setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
       } else {
-        setCouponMsg(data.message || "Invalid coupon");
+        setCouponMsg(res.data.message);
       }
-    } catch (e) {
-      setCouponMsg("Coupon validation failed");
+    } catch (err) {
+      setCouponMsg(err.response?.data?.message || "Invalid coupon");
     }
   };
 
-  const handlePay = async (e) => {
-    e.preventDefault();
-    setErrorMsg("");
-
-    if (!amount || isNaN(amount) || parseInt(amount) <= 0) {
-      setErrorMsg("Please enter a valid amount in agorot.");
-      return;
-    }
-    if (!email || !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-      setErrorMsg("Please enter a valid email address.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        amount: parseInt(amount), // in agorot (e.g. 1000 = ₪10)
-        email: email,
-        currency: "ILS",
-        coupon_code: coupon,
-        successUrl: process.env.REACT_APP_PAYMENT_SUCCESS_URL || "https://monkeyz.co.il/success",
-        failUrl: process.env.REACT_APP_PAYMENT_FAIL_URL || "https://monkeyz.co.il/fail",
-        description: "CDMonkey Payment",
-      };
-
-      // Track payment initiation
-      trackEvent('initiate_payment', {
-        ecommerce: {
-          value: parseInt(amount) / 100, // Convert from agorot to NIS
-          currency: 'ILS',
-          payment_type: 'credit_card',
-          items: Object.values(cartItems).map(item => ({
-            item_id: item.id,
-            item_name: typeof item.name === 'object' ? item.name.en : item.name,
-            price: item.price,
-            quantity: item.count
-          }))
-        }
-      });
-
-      const res = await createPayment(payload);
-
-      if (res?.url) {
-        window.location.href = res.url;
-      } else {
-        setErrorMsg("No redirect URL returned.");
-      }
-    } catch (err) {
-      setErrorMsg("Payment error. Please try again.");
-      
-      // Track payment error
-      trackEvent('payment_error', {
-        error_message: err.message || "Payment processing error"
-      });
-    }
-    setIsSubmitting(false);
+  const initialOptions = {
+    "client-id": process.env.REACT_APP_PAYPAL_CLIENT_ID,
+    currency: "ILS", // use Israeli Shekel
+    intent: "capture", // ensure immediate capture intent
+    components: "buttons", // load only buttons component
+    commit: true, // show Pay Now button
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      <form
-        onSubmit={handlePay}
-        className="flex flex-col gap-4 max-w-md mx-auto mt-8 bg-white dark:bg-secondary p-8 rounded-lg shadow-lg border border-base-300 dark:border-gray-700"
-        aria-label="Checkout form"
-      >
-        <h2 className="text-3xl font-bold text-primary dark:text-accent text-center mb-2">
-          Checkout
-        </h2>
-        <p className="text-base-content text-center mb-2">All payments are in <span className="font-bold">NIS (₪)</span>. Enter the amount in <span className="font-bold">agorot</span> (e.g. 1000 = ₪10).</p>
-        {errorMsg && (
-          <div
-            className="text-red-500 text-center"
-            role="alert"
-            aria-live="polite"
-          >
-            {errorMsg}
+    <div className="container mx-auto py-10 px-4">
+      <h1 className="text-3xl font-bold mb-6 text-center">Checkout</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Order Summary */}
+        <div className="bg-white p-6 rounded shadow">
+          <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+          {cartArray.length === 0 ? (
+            <p>Your cart is empty.</p>
+          ) : (
+            <ul className="divide-y">
+              {cartArray.map((item) => {
+                const displayName =
+                  typeof item.name === "object" ? item.name.en : item.name;
+                return (
+                  <li key={item.id} className="py-2 flex justify-between">
+                    <span>
+                      {displayName} x{item.count}
+                    </span>
+                    <span>₪{(item.price * item.count).toFixed(2)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="mt-4">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>₪{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span className="text-green-600">- ₪{discount.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-lg">
+              <span>Total</span>
+              <span>₪{total.toFixed(2)}</span>
+            </div>
           </div>
-        )}
-        <label htmlFor="amount" className="text-base-content dark:text-white font-medium text-left">
-          Amount (in agorot)
-        </label>
-        <input
-          id="amount"
-          type="number"
-          placeholder="Amount in agorot (e.g. 1000 = ₪10)"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
-          className="p-2 border border-base-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-base-content dark:text-white"
-          min={1}
-          required
-          autoFocus
-        />
-        <label htmlFor="email" className="text-base-content dark:text-white font-medium text-left">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="p-2 border border-base-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-base-content dark:text-white"
-          required
-          autoComplete="email"
-          pattern="^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$"
-        />
-        <label htmlFor="coupon" className="text-base-content dark:text-white font-medium text-left">
-          Coupon Code (optional)
-        </label>
-        <div className="flex gap-2">
-          <input
-            id="coupon"
-            type="text"
-            placeholder="Enter coupon code"
-            value={coupon}
-            onChange={(e) => setCoupon(e.target.value)}
-            className="p-2 border border-base-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-base-content dark:text-white flex-1"
-          />
-          <button type="button" onClick={handleCouponCheck} className="p-2 bg-primary text-white rounded font-semibold hover:bg-primary/80 transition">
-            Apply
-          </button>
+          {/* Coupon Input */}
+          <div className="mt-6">
+            <label className="block mb-1">Coupon Code</label>
+            <div className="flex">
+              <input
+                type="text"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                className="flex-1 border p-2 rounded-l"
+              />
+              <button
+                onClick={handleCoupon}
+                className="bg-blue-600 text-white px-4 rounded-r hover:bg-blue-700"
+              >
+                Apply
+              </button>
+            </div>
+            {couponMsg && <p className="mt-2 text-sm">{couponMsg}</p>}
+          </div>
+          {/* Email Input */}
+          <div className="mt-6">
+            <label className="block mb-1">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full border p-2 rounded"
+            />
+          </div>
         </div>
-        {couponMsg && (
-          <div className={discount > 0 ? "text-green-600" : "text-red-500"} role="alert">{couponMsg}</div>
-        )}
-        {discount > 0 && (
-          <div className="text-green-700 font-bold text-center">Discount: ₪{discount} <br/> New Total: ₪{(parseInt(amount)/100 - discount).toFixed(2)}</div>
-        )}
-        <button
-          type="submit"
-          className="p-2 bg-accent text-white rounded font-semibold hover:bg-accent/80 transition"
-          disabled={isSubmitting}
-          aria-busy={isSubmitting}
-        >
-          {isSubmitting ? "Processing..." : "Pay Now"}
-        </button>
-      </form>
+        {/* Payment Section */}
+        <div className="bg-white p-6 rounded shadow flex flex-col justify-between">
+          {error && <div className="text-red-600 mb-4">{error}</div>}
+          <PayPalScriptProvider options={initialOptions}>
+            <PayPalButtons
+              style={{
+                layout: "vertical",
+                color: "gold",
+                shape: "pill",
+              }}
+              disabled={processing || !email || cartArray.length === 0}
+              createOrder={async () => {
+                setProcessing(true);
+                const { data } = await axios.post("/api/paypal/orders", {
+                  cart: cartArray.map((i) => ({
+                    id: i.id,
+                    quantity: i.count,
+                    price: i.price,
+                  })),
+                  couponCode: coupon,
+                  customerEmail: email,
+                });
+                setError("");
+                setOrderID(data.id);
+                return data.id;
+              }}
+              onApprove={async (data) => {
+                try {
+                  await axios.post(`/api/paypal/orders/${data.orderID}/capture`);
+                  window.location.href = "/success";
+                } catch (err) {
+                  setError(err.response?.data?.message || "Payment failed");
+                  // Mark order as cancelled when capture fails
+                  try {
+                    await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
+                  } catch {};
+                  window.location.href = "/fail";
+                } finally {
+                  setProcessing(false);
+                }
+              }}
+              onCancel={async (data) => {
+                // Mark order as cancelled when user aborts
+                await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
+                window.location.href = "/fail";
+              }}
+              onError={async (err) => {
+                setError("Payment error");
+                console.error(err);
+                if (orderID) {
+                  await axios.post(`/api/paypal/orders/${orderID}/cancel`);
+                }
+              }}
+            />
+          </PayPalScriptProvider>
+          {processing && <p className="text-center mt-4">Processing payment…</p>}
+        </div>
+      </div>
     </div>
   );
-};
-
-export default Checkout;
+}
