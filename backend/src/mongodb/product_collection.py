@@ -1,4 +1,6 @@
 from beanie import Document, PydanticObjectId
+from bson import ObjectId # Import ObjectId
+from pydantic import ValidationError # Import ValidationError
 from pymongo.database import Database
 from .mongodb import MongoDb
 from src.models.products.products import Product, CDKey, CDKeyUpdateRequest
@@ -7,6 +9,9 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import pymongo
 import logging
+import copy
+import re
+from unidecode import unidecode
 
 class ProductCollection(MongoDb, metaclass=Singleton):
     """Collection for managing shop products."""
@@ -92,9 +97,63 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         await product.save()
         return product
         
-    async def get_all_products(self) -> List[Product]:
-        """Get all products in the collection."""
-        return await Product.find().to_list()
+    async def get_all_products(self) -> List[Dict[str, Any]]:
+        """
+        Get all products in the collection as a list of dictionaries,
+        formatted for API responses. This method handles sanitization and serialization.
+        """
+        product_collection = Product.get_motor_collection()
+        products_cursor = product_collection.find({})
+        
+        response_products = []
+        async for p_doc in products_cursor:
+            p_data = p_doc
+            try:
+                # Sanitize _id to id string
+                if "_id" in p_data:
+                    p_data["id"] = str(p_data.pop("_id"))
+                else:
+                    # If there's an 'id' but it's not a string, convert it
+                    if "id" in p_data and not isinstance(p_data["id"], str):
+                        p_data["id"] = str(p_data["id"])
+
+                # Sanitize cdKeys before validation
+                if "cdKeys" in p_data and p_data["cdKeys"]:
+                    sanitized_keys = []
+                    for key_data in copy.deepcopy(p_data["cdKeys"]):
+                        if "orderId" in key_data and key_data["orderId"]:
+                            try:
+                                PydanticObjectId(key_data["orderId"])
+                            except (ValidationError, TypeError, ValueError):
+                                key_data["orderId"] = None
+                        sanitized_keys.append(key_data)
+                    p_data["cdKeys"] = sanitized_keys
+                
+                # Perform validation using the Pydantic model
+                validated_product = Product.model_validate(p_data)
+                
+                # Convert to dict for response, ensuring camelCase and string IDs
+                response_dict = validated_product.model_dump(by_alias=True) # Use by_alias for camelCase
+                
+                # Manual override for fields that model_dump might not handle as expected
+                response_dict['id'] = str(validated_product.id)
+                if validated_product.created_at:
+                    response_dict['createdAt'] = validated_product.created_at
+                if validated_product.updatedAt:
+                    response_dict['updatedAt'] = validated_product.updatedAt
+
+                response_products.append(response_dict)
+
+            except ValidationError as ve:
+                product_id = p_data.get('id', 'Unknown ID')
+                logging.error(f"Validation error processing product {product_id} in get_all_products: {ve}")
+                continue
+            except Exception as e:
+                product_id = p_data.get('id', 'Unknown ID')
+                logging.error(f"An unexpected error occurred processing product {product_id} in get_all_products: {e}")
+                continue
+                
+        return response_products
         
     async def create_product(self, product_data: dict) -> Product:
         """Create a new product."""
@@ -130,8 +189,6 @@ class ProductCollection(MongoDb, metaclass=Singleton):
                 name_for_slug = str(product_data.get('name', ""))
             
             # Generate basic slug
-            import re
-            from unidecode import unidecode
             if name_for_slug:
                 # Replace non-alphanumeric characters and convert to lowercase
                 slug_base = unidecode(name_for_slug)  # Convert accented characters to ASCII
@@ -177,8 +234,6 @@ class ProductCollection(MongoDb, metaclass=Singleton):
                 name_for_slug = str(product_name or "")
             
             # Generate basic slug
-            import re
-            from unidecode import unidecode
             if name_for_slug:
                 # Replace non-alphanumeric characters and convert to lowercase
                 slug_base = unidecode(name_for_slug)  # Convert accented characters to ASCII
@@ -234,7 +289,6 @@ class ProductCollection(MongoDb, metaclass=Singleton):
 
     async def update_coupon(self, coupon_id: str, coupon_data: dict):
         """Update a coupon in admin.coupons."""
-        from bson.objectid import ObjectId
         try:
             coupon_object_id = ObjectId(coupon_id)
         except:
@@ -253,7 +307,6 @@ class ProductCollection(MongoDb, metaclass=Singleton):
 
     async def delete_coupon(self, coupon_id: str):
         """Delete a coupon from admin.coupons."""
-        from bson.objectid import ObjectId
         try:
             coupon_object_id = ObjectId(coupon_id)
         except:

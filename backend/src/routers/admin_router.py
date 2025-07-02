@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are impor
 from datetime import datetime, timedelta # Added datetime
 from bson.objectid import ObjectId # Added ObjectId
 from beanie import PydanticObjectId # Added PydanticObjectId for Beanie
+import copy
 
 from src.models.user.user import Role
 from src.deps.deps import (
@@ -27,6 +28,22 @@ from ..mongodb.mongodb import MongoDb
 from .orders import retry_failed_orders_internal
 from ..services.coupon_service import CouponService
 from fastapi.responses import JSONResponse
+
+router = APIRouter()
+
+@router.get("/admin/products", response_model=List[ProductModel], tags=["Admin Products"])
+async def get_products_for_admin(
+    current_user: TokenData = Depends(get_current_user),
+    user_controller: UserController = Depends(get_user_controller_dependency)
+):
+    if not await user_controller.has_role(current_user.username, Role.manager):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this resource."
+        )
+    
+    products = await ProductModel.find_all().to_list()
+    return products
 
 class ProductBase(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -185,87 +202,14 @@ async def get_products(
 ):
     await verify_admin(user_controller, current_user)
     try:
+        # The get_all_products method now returns sanitized and validated Product models.
+        # No need for manual processing here.
         products_from_db = await user_controller.product_collection.get_all_products()
-        result = []
-        for p_doc in products_from_db:
-            p_data = {} # Initialize p_data to ensure it's defined in case of early continue
-            try:
-                # Convert Beanie doc to dict, excluding fields that are None
-                p_data = p_doc.model_dump(exclude_none=True)
 
-                # 1. Ensure 'id' is a string
-                # Beanie's model_dump (by_alias=False) should provide 'id' if field is named 'id'
-                # If original field is _id aliased to id, model_dump(by_alias=True) gives _id
-                # Assuming ProductModel has 'id: PydanticObjectId' (possibly aliased from '_id')
-                # If model_dump gives '_id', we need to handle that.
-                
-                doc_id = getattr(p_doc, "id", None) # Get id attribute
-                if doc_id is None and hasattr(p_doc, "_id"): # Fallback to _id if id is not present
-                    doc_id = getattr(p_doc, "_id", None)
-
-                if doc_id is not None:
-                    p_data['id'] = str(doc_id)
-                else:
-                    print(f"Product document missing 'id' or '_id'. Raw doc: {p_doc}")
-                    continue # Skip product if no ID can be found
-
-                # Remove '_id' if 'id' is now set, to avoid conflicts if both were in p_data
-                if '_id' in p_data:
-                    del p_data['_id']
-
-                # 2. 'name' (dict) and 'price' (float) are expected from p_doc.model_dump()
-                # ProductModel.name (LocalizedString) should dump to a dict.
-                # ProductModel.price (float) should dump as float.
-                # These will be validated when creating Product(**p_data)
-
-                # 3. Handle camelCasing for timestamps if ProductModel uses snake_case
-                if "created_at" in p_data and "createdAt" not in p_data:
-                    p_data["createdAt"] = p_data.pop("created_at")
-                if "updated_at" in p_data and "updatedAt" not in p_data:
-                    p_data["updatedAt"] = p_data.pop("updated_at")
-
-                # 4. Ensure timestamps exist, defaulting to now if not present
-                p_data["createdAt"] = p_data.get("createdAt", datetime.utcnow())
-                p_data["updatedAt"] = p_data.get("updatedAt", datetime.utcnow())
-                # Ensure they are datetime objects if they came as strings from somewhere
-                if isinstance(p_data["createdAt"], str):
-                    p_data["createdAt"] = datetime.fromisoformat(p_data["createdAt"].replace("Z", "+00:00"))
-                if isinstance(p_data["updatedAt"], str):
-                    p_data["updatedAt"] = datetime.fromisoformat(p_data["updatedAt"].replace("Z", "+00:00"))
-
-
-                # 5. Ensure imageUrl, defaulting to empty string
-                p_data["imageUrl"] = p_data.get("imageUrl", p_data.get("image", ""))
-
-                # 6. Ensure boolean fields conform to ProductBase definition (type and default)
-                for field_name, field_model in ProductBase.model_fields.items():
-                    if field_model.annotation == bool:
-                        p_data[field_name] = bool(p_data.get(field_name, field_model.default))
-                    elif field_name == 'manages_cd_keys' and field_model.annotation == Optional[bool]: # Specifically for Optional[bool]
-                        # If key exists in p_data, use its value (or None if it was None and not excluded)
-                        # If key doesn't exist, use default from ProductBase (which is None)
-                        current_value = p_data.get(field_name, field_model.default)
-                        p_data[field_name] = None if current_value is None else bool(current_value)
-
-
-                # Create a Product instance to validate structure and types.
-                # This will raise ValidationError if p_data doesn't match Product schema.
-                validated_product_model = Product(**p_data)
-                result.append(validated_product_model.model_dump())
-
-            except ValidationError as ve:
-                product_identifier = p_data.get('id', getattr(p_doc, "id", "Unknown ID"))
-                print(f"Validation error processing product {product_identifier}: {ve.errors()}")
-                continue 
-            except Exception as e:
-                product_identifier = p_data.get('id', getattr(p_doc, "id", "Unknown ID"))
-                print(f"Error processing product {product_identifier}: {e}")
-                continue
-        
-        return result
+        # The response_model will handle converting the list of Product models to JSON.
+        return products_from_db
     except Exception as e:
         print(f"Critical error in get_products: {str(e)}")
-        # Consider raising HTTPException for server-side errors
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error fetching products")
 
 @admin_router.post("/products", response_model=Product)

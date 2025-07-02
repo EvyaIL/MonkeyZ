@@ -1,4 +1,7 @@
-from beanie import PydanticObjectId
+from beanie import PydanticObjectId, Document
+from pydantic import ValidationError
+import logging
+import copy
 from .mongodb import MongoDb
 from src.models.products.products import Product, ProductRequest, CDKeyUpdateRequest # Added CDKeyUpdateRequest
 from src.models.products.products_exception import CreateError, NotValid ,NotFound
@@ -7,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Union, Dict, Any # Ensure Dict and Any are imported
 from bson import ObjectId # Ensure ObjectId is imported
 from fastapi import HTTPException # Ensure HTTPException is imported
+from bson.errors import InvalidId
 
 class ProductsCollection(MongoDb, metaclass=Singleton):
     """
@@ -21,9 +25,49 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         self.db = await self.add_new_collection(database_name)
         await self.initialize_beanie(self.db, [Product])
 
+    def _sanitize_product_doc(self, p_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitizes a single product document by handling '_id', invalid 'orderId' in 'cdKeys',
+        and legacy field formats before Pydantic validation.
+        """
+        # Sanitize _id to id for Pydantic compatibility
+        if "_id" in p_data:
+            p_data["id"] = p_data.pop("_id")
+
+        # Sanitize cdKeys before validation
+        if "cdKeys" in p_data and p_data["cdKeys"]:
+            sanitized_keys = []
+            # Use deepcopy to avoid modifying the original document in-place
+            for key_data in copy.deepcopy(p_data["cdKeys"]):
+                if "orderId" in key_data and key_data["orderId"]:
+                    try:
+                        # Validate that the orderId is a proper ObjectId
+                        PydanticObjectId(key_data["orderId"])
+                    except (ValidationError, TypeError, ValueError, InvalidId):
+                        # If validation fails, it's a legacy/invalid ID. Log it and set to None.
+                        logging.warning(
+                            f"Invalid orderId '{key_data['orderId']}' found in product "
+                            f"'{p_data.get('id', 'N/A')}'. Sanitizing to None."
+                        )
+                        key_data["orderId"] = None
+                sanitized_keys.append(key_data)
+            p_data["cdKeys"] = sanitized_keys
+        
+        # Compatibility conversions for older data structures
+        if 'createdAt' in p_data and 'created_at' not in p_data:
+            p_data['created_at'] = p_data.pop('createdAt')
+        if 'updatedAt' in p_data and 'updated_at' not in p_data:
+            p_data['updated_at'] = p_data.pop('updatedAt')
+        if isinstance(p_data.get('name'), str):
+            p_data['name'] = {'en': p_data['name'], 'he': ''}
+        if isinstance(p_data.get('description'), str):
+            p_data['description'] = {'en': p_data['description'], 'he': ''}
+            
+        return p_data
+
     async def get_all_products(self) -> list[Product]:
         """
-        Retrieves all products from the database.
+        Retrieves all products from the database, sanitizing them before validation.
 
         Returns:
             list[Product]: A list of all ACTIVE products in the database.
@@ -34,20 +78,19 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             products = []
             
             async for doc in cursor:
-                # Convert camelCase to snake_case for Pydantic model
-                if 'createdAt' in doc and 'created_at' not in doc:
-                    doc['created_at'] = doc['createdAt']
-                if 'updatedAt' in doc and 'updated_at' not in doc:
-                    doc['updated_at'] = doc['updatedAt']
-                # Compatibility: convert string name/description to dict
-                if isinstance(doc.get('name'), str):
-                    doc['name'] = {'en': doc['name'], 'he': ''}
-                if isinstance(doc.get('description'), str):
-                    doc['description'] = {'en': doc['description'], 'he': ''}
-                # Create product instance
-                product = Product(**doc)
-                products.append(product)
-                
+                product_id_for_logging = str(doc.get('_id', 'Unknown ID'))
+                try:
+                    sanitized_doc = self._sanitize_product_doc(doc)
+                    product = Product.model_validate(sanitized_doc)
+                    products.append(product)
+
+                except ValidationError as ve:
+                    logging.error(f"Validation error for product {product_id_for_logging} in get_all_products: {ve}")
+                    continue # Skip this product
+                except Exception as e:
+                    logging.error(f"Unexpected error processing product {product_id_for_logging} in get_all_products: {e}")
+                    continue # Skip this product
+
             return products
         except Exception as e:
             print(f"Error in get_all_products: {str(e)}")
@@ -70,19 +113,17 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             products = []
             
             async for doc in cursor:
-                # Convert camelCase to snake_case for Pydantic model
-                if 'createdAt' in doc and 'created_at' not in doc:
-                    doc['created_at'] = doc['createdAt']
-                if 'updatedAt' in doc and 'updated_at' not in doc:
-                    doc['updated_at'] = doc['updatedAt']
-                # Compatibility: convert string name/description to dict
-                if isinstance(doc.get('name'), str):
-                    doc['name'] = {'en': doc['name'], 'he': ''}
-                if isinstance(doc.get('description'), str):
-                    doc['description'] = {'en': doc['description'], 'he': ''}
-                # Create product instance
-                product = Product(**doc)
-                products.append(product)
+                product_id_for_logging = str(doc.get('_id', 'Unknown ID'))
+                try:
+                    sanitized_doc = self._sanitize_product_doc(doc)
+                    product = Product.model_validate(sanitized_doc)
+                    products.append(product)
+                except ValidationError as ve:
+                    logging.error(f"Validation error for best seller product {product_id_for_logging}: {ve}")
+                    continue
+                except Exception as e:
+                    logging.error(f"Unexpected error processing best seller product {product_id_for_logging}: {e}")
+                    continue
                 
             return products
         except Exception as e:
@@ -111,20 +152,18 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             products = []
             
             async for doc in cursor:
-                # Convert camelCase to snake_case for Pydantic model
-                if 'createdAt' in doc and 'created_at' not in doc:
-                    doc['created_at'] = doc['createdAt']
-                if 'updatedAt' in doc and 'updated_at' not in doc:
-                    doc['updated_at'] = doc['updatedAt']
-                # Compatibility: convert string name/description to dict
-                if isinstance(doc.get('name'), str):
-                    doc['name'] = {'en': doc['name'], 'he': ''}
-                if isinstance(doc.get('description'), str):
-                    doc['description'] = {'en': doc['description'], 'he': ''}
-                # Create product instance
-                product = Product(**doc)
-                products.append(product)
-                
+                product_id_for_logging = str(doc.get('_id', 'Unknown ID'))
+                try:
+                    sanitized_doc = self._sanitize_product_doc(doc)
+                    product = Product.model_validate(sanitized_doc)
+                    products.append(product)
+                except ValidationError as ve:
+                    logging.error(f"Validation error for recent product {product_id_for_logging}: {ve}")
+                    continue
+                except Exception as e:
+                    logging.error(f"Unexpected error processing recent product {product_id_for_logging}: {e}")
+                    continue
+
             return products
         except Exception as e:
             print(f"Error in get_recent_products: {str(e)}")
@@ -529,19 +568,17 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                 cursor = cursor.limit(limit)
             products = []
             async for doc in cursor:
-                # Convert camelCase to snake_case for Pydantic model
-                if 'createdAt' in doc and 'created_at' not in doc:
-                    doc['created_at'] = doc['createdAt']
-                if 'updatedAt' in doc and 'updated_at' not in doc:
-                    doc['updated_at'] = doc['updatedAt']
-                # Compatibility: convert string name/description to dict
-                if isinstance(doc.get('name'), str):
-                    doc['name'] = {'en': doc['name'], 'he': ''}
-                if isinstance(doc.get('description'), str):
-                    doc['description'] = {'en': doc['description'], 'he': ''}
-                # Create product instance
-                product = Product(**doc)
-                products.append(product)
+                product_id_for_logging = str(doc.get('_id', 'Unknown ID'))
+                try:
+                    sanitized_doc = self._sanitize_product_doc(doc)
+                    product = Product.model_validate(sanitized_doc)
+                    products.append(product)
+                except ValidationError as ve:
+                    logging.error(f"Validation error for homepage product {product_id_for_logging}: {ve}")
+                    continue
+                except Exception as e:
+                    logging.error(f"Unexpected error processing homepage product {product_id_for_logging}: {e}")
+                    continue
             return products
         except Exception as e:
             print(f"Error in get_homepage_products: {str(e)}")

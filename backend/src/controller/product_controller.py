@@ -1,6 +1,5 @@
 from src.models.products.products import Product
-# Using Product from product_collection as AdminProduct since there's no separate AdminProduct class
-from src.mongodb.product_collection import Product as AdminProduct
+from src.mongodb.product_collection import ProductCollection as AdminProductCollection
 from src.mongodb.products_collection import ProductsCollection
 from src.mongodb.keys_collection import KeysCollection
 from src.mongodb.users_collection import UserCollection
@@ -11,14 +10,14 @@ class ProductsController:
     """Controller for managing products, including creation, editing, and deletion."""
     
     def __init__(self, product_collection: ProductsCollection, keys_collection: KeysCollection, 
-                 user_collection: UserCollection, admin_product_collection: ProductsCollection):
+                 user_collection: UserCollection, admin_product_collection: AdminProductCollection):
         """Initialize the controller with required collections.
         
         Args:
             product_collection: The main products collection for frontend display
             keys_collection: Collection for managing keys/IDs
             user_collection: Collection for user management
-            admin_product_collection: The admin product collection (same as product_collection)
+            admin_product_collection: The admin product collection
         """
         self.product_collection = product_collection
         self.keys_collection = keys_collection
@@ -75,10 +74,12 @@ class ProductsController:
         """
         return await self.product_collection.get_products(page, limit)
     
-    async def get_all_products(self) -> list[Product]:
-        """Get all products from admin collection (for public display). Only active products are returned."""
-        products = await self.admin_product_collection.get_all_products()
-        return [p for p in products if getattr(p, "active", True)]
+    async def get_all_products(self) -> list[dict[str, any]]:
+        """Get all products from the main products collection (for public display). Only active products are returned."""
+        # Use the main product_collection which has the sanitization logic for public-facing data.
+        products = await self.product_collection.get_all_products()
+        # The get_all_products in products_collection already filters for active=True
+        return products
     
     async def create_product(self, product: Product) -> Product:
         """Create a new product in main collection.
@@ -91,7 +92,7 @@ class ProductsController:
         """
         return await self.product_collection.create_product(product)
     
-    async def create_admin_product(self, product: AdminProduct) -> AdminProduct:
+    async def create_admin_product(self, product: Product) -> Product:
         """Create a product in admin collection and sync to main collection.
         
         Args:
@@ -130,7 +131,7 @@ class ProductsController:
         """
         return await self.product_collection.update_product(product_id, product)
     
-    async def update_admin_product(self, product_id: str, product: AdminProduct) -> AdminProduct:
+    async def update_admin_product(self, product_id: str, product: Product) -> Product:
         """Update a product in admin collection and sync to main collection.
         
         Args:
@@ -197,7 +198,7 @@ class ProductsController:
                 return False
         return False
     
-    async def get_admin_products(self) -> list[AdminProduct]:
+    async def get_admin_products(self) -> list[Product]:
         """Get all products from admin collection.
         
         Returns:
@@ -205,7 +206,7 @@ class ProductsController:
         """
         return await self.admin_product_collection.get_all_products()
     
-    async def get_admin_product(self, product_id: str) -> AdminProduct:
+    async def get_admin_product(self, product_id: str) -> Product:
         """Get a specific product from admin collection.
         
         Args:

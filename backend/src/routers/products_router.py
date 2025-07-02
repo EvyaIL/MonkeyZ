@@ -33,9 +33,9 @@ async def lifespan(router: APIRouter):
 product_router = APIRouter(prefix=f"/product",tags=["products"], lifespan=lifespan)
 
 
-@product_router.get("/all", response_model=list[ProductResponse])
+@product_router.get("/all")
 async def get_all_product(products_controller:ProductsController = Depends(get_products_controller_dependency)):
-   products = await products_controller.get_all_products() 
+   products = await products_controller.product_collection.get_all_products()
    return products
 
 
