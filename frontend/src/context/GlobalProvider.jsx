@@ -168,19 +168,30 @@ const GlobalProvider = ({ children }) => {
    * @param {number} count
    * @param {object} item
    */  const addItemToCart = (id, count, item) => {
+    // The 'id' passed to this function should be the product's database ID.
+    const cartKey = id || item.id;
+
+    // Do not add item to cart if it has no valid identifier.
+    if (!cartKey || cartKey === 'undefined') {
+      console.error("Attempted to add an item to the cart with an invalid ID.", item);
+      showError("Could not add item to cart. Product ID is missing.");
+      return;
+    }
+
     setCartItems((prev) => {
       const newCart = { ...prev };
-      if (id in newCart) {
-        newCart[id].count += count;
+
+      if (cartKey in newCart) {
+        newCart[cartKey].count += count;
       } else {
-        // Ensure we have a consistent image field for cart display
+        // Ensure the item in the cart has the correct ID field.
         const cartItem = { 
           ...item, 
+          id: cartKey, // Ensure the id field is the database ID
           count: count,
-          // Prioritize imageUrl, then image for cart display
           image: item.imageUrl || item.image || item.images?.[0] || null
         };
-        newCart[id] = cartItem;
+        newCart[cartKey] = cartItem;
       }
       
       // Save cart to localStorage for persistence
@@ -261,10 +272,24 @@ const GlobalProvider = ({ children }) => {
     try {
       const savedCart = localStorage.getItem('cart');
       if (savedCart) {
-        setCartItems(JSON.parse(savedCart));
+        const parsedCart = JSON.parse(savedCart);
+        const sanitizedCart = {};
+        for (const key in parsedCart) {
+          const item = parsedCart[key];
+          // Ensure item is an object and has an id.
+          if (item && typeof item === 'object' && item.id) {
+            sanitizedCart[item.id] = item;
+          } else if (item && typeof item === 'object' && key !== 'undefined') {
+            // Fallback for older cart items that used the key as id.
+            item.id = key;
+            sanitizedCart[key] = item;
+          }
+        }
+        setCartItems(sanitizedCart);
       }
     } catch (e) {
-      console.error('Error loading cart from localStorage', e);
+      console.error('Error loading or sanitizing cart from localStorage', e);
+      localStorage.removeItem('cart'); // Clear corrupted cart data
     }
   }, []);
 

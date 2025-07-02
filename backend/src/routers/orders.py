@@ -414,7 +414,6 @@ async def update_order_status(
     # If status is being set to Cancelled and it wasn't previously Cancelled, release keys
     previous_status = order_from_db.get('status')
     if status_update.status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
-        from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
         print(f"Order {order_id}: Released keys on cancel.")
     # If setting status to Completed and was not Completed, increment coupon usage
