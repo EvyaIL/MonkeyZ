@@ -27,11 +27,46 @@ class EmailService:
         for item, key in zip(products, keys):
             name = item.get("name") or item.get("id")
             body += f"<p>{name} &mdash; Your license key: <strong>{key}</strong></p>"
-        message = MessageSchema(
-            subject=subject,
-            recipients=[to],
-            body=body,
-            subtype="html"
+        try:
+            message = MessageSchema(
+                subject=subject,
+                recipients=[to],
+                body=body,
+                subtype="html"
+            )
+            fm = FastMail(conf)
+            await fm.send_message(message)
+            return True
+        except Exception as e:
+            # Suppress email send failures; log and continue without impacting order flow
+            import logging
+            logging.warning(f"Email send failed for {to}, ignoring: {e}")
+            return True
+    
+    async def send_pending_stock_email(
+        self,
+        to: str,
+        order_id: str
+    ):
+        # Notify customer that order is awaiting stock
+        from fastapi_mail import MessageSchema, FastMail
+        subject = f"Order {order_id} Awaiting Stock"
+        body = (
+            f"<h1>Order {order_id} Pending</h1>"
+            "<p>Your digital product is currently out of stock. "
+            "We will send your license keys within 1 to 24 hours once they become available.</p>"
         )
-        fm = FastMail(conf)
-        await fm.send_message(message)
+        try:
+            message = MessageSchema(
+                subject=subject,
+                recipients=[to],
+                body=body,
+                subtype="html"
+            )
+            fm = FastMail(conf)
+            await fm.send_message(message)
+            return True
+        except Exception as e:
+            import logging
+            logging.warning(f"Pending-stock email failed for {to}, ignoring: {e}")
+            return False

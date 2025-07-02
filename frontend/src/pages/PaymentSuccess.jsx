@@ -13,65 +13,49 @@ const PaymentSuccess = () => {
   // Parse URL parameters to get transaction details
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
-    const orderId = queryParams.get("transaction_id") || `order-${Date.now()}`;
-    const amount = queryParams.get("amount") || 0;
-
-    // Get items from cart and create order data
-    const items = Object.values(cartItems).map(item => ({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: item.count
-    }));
-
-    // Calculate total from items (fallback to amount from URL)
-    let total = 0;
-    items.forEach(item => {
-      total += item.price * item.quantity;
-    });
-
-    // Use URL amount if available and no items found
-    if (total === 0 && amount) {
-      total = parseFloat(amount);
-    }
-
-    const orderInfo = {
-      orderId,
-      items,
-      total,
-      currency: "ILS",
-      timestamp: new Date().toISOString()
-    };
-
-    setOrderData(orderInfo);
-
-    // Track purchase event
-    trackPurchase(orderInfo);
-    
-    // Store purchase date for segmentation
-    localStorage.setItem('last_purchase_date', new Date().toISOString());
-    
-    // Calculate funnel conversion metrics
-    const funnelData = JSON.parse(sessionStorage.getItem('funnel_data') || '{}');
-    if (funnelData) {
-      // Calculate time from first view to purchase if available
-      if (funnelData.page_view && funnelData.page_view.timestamp) {
-        const conversionTimeMs = Date.now() - funnelData.page_view.timestamp;
-        const conversionTimeMinutes = Math.floor(conversionTimeMs / (1000 * 60));
-        
-        // Track conversion time metrics
-        trackEvent('conversion_metrics', {
-          conversion_time_ms: conversionTimeMs,
-          conversion_time_minutes: conversionTimeMinutes,
-          funnel_steps_completed: Object.keys(funnelData).length,
-          transaction_id: orderId
-        });
+    const orderId = queryParams.get("transaction_id");
+    if (!orderId) return;
+    async function fetchOrder() {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`);
+        if (!res.ok) throw new Error('Failed to fetch order');
+        const order = await res.json();
+        // Map backend order to local shape
+        const items = order.items.map(item => ({
+          id: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }));
+        const orderInfo = {
+          orderId: order.id,
+          items,
+          total: order.total,
+          currency: order.currency || "ILS",
+          timestamp: order.createdAt
+        };
+        setOrderData(orderInfo);
+        // Track purchase event once
+        trackPurchase(orderInfo);
+        localStorage.setItem('last_purchase_date', new Date().toISOString());
+        const funnelData = JSON.parse(sessionStorage.getItem('funnel_data') || '{}');
+        if (funnelData?.page_view?.timestamp) {
+          const conversionTimeMs = Date.now() - funnelData.page_view.timestamp;
+          trackEvent('conversion_metrics', {
+            conversion_time_ms: conversionTimeMs,
+            conversion_time_minutes: Math.floor(conversionTimeMs / (1000 * 60)),
+            funnel_steps_completed: Object.keys(funnelData).length,
+            transaction_id: order.id
+          });
+        }
+        clearCart();
+      } catch (err) {
+        console.error(err);
       }
     }
-
-    // Clear the cart after successful purchase
-    clearCart();
-  }, [location.search, cartItems, clearCart]);
+    fetchOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">

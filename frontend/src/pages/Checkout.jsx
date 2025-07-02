@@ -6,6 +6,8 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 export default function Checkout() {
   const { cartItems } = useGlobalProvider();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
   const [couponMsg, setCouponMsg] = useState("");
@@ -118,6 +120,28 @@ export default function Checkout() {
               className="w-full border p-2 rounded"
             />
           </div>
+          {/* Name Input */}
+          <div className="mt-6">
+            <label className="block mb-1">Full Name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your Name"
+              className="w-full border p-2 rounded"
+            />
+          </div>
+          {/* Phone Input */}
+          <div className="mt-6">
+            <label className="block mb-1">Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+972512345678"
+              className="w-full border p-2 rounded"
+            />
+          </div>
         </div>
         {/* Payment Section */}
         <div className="bg-white p-6 rounded shadow flex flex-col justify-between">
@@ -129,17 +153,15 @@ export default function Checkout() {
                 color: "gold",
                 shape: "pill",
               }}
-              disabled={processing || !email || cartArray.length === 0}
+              disabled={processing || !email || !name || !phone || cartArray.length === 0}
               createOrder={async () => {
                 setProcessing(true);
                 const { data } = await axios.post("/api/paypal/orders", {
-                  cart: cartArray.map((i) => ({
-                    id: i.id,
-                    quantity: i.count,
-                    price: i.price,
-                  })),
+                  cart: cartArray.map((i) => ({ id: i.id, quantity: i.count, price: i.price })),
                   couponCode: coupon,
                   customerEmail: email,
+                  customerName: name,
+                  phone: phone,
                 });
                 setError("");
                 setOrderID(data.id);

@@ -16,9 +16,9 @@ class SelfResponse(BaseModel):
     username: str  # Corrected the field name to match your code
     role:Role
     email:str
-    phone_number:int
-    keys:Optional[dict[PydanticObjectId,Key]] = None 
-    
-    
-    
-    
+    phone_number: Optional[int] = None
+    keys:Optional[dict[PydanticObjectId,Key]] = None
+
+
+
+

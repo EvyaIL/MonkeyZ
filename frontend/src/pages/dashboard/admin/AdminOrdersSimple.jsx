@@ -224,7 +224,7 @@ function AdminOrdersSimple() {
   const loadProducts = useCallback(async () => {
     setLoadingProducts(true);
     try {
-      const response = await apiService.get('/product/all'); // Or /admin/products if preferred
+      const response = await apiService.get('/product/all');
       if (response.data) {
         setProducts(response.data);
       } else {
@@ -265,7 +265,7 @@ function AdminOrdersSimple() {
     setLoadingOrders(true);
     setOrderError(null);
     try {
-      const response = await apiService.get('/api/orders');
+       const response = await apiService.get('/api/orders');
       if (response.data) {
         setOrders(response.data);
         // Analytics will be recalculated by useEffect watching 'orders'
@@ -627,12 +627,12 @@ function AdminOrdersSimple() {
                     <Typography variant="caption" color="text.secondary">{order.email}</Typography>
                   </TableCell>
                   <TableCell>{new Date(order.date || order.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell sx={{ textAlign: 'right' }}>{`₪${order.original_total?.toFixed(2) || order.total?.toFixed(2)}`}</TableCell>
-                  <TableCell sx={{ textAlign: 'right', color: order.discount_amount > 0 ? 'error.main' : 'text.secondary' }}>
-                    {`-₪${order.discount_amount?.toFixed(2) || '0.00'}`}
+                  <TableCell sx={{ textAlign: 'right' }}>{`₪${order.originalTotal?.toFixed(2) || order.total?.toFixed(2)}`}</TableCell>
+                  <TableCell sx={{ textAlign: 'right', color: order.discountAmount > 0 ? 'error.main' : 'text.secondary' }}>
+                    {`-₪${order.discountAmount?.toFixed(2) || '0.00'}`}
                   </TableCell>
                   <TableCell sx={{ textAlign: 'right', fontWeight: 'bold' }}>{`₪${order.total?.toFixed(2)}`}</TableCell>
-                  <TableCell>{order.coupon_code || 'N/A'}</TableCell>
+                  <TableCell>{order.couponCode || 'N/A'}</TableCell>
                   <TableCell sx={{ textAlign: 'center' }}>
                      <Chip 
                         label={t(`admin.status${order.status}`, order.status || 'Unknown')}
@@ -709,11 +709,11 @@ function AdminOrdersSimple() {
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>{t('admin.orderSummary', 'Order Summary')}</Typography>
                 <Typography><strong>{t('admin.orderDate', 'Date')}:</strong> {new Date(selectedOrderDetails.date || selectedOrderDetails.createdAt).toLocaleString()}</Typography>
-                <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> {`₪${selectedOrderDetails.original_total?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}`}</Typography>
-                {selectedOrderDetails.coupon_code && (
+                <Typography><strong>{t('admin.orderOriginalTotal', 'Original Total')}:</strong> {`₪${selectedOrderDetails.originalTotal?.toFixed(2) || selectedOrderDetails.total?.toFixed(2)}`}</Typography>
+                {selectedOrderDetails.couponCode && (
                   <>
-                    <Typography><strong>{t('admin.orderCoupon', 'Coupon Code')}:</strong> {selectedOrderDetails.coupon_code}</Typography>
-                    <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> <span style={{ color: 'red' }}>{`-₪${selectedOrderDetails.discount_amount?.toFixed(2)}`}</span></Typography>
+                    <Typography><strong>{t('admin.orderCoupon', 'Coupon Code')}:</strong> {selectedOrderDetails.couponCode}</Typography>
+                    <Typography><strong>{t('admin.orderDiscountAmount', 'Discount Amount')}:</strong> <span style={{ color: 'red' }}>{`-₪${selectedOrderDetails.discountAmount?.toFixed(2)}`}</span></Typography>
                   </>
                 )}
                 <Typography><strong>{t('admin.orderFinalTotal', 'Final Total')}:</strong> <span style={{ fontWeight: 'bold' }}>{`₪${selectedOrderDetails.total?.toFixed(2)}`}</span></Typography>                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
