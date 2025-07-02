@@ -169,6 +169,60 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             print(f"Error in get_recent_products: {str(e)}")
             return []
         
+    async def get_product_by_name(self, product_name: str) -> Optional[Product]:
+        """
+        Retrieves a product by its name (slug).
+
+        Args:
+            product_name (str): The name (slug) of the product to retrieve.
+
+        Returns:
+            Optional[Product]: The product if found, otherwise None.
+        """
+        try:
+            # Find the product by its English name, which is used as the slug.
+            collection = Product.get_motor_collection()
+            # The name field is a dictionary, so we query the 'en' key.
+            product_doc = await collection.find_one({"name.en": product_name, "active": True})
+
+            if product_doc:
+                try:
+                    # Sanitize before validation
+                    sanitized_doc = self._sanitize_product_doc(product_doc)
+                    return Product.model_validate(sanitized_doc)
+                except ValidationError as ve:
+                    logging.error(f"Validation error for product name {product_name}: {ve}")
+                    return None # Or raise an exception
+            return None
+        except Exception as e:
+            print(f"Error in get_product_by_name: {str(e)}")
+            return None
+
+    async def get_product_by_id(self, product_id: PydanticObjectId) -> Optional[Product]:
+        """
+        Retrieves a product by its ID.
+
+        Args:
+            product_id (PydanticObjectId): The ID of the product to retrieve.
+
+        Returns:
+            Optional[Product]: The product if found, otherwise None.
+        """
+        try:
+            product_doc = await Product.get_motor_collection().find_one({"_id": product_id})
+            if product_doc:
+                try:
+                    # Sanitize before validation
+                    sanitized_doc = self._sanitize_product_doc(product_doc)
+                    return Product.model_validate(sanitized_doc)
+                except ValidationError as ve:
+                    logging.error(f"Validation error for product ID {product_id}: {ve}")
+                    return None
+            return None
+        except Exception as e:
+            print(f"Error in get_product_by_id: {str(e)}")
+            return None
+
     async def create_product(self, product_request: ProductRequest) -> Product:
         """
         Creates a new product in the database.
@@ -299,7 +353,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                 name_for_slug = data['name'].get('en') or next(iter(data['name'].values()), "")
             else:
                 name_for_slug = str(data.get('name', ""))
-            
+
             # Generate basic slug
             import re
             from unidecode import unidecode
@@ -318,7 +372,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                 from datetime import datetime
                 timestamp = int(datetime.utcnow().timestamp())
                 data['slug'] = f"product-{timestamp}"
-            
+        
         # Create and save the product
         product = Product(**data)
         await product.save()
@@ -359,6 +413,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
             
         # Ensure slug is maintained - if no slug exists, create one
         if not product.slug and ('slug' not in data or not data.get('slug')):
+
             # Generate slug from English name or first available name
             name_for_slug = ""
             if isinstance(data.get('name', product.name), dict):
@@ -366,7 +421,7 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                 name_for_slug = name_dict.get('en') or next(iter(name_dict.values()), "")
             else:
                 name_for_slug = str(data.get('name', product.name or ""))
-            
+
             # Generate basic slug
             import re
             from unidecode import unidecode
