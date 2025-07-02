@@ -1,6 +1,6 @@
 from beanie import Document, PydanticObjectId, Link
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 
 # Defines the structure for an individual CD key
@@ -8,14 +8,14 @@ class CDKey(BaseModel):
     key: str
     isUsed: bool = Field(default=False)
     usedAt: Optional[datetime] = None
-    orderId: Optional[PydanticObjectId] = None # For referencing Order ObjectId
+    orderId: Optional[Union[PydanticObjectId, str]] = None # For referencing Order ObjectId or PayPal Order ID
     addedAt: datetime = Field(default_factory=datetime.utcnow)
 
 class CDKeyUpdateRequest(BaseModel):
     key: Optional[str] = None
     isUsed: Optional[bool] = None
     usedAt: Optional[datetime] = None
-    orderId: Optional[PydanticObjectId] = None
+    orderId: Optional[Union[PydanticObjectId, str]] = None
 
 class CDKeysAddRequest(BaseModel):
     keys: List[CDKey] # Should be List[str] if adding new keys, or List[CDKey] if adding pre-defined CDKey objects. Assuming List[str] for simplicity of adding new keys.

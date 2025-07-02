@@ -413,12 +413,12 @@ async def update_order_status(
 
     # If status is being set to Cancelled and it wasn't previously Cancelled, release keys
     previous_status = order_from_db.get('status')
-    if status_update.status == StatusEnum.CANCELLED and previous_status != StatusEnum.CANCELLED:
+    if status_update.status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
         print(f"Order {order_id}: Released keys on cancel.")
     # If setting status to Completed and was not Completed, increment coupon usage
-    if status_update.status == StatusEnum.COMPLETED and previous_status != StatusEnum.COMPLETED:
+    if status_update.status == StatusEnum.COMPLETED.value and previous_status != StatusEnum.COMPLETED.value:
         from ..services.coupon_service import CouponService
         coupon_code = order_from_db.get('couponCode') or order_from_db.get('coupon_code')
         original_total = order_from_db.get('originalTotal') or order_from_db.get('original_total') or 0
@@ -463,11 +463,22 @@ async def delete_order(
     if not order_from_db:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    # --- Decrement Coupon Usage on Deletion ---
+    # Only decrement if the order was completed, as usage is only incremented on completion.
+    coupon_code = order_from_db.get("couponCode")
+    order_status = order_from_db.get("status")
+    if coupon_code and order_status == StatusEnum.COMPLETED.value:
+        from ..services.coupon_service import CouponService
+        coupon_service = CouponService(db)
+        await coupon_service.decrement_coupon_usage(coupon_code)
+        print(f"Order {order_id}: Decremented usage for coupon {coupon_code}.")
+    # --- End Coupon Logic ---
+
     # Release keys before deleting
     await release_keys_for_order(order_from_db, db)
     print(f"Order {order_id}: Released keys before deletion.")
     await db.orders.delete_one({"_id": query_id})
-    return {"detail": "Order deleted and keys released."}
+    return {"detail": "Order deleted, keys released, and coupon usage updated."}
 
 @router.patch("/orders/{order_id}", response_model=Order)
 async def patch_order(
@@ -493,7 +504,7 @@ async def patch_order(
     # If status is being changed to Cancelled, release keys
     previous_status = order_from_db.get('status')
     new_status = order_update.get('status')
-    if new_status == StatusEnum.CANCELLED and previous_status != StatusEnum.CANCELLED:
+    if new_status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
         print(f"Order {order_id}: Released keys on cancel (PATCH endpoint).")
@@ -519,12 +530,47 @@ async def create_paypal_order(
     customer_email = payload.get("customerEmail")
     customer_name = payload.get("customerName")
     phone = payload.get("phone")
-    # Customer name and phone are optional for PayPal orders
-    # Validate required customer info
-    # if not customer_name or not phone:
-    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name and phone are required for PayPal orders")
-    # Calculate original total
-    original_total = sum(item.get("price", 0) * item.get("quantity", 0) for item in cart)
+
+    # --- Item Validation and Sanitization ---
+    valid_items_for_db = []
+    if not cart:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart cannot be empty.")
+
+    for c in cart:
+        product_id = c.get("productId") or c.get("id")
+        if not product_id:
+            print(f"Skipping cart item because it is missing a product ID: {c}")
+            continue
+            
+        prod = await product_collection.get_product_by_id(product_id)
+        if not prod:
+            print(f"Skipping cart item because product with ID {product_id} was not found.")
+            continue
+        
+        # Sanitize product name to string
+        raw_name = prod.name if hasattr(prod, 'name') else ""
+        if isinstance(raw_name, dict):
+            name_str = raw_name.get('en') or next(iter(raw_name.values()), "")
+        else:
+            name_str = str(raw_name)
+
+        # Use price from DB to prevent tampering, quantity from cart
+        quantity = c.get("quantity", 0)
+        if quantity > 0:
+            valid_items_for_db.append({
+                "productId": str(prod.id), # Use the sanitized product ID from DB
+                "name": name_str,
+                "quantity": quantity,
+                "price": prod.price, # Use price from DB
+                "assigned_keys": []
+            })
+
+    if not valid_items_for_db:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart contains no valid items.")
+
+    # Calculate original total from validated items
+    original_total = sum(item.get("price", 0) * item.get("quantity", 0) for item in valid_items_for_db)
+    
     # Validate coupon (no usage increment)
     coupon_service = CouponService((await mongo_db.get_db()))
     discount, _, _ = await coupon_service.validate_coupon(coupon_code, original_total)
@@ -551,27 +597,11 @@ async def create_paypal_order(
     # Prepare order document with items and totals
     db = await mongo_db.get_db()
     now = datetime.now(timezone.utc)
-    # Map cart to order items
-    items = []
-    for c in cart:
-        prod = await product_collection.get_product_by_id(c.get("id"))
-        # sanitize product name to string
-        raw_name = prod.name if prod and hasattr(prod, 'name') else ""
-        if isinstance(raw_name, dict):
-            name_str = raw_name.get('en') or next(iter(raw_name.values()), "")
-        else:
-            name_str = str(raw_name)
-        items.append({
-            "productId": c.get("id"),
-            "name": name_str,
-            "quantity": c.get("quantity", 0),
-            "price": c.get("price", 0.0),
-            "assigned_keys": []
-        })
-    # Insert PENDING order including required fields
+
+    # Insert PENDING order using the validated items
     await db.orders.insert_one({
         "_id": order_id,
-        "items": items,
+        "items": valid_items_for_db, # Use the validated and sanitized items
         "total": net_total,
         "originalTotal": original_total,
         "discountAmount": discount,
@@ -633,32 +663,49 @@ async def capture_paypal_order(
         sum(i.get("price", 0) * i.get("quantity", 0) for i in order_doc.get("items", []))
     )
     # Assign CD keys for digital products
-    all_assigned = True
+    all_items_have_keys = True
     items = order_doc.get("items", [])
     for item in items:
-        assigned_keys = []
-        quantity = item.get("quantity", 0)
-        for _ in range(quantity):
-            # sanitize name field to ensure string input
-            raw_name = item.get("name", "")
-            if isinstance(raw_name, dict):
-                name_str = raw_name.get("en") or next(iter(raw_name.values()), "")
-            else:
-                name_str = str(raw_name)
-            oi = OrderItem(
-                productId=item.get("productId"),
-                name=name_str,
-                quantity=1,
-                price=item.get("price")
-            )
-            assigned = await assign_key_to_order_item(order_id, oi, product_collection, db)
-            if assigned and getattr(oi, 'assigned_keys', []):
-                assigned_keys.extend(oi.assigned_keys)
-            else:
-                all_assigned = False
-        item["assigned_keys"] = assigned_keys
+        product = await product_collection.get_product_by_id(item.get("productId"))
+        if not product or not product.manages_cd_keys:
+            continue # Skip non-digital products or products not found
+
+        available_keys = [k for k in product.cdKeys if not k.isUsed]
+        if len(available_keys) < item.get("quantity", 0):
+            all_items_have_keys = False
+            break # No need to check other items, we already know it's awaiting stock
+
+    # If stock is available, proceed with assignment
+    if all_items_have_keys:
+        for item in items:
+            assigned_keys = []
+            quantity = item.get("quantity", 0)
+            for _ in range(quantity):
+                # sanitize name field to ensure string input
+                raw_name = item.get("name", "")
+                if isinstance(raw_name, dict):
+                    name_str = raw_name.get("en") or next(iter(raw_name.values()), "")
+                else:
+                    name_str = str(raw_name)
+                oi = OrderItem(
+                    productId=item.get("productId"),
+                    name=name_str,
+                    quantity=1,
+                    price=item.get("price")
+                )
+                # This function modifies the product in the DB and assigns keys to `oi`
+                assigned = await assign_key_to_order_item(order_id, oi, product_collection, db)
+                if assigned and getattr(oi, 'assigned_keys', []):
+                    assigned_keys.extend(oi.assigned_keys)
+                else:
+                    # This case should theoretically not be hit if the pre-check passed,
+                    # but as a safeguard:
+                    all_items_have_keys = False
+            item["assigned_keys"] = assigned_keys
+    
     # Determine final status based on key assignment
-    status_value = StatusEnum.COMPLETED.value if all_assigned else StatusEnum.AWAITING_STOCK.value
+    status_value = StatusEnum.COMPLETED.value if all_items_have_keys else StatusEnum.AWAITING_STOCK.value
+    
     # If fully completed, increment coupon usage
     if status_value == StatusEnum.COMPLETED.value and coupon_obj:
         _, _, _ = await svc.validate_and_apply_coupon(
