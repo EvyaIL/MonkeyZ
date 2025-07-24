@@ -2,6 +2,77 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
 from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
 from datetime import datetime, timedelta # Added datetime
+from pymongo import MongoClient
+from bson import ObjectId # Use bson from pymongo
+from beanie import PydanticObjectId # Added PydanticObjectId for Beanie
+import copy
+
+from src.models.user.user import Role
+from src.deps.deps import (
+    UserController, 
+    get_user_controller_dependency, 
+    KeyMetricsController, 
+    get_key_metrics_controller_dependency, 
+    get_keys_controller_dependency,
+    get_admin_product_collection_dependency
+)
+from src.mongodb.product_collection import ProductCollection
+from src.controller.key_controller import KeyController
+from src.lib.token_handler import get_current_user # Added get_current_user
+from src.models.token.token import TokenData # Added TokenData
+from src.models.user.user_exception import UserException # Added UserException
+
+from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest, AddKeysRequest
+from src.models.admin.analytics import AdminAnalytics, DailySale
+from src.models.products.products_exception import NotFound, NotValid
+from ..mongodb.mongodb import MongoDb 
+from .orders import retry_failed_orders_internal
+from ..services.coupon_service import CouponService
+from fastapi.responses import JSONResponse
+
+admin_router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+)
+mongo_db_instance = MongoDb()
+
+# Coupon analytics endpoint
+@admin_router.get("/coupons/{coupon_code}/analytics")
+async def get_coupon_analytics(
+    coupon_code: str,
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
+):
+    await verify_admin(user_controller, current_user)
+    # Find coupon by code (case-insensitive)
+    coupon = await user_controller.db.coupons.find_one({"code": coupon_code})
+    if not coupon:
+        coupon = await user_controller.db.coupons.find_one({"code": {"$regex": f"^{coupon_code}$", "$options": "i"}})
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+
+    # Extract analytics fields from coupon document
+    usage_analytics = coupon.get("usageAnalytics", {})
+    user_usages = coupon.get("userUsages", {})
+    usage_count = coupon.get("uses", coupon.get("usageCount", 0))
+
+    # Compose analytics response
+    analytics = {
+        "total": usage_analytics.get("total", usage_count),
+        "completed": usage_analytics.get("completed", 0),
+        "cancelled": usage_analytics.get("cancelled", 0),
+        "pending": usage_analytics.get("pending", 0),
+        "processing": usage_analytics.get("processing", 0),
+        "awaiting_stock": usage_analytics.get("awaitingStock", 0),
+        "unique_users": len(user_usages),
+        "user_usages": user_usages,
+        "usage_count": usage_count
+    }
+    return analytics
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
+from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
+from datetime import datetime, timedelta # Added datetime
 from bson.objectid import ObjectId # Added ObjectId
 from beanie import PydanticObjectId # Added PydanticObjectId for Beanie
 import copy
@@ -79,6 +150,19 @@ class CouponBase(BaseModel):
     usageCount: int = 0
     # ...existing fields...
     maxUsagePerUser: int = 0  # Allow typing and saving per-user max uses
+
+    @field_validator('maxUsagePerUser')
+    def validate_max_usage_per_user(cls, v):
+        # Always save as a positive integer (0 means unlimited)
+        if v is None:
+            return 0
+        try:
+            v_int = int(v)
+        except (ValueError, TypeError):
+            return 0
+        if v_int < 0:
+            return 0
+        return v_int
     model_config = {
         "populate_by_name": True
     }
@@ -574,9 +658,12 @@ async def create_coupon(
     # Convert ISOString to datetime if present
     if coupon.expiresAt and isinstance(coupon.expiresAt, str):
         coupon_data["expiresAt"] = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
-    # No need for manual parsing, Pydantic model ensures correct type
-    # Just ensure it's present and an integer
-    if "maxUsagePerUser" not in coupon_data or not isinstance(coupon_data["maxUsagePerUser"], int):
+    # Ensure maxUsagePerUser is a positive integer (0 means unlimited)
+    try:
+        coupon_data["maxUsagePerUser"] = int(coupon_data.get("maxUsagePerUser", 0))
+        if coupon_data["maxUsagePerUser"] < 0:
+            coupon_data["maxUsagePerUser"] = 0
+    except Exception:
         coupon_data["maxUsagePerUser"] = 0
     
     new_coupon = await user_controller.create_coupon(coupon_data)
@@ -602,22 +689,30 @@ async def update_coupon(
     
     # Convert the model to a dict for processing
     coupon_data = coupon.dict()
-    
+
     # Convert discountPercent to discountValue for MongoDB model
     if "discountPercent" in coupon_data:
         coupon_data["discountValue"] = coupon_data.pop("discountPercent")
         coupon_data["discountType"] = "percentage"
-        
+
+    # Ensure maxUsagePerUser is a positive integer (0 means unlimited)
+    try:
+        coupon_data["maxUsagePerUser"] = int(coupon_data.get("maxUsagePerUser", 0))
+        if coupon_data["maxUsagePerUser"] < 0:
+            coupon_data["maxUsagePerUser"] = 0
+    except Exception:
+        coupon_data["maxUsagePerUser"] = 0
+
     updated_coupon = await user_controller.update_coupon(coupon_id, coupon_data)  # Using the controller method
-    
+
     # Convert backend model to frontend format
     coupon_dict = updated_coupon.dict() if hasattr(updated_coupon, 'dict') else updated_coupon
-    
+
     # Ensure discountPercent is set properly for frontend
     if "discountValue" in coupon_dict and "discountType" in coupon_dict:
         if coupon_dict["discountType"] == "percentage":
             coupon_dict["discountPercent"] = coupon_dict["discountValue"]
-    
+
     return coupon_dict
 
 @admin_router.delete("/coupons/{coupon_id}")
