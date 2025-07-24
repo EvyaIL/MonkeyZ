@@ -17,7 +17,8 @@ class ApiService {  constructor() {
     }
     
     console.log('API Endpoint:', this.endpoint || 'Using proxy');
-    this.token = null;
+    // Try to load token from localStorage/sessionStorage on init
+    this.token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || null;
 
     this.httpClient = axios.create({
       baseURL: this.endpoint,
@@ -32,8 +33,10 @@ class ApiService {  constructor() {
     // Attach token to every request if available
     this.httpClient.interceptors.request.use(
       (config) => {
-        if (this.token) {
-          config.headers.Authorization = `Bearer ${this.token}`;
+        // Always try to get the latest token before each request
+        const token = this.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
         } else {
           delete config.headers.Authorization;
         }

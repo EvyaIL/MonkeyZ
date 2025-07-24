@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Dialog, DialogTitle, DialogContent, Button, Typography, Divider } from "@mui/material";
@@ -14,20 +12,15 @@ export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
     if (open && couponCode) {
       setLoading(true);
       setError("");
-      axios.get(`/admin/coupons?code=${encodeURIComponent(couponCode)}`)
-        .then((res) => {
-          // Try to find by code (case-insensitive)
-          let found = null;
-          if (Array.isArray(res.data)) {
-            found = res.data.find(c => c.code?.toLowerCase() === couponCode.toLowerCase());
-          }
-          setCoupon(found || null);
-          return axios.get(`/admin/coupons/${couponCode}/analytics`);
-        })
+      axios.get(`/admin/coupons/${couponCode}/analytics`)
         .then((analyticsRes) => {
           setAnalytics(analyticsRes.data);
+          return axios.get(`/admin/coupons/info?code=${encodeURIComponent(couponCode)}`);
         })
-        .catch((e) => {
+        .then((couponRes) => {
+          setCoupon(couponRes.data || null);
+        })
+        .catch((err) => {
           setError("Failed to load analytics");
           setCoupon(null);
           setAnalytics(null);
@@ -68,6 +61,17 @@ export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
             <Typography>Processing: {analytics.processing}</Typography>
             <Typography>Awaiting Stock: {analytics.awaiting_stock}</Typography>
             <Typography>Unique Users: {analytics.unique_users}</Typography>
+            <Divider style={{ margin: "12px 0" }} />
+            <Typography variant="subtitle2" style={{ fontWeight: "bold" }}>Per-User Usage</Typography>
+            {analytics.user_usages && Object.keys(analytics.user_usages).length > 0 ? (
+              <div>
+                {Object.entries(analytics.user_usages).map(([user, count]) => (
+                  <Typography key={user}>{user}: {count} uses</Typography>
+                ))}
+              </div>
+            ) : (
+              <Typography>No users have used this coupon yet.</Typography>
+            )}
           </div>
         )}
         {!loading && !coupon && !analytics && <Typography>No analytics available.</Typography>}

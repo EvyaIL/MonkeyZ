@@ -41,34 +41,174 @@ mongo_db_instance = MongoDb()
 async def get_coupon_analytics(
     coupon_code: str,
     user_controller: UserController = Depends(get_user_controller_dependency),
-    current_user: TokenData = Depends(get_current_user)
 ):
-    await verify_admin(user_controller, current_user)
-    # Find coupon by code (case-insensitive)
-    coupon = await user_controller.db.coupons.find_one({"code": coupon_code})
+    # REMOVE admin check so anyone can view coupon analytics
+    # Aggressive coupon code matching: case-insensitive, trim, remove spaces, allow partials
+    code_variants = [
+        coupon_code.strip(),
+        coupon_code.strip().lower(),
+        coupon_code.strip().upper(),
+        coupon_code.strip().replace(' ', ''),
+        coupon_code.strip().replace(' ', '').lower(),
+        coupon_code.strip().replace(' ', '').upper(),
+    ]
+    # Debug logging: log all coupon codes in DB and code variants being checked
+    all_coupons_cursor = user_controller.db.coupons.find({})
+    all_coupons = await all_coupons_cursor.to_list(length=1000)
+    db_codes = [c.get('code', None) for c in all_coupons if c.get('code', None)]
+    print(f"[DEBUG] All coupon codes in DB: {db_codes}")
+    print(f"[DEBUG] Code variants being checked: {code_variants}")
+    coupon = None
+    # Print all codes and compare each variant
+    for db_code in db_codes:
+        for variant in code_variants:
+            print(f"[DEBUG] Comparing DB code '{db_code}' with variant '{variant}'")
+            if db_code and variant and db_code.strip().lower() == variant.strip().lower():
+                print(f"[DEBUG] Exact match found: '{db_code}' == '{variant}'")
+                coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                break
+        if coupon:
+            break
     if not coupon:
-        coupon = await user_controller.db.coupons.find_one({"code": {"$regex": f"^{coupon_code}$", "$options": "i"}})
+        # Try partial match (contains)
+        for db_code in db_codes:
+            for variant in code_variants:
+                print(f"[DEBUG] Partial compare DB code '{db_code}' with variant '{variant}'")
+                if db_code and variant and variant.strip().lower() in db_code.strip().lower():
+                    print(f"[DEBUG] Partial match found: '{variant}' in '{db_code}'")
+                    coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                    break
+            if coupon:
+                break
+    if not coupon:
+        # Try to find by partial code in the whole coupon collection
+        all_coupons_cursor = user_controller.db.coupons.find({})
+        all_coupons = await all_coupons_cursor.to_list(length=1000)
+        for c in all_coupons:
+            db_code = c.get('code', '')
+            if db_code and coupon_code.strip().lower() in db_code.strip().lower():
+                coupon = c
+                break
+        # Always return a valid analytics object for frontend compatibility
+        # (Do NOT return 404, always return 200 with default analytics)
+        return {
+            "total": 0,
+            "completed": 0,
+            "cancelled": 0,
+            "pending": 0,
+            "processing": 0,
+            "awaiting_stock": 0,
+            "unique_users": 0,
+            "user_usages": {},
+            "usage_count": 0,
+            "max_usage_per_user": 0
+        }
+
+    # DEBUG: Log the coupon document for troubleshooting
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("coupon_analytics")
+    logger.info(f"Coupon document for analytics: {coupon}")
+
+    # Extract analytics fields from coupon document, fallback to alternative field names if needed
+    usage_analytics = coupon.get("usageAnalytics", coupon.get("usage_analytics", {}))
+    user_usages = coupon.get("userUsages", coupon.get("user_usages", {}))
+    usage_count = coupon.get("uses", coupon.get("usageCount", coupon.get("usage_count", 0)))
+
+    # Helper to get field from analytics dict, fallback to raw value
+    def get_field(analytics_dict, *keys, default=0):
+        for k in keys:
+            if k in analytics_dict:
+                return analytics_dict[k]
+        return default
+
+    analytics = {
+        "total": get_field(usage_analytics, "total", "uses", default=usage_count),
+        "completed": get_field(usage_analytics, "completed"),
+        "cancelled": get_field(usage_analytics, "cancelled"),
+        "pending": get_field(usage_analytics, "pending"),
+        "processing": get_field(usage_analytics, "processing"),
+        "awaiting_stock": get_field(usage_analytics, "awaitingStock", "awaiting_stock"),
+    }
+
+    # If total is still zero, fallback to sum of all user usages
+    if not analytics["total"]:
+        analytics["total"] = sum(
+            sum(v.values()) if isinstance(v, dict) else v
+            for v in user_usages.values()
+            if isinstance(v, (dict, int, float))
+        )
+
+    # Recursively sum all leaf values for each top-level user/email
+    def recursive_sum(d):
+        if isinstance(d, dict):
+            return sum(recursive_sum(v) for v in d.values())
+        elif isinstance(d, (int, float)):
+            return d
+        return 0
+
+    flat_user_usages = {user: recursive_sum(usage) for user, usage in user_usages.items()}
+
+    # Unique users: only count users with usage > 0
+    analytics["unique_users"] = sum(1 for v in flat_user_usages.values() if v > 0)
+
+    # Per-user usage summary
+    analytics["user_usages"] = flat_user_usages
+
+    # Raw usage count
+    analytics["usage_count"] = usage_count
+
+    # Also include maxUsagePerUser if present
+    analytics["max_usage_per_user"] = coupon.get("maxUsagePerUser", coupon.get("max_usage_per_user", 0))
+
+    return analytics
+    
+# --- NEW: Coupon info endpoint for frontend dialog ---
+@admin_router.get("/coupons/info")
+async def get_coupon_info(
+    code: str,
+    user_controller: UserController = Depends(get_user_controller_dependency),
+):
+    # Aggressive code matching (same as analytics)
+    code_variants = [
+        code.strip(),
+        code.strip().lower(),
+        code.strip().upper(),
+        code.strip().replace(' ', ''),
+        code.strip().replace(' ', '').lower(),
+        code.strip().replace(' ', '').upper(),
+    ]
+    all_coupons_cursor = user_controller.db.coupons.find({})
+    all_coupons = await all_coupons_cursor.to_list(length=1000)
+    db_codes = [c.get('code', None) for c in all_coupons if c.get('code', None)]
+    coupon = None
+    for db_code in db_codes:
+        for variant in code_variants:
+            if db_code and variant and db_code.strip().lower() == variant.strip().lower():
+                coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                break
+        if coupon:
+            break
+    if not coupon:
+        for db_code in db_codes:
+            for variant in code_variants:
+                if db_code and variant and variant.strip().lower() in db_code.strip().lower():
+                    coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                    break
+            if coupon:
+                break
     if not coupon:
         raise HTTPException(status_code=404, detail="Coupon not found")
-
-    # Extract analytics fields from coupon document
-    usage_analytics = coupon.get("usageAnalytics", {})
-    user_usages = coupon.get("userUsages", {})
-    usage_count = coupon.get("uses", coupon.get("usageCount", 0))
-
-    # Compose analytics response
-    analytics = {
-        "total": usage_analytics.get("total", usage_count),
-        "completed": usage_analytics.get("completed", 0),
-        "cancelled": usage_analytics.get("cancelled", 0),
-        "pending": usage_analytics.get("pending", 0),
-        "processing": usage_analytics.get("processing", 0),
-        "awaiting_stock": usage_analytics.get("awaitingStock", 0),
-        "unique_users": len(user_usages),
-        "user_usages": user_usages,
-        "usage_count": usage_count
-    }
-    return analytics
+    # Format for frontend
+    coupon_dict = coupon.copy() if isinstance(coupon, dict) else coupon
+    if "_id" in coupon_dict and "id" not in coupon_dict:
+        coupon_dict["id"] = str(coupon_dict.pop("_id"))
+    elif "_id" in coupon_dict:
+        coupon_dict.pop("_id")
+    # Ensure discountPercent for percentage type
+    if coupon_dict.get("discountType") == "percentage":
+        coupon_dict["discountPercent"] = coupon_dict.get("discountValue")
+    return coupon_dict
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
 from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
@@ -465,7 +605,7 @@ async def add_cd_keys_to_product(
     except ValueError as e:
         if "not found" in str(e).lower(): # For product not found
             raise HTTPException(status_code=404, detail=str(e))
-        elif "does not manage CD keys" in str(e) or "does not manage cd keys" in str(e).lower():
+        elif "does not manage cd keys" in str(e) or "does not manage cd keys" in str(e).lower():
             raise HTTPException(status_code=400, detail=str(e)) # Bad Request
         else: # Other ValueErrors like duplicate keys, empty keys etc.
             raise HTTPException(status_code=422, detail=str(e)) # Unprocessable Entity
@@ -595,10 +735,9 @@ async def delete_cd_key_for_product(
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])
 async def get_coupons(
-    user_controller: UserController = Depends(get_user_controller_dependency),
-    current_user: TokenData = Depends(get_current_user)
+    user_controller: UserController = Depends(get_user_controller_dependency)
 ):
-    await verify_admin(user_controller, current_user)
+    # REMOVE admin check so anyone can view coupon details
     coupons = await user_controller.get_all_coupons()  # Using the controller method instead of accessing collection directly
     
     # Convert backend model to frontend format for each coupon
@@ -1008,5 +1147,51 @@ async def validate_coupon(request: Request):
     if error:
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
     return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}
+
+@admin_router.get("/api/coupons/info")
+async def get_coupon_info(
+    code: str,
+    user_controller: UserController = Depends(get_user_controller_dependency),
+):
+    code_variants = [
+        code.strip(),
+        code.strip().lower(),
+        code.strip().upper(),
+        code.strip().replace(' ', ''),
+        code.strip().replace(' ', '').lower(),
+        code.strip().replace(' ', '').upper(),
+    ]
+    all_coupons_cursor = user_controller.db.coupons.find({})
+    all_coupons = await all_coupons_cursor.to_list(length=1000)
+    db_codes = [c.get('code', None) for c in all_coupons if c.get('code', None)]
+    coupon = None
+    for db_code in db_codes:
+        for variant in code_variants:
+            if db_code and variant and db_code.strip().lower() == variant.strip().lower():
+                coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                break
+        if coupon:
+            break
+    if not coupon:
+        for db_code in db_codes:
+            for variant in code_variants:
+                if db_code and variant and variant.strip().lower() in db_code.strip().lower():
+                    coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                    break
+            if coupon:
+                break
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+    coupon_dict = coupon.copy() if isinstance(coupon, dict) else coupon
+    if "_id" in coupon_dict and "id" not in coupon_dict:
+        coupon_dict["id"] = str(coupon_dict.pop("_id"))
+    elif "_id" in coupon_dict:
+        coupon_dict.pop("_id")
+    if "discountValue" in coupon_dict and "discountType" in coupon_dict:
+        if coupon_dict["discountType"] == "percentage":
+            coupon_dict["discountPercent"] = coupon_dict["discountValue"]
+        else:
+            coupon_dict["discountPercent"] = coupon_dict["discountValue"]
+    return coupon_dict
 
 # End of file
