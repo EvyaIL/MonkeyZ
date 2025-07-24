@@ -77,7 +77,8 @@ class CouponBase(BaseModel):
     expiresAt: Optional[datetime] = None
     maxUses: Optional[int] = None
     usageCount: int = 0
-    
+    # ...existing fields...
+    maxUsagePerUser: int = 0  # Allow typing and saving per-user max uses
     model_config = {
         "populate_by_name": True
     }
@@ -573,30 +574,9 @@ async def create_coupon(
     # Convert ISOString to datetime if present
     if coupon.expiresAt and isinstance(coupon.expiresAt, str):
         coupon_data["expiresAt"] = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
-    # Ensure maxUsagePerUser is always present and integer
-    value = coupon_data.get("maxUsagePerUser", None)
-    # Accept string, int, float, but never boolean, and always save as integer
-    try:
-        if value is None or value == "" or value == []:
-            coupon_data["maxUsagePerUser"] = 0
-        elif isinstance(value, bool):
-            coupon_data["maxUsagePerUser"] = 0
-        elif isinstance(value, (int, float)):
-            coupon_data["maxUsagePerUser"] = int(value)
-        elif isinstance(value, str):
-            v = value.strip()
-            if v == "":
-                coupon_data["maxUsagePerUser"] = 0
-            elif v.isdigit():
-                coupon_data["maxUsagePerUser"] = int(v)
-            else:
-                try:
-                    coupon_data["maxUsagePerUser"] = int(float(v))
-                except Exception:
-                    coupon_data["maxUsagePerUser"] = 0
-        else:
-            coupon_data["maxUsagePerUser"] = 0
-    except Exception:
+    # No need for manual parsing, Pydantic model ensures correct type
+    # Just ensure it's present and an integer
+    if "maxUsagePerUser" not in coupon_data or not isinstance(coupon_data["maxUsagePerUser"], int):
         coupon_data["maxUsagePerUser"] = 0
     
     new_coupon = await user_controller.create_coupon(coupon_data)

@@ -116,6 +116,7 @@ function AdminCoupons() {
         maxUses = isNaN(parsed) || parsed < 1 ? 0 : parsed;
       }
 
+      // Patch: Always send maxUsagePerUser as a number if valid
       const backendCoupon = {
         code: newCoupon.code.trim(),
         discountType: newCoupon.discountType,
@@ -123,8 +124,9 @@ function AdminCoupons() {
         active: true,
         expiresAt: newCoupon.expiryDate ? new Date(newCoupon.expiryDate).toISOString() : null,
         maxUses,
-        maxUsagePerUser,
+        maxUsagePerUser: maxUsagePerUser,
       };
+      console.log('[DEBUG] Sending coupon payload:', backendCoupon);
 
       const result = newCoupon.id
         ? await api.patch(`/admin/coupons/${newCoupon.id}`, backendCoupon)
@@ -232,10 +234,17 @@ function AdminCoupons() {
       width: 80,
       headerAlign: 'center',
       align: 'center',
-      valueFormatter: (params) => params.value > 0 ? params.value : '∞',
-      renderCell: (params) => (
-        <Box>{params.value > 0 ? params.value : <span style={{ fontSize: '1.2rem' }}>∞</span>}</Box>
-      )
+      valueFormatter: (params) => {
+        // Only show ∞ if value is 0 or null, never for undefined or non-numeric
+        if (typeof params.value === 'number' && params.value > 0) return params.value;
+        if (params.value === 0 || params.value === null || params.value === undefined || isNaN(params.value)) return '—';
+        return params.value;
+      },
+      renderCell: (params) => {
+        // Only show ∞ if value is 0, otherwise show the number
+        if (typeof params.value === 'number' && params.value > 0) return <Box>{params.value}</Box>;
+        return <Box>{params.value === 0 ? <span style={{ fontSize: '1.2rem' }}>∞</span> : (params.value ?? '—')}</Box>;
+      }
     },
     {
       field: 'maxUsagePerUser',
@@ -243,10 +252,20 @@ function AdminCoupons() {
       width: 80,
       headerAlign: 'center',
       align: 'center',
-      valueFormatter: (params) => params.value > 0 ? params.value : '∞',
-      renderCell: (params) => (
-        <Box>{params.value > 0 ? params.value : <span style={{ fontSize: '1.2rem' }}>∞</span>}</Box>
-      )
+      valueFormatter: (params) => {
+        // Show the number if it's a valid positive integer, otherwise show ∞
+        const v = params.value;
+        if (v === null || v === undefined || v === '' || v === false) return '∞';
+        const parsed = typeof v === 'number' ? v : parseInt(v, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+        return '∞';
+      },
+      renderCell: (params) => {
+        const v = params.value;
+        const parsed = typeof v === 'number' ? v : parseInt(v, 10);
+        if (!isNaN(parsed) && parsed > 0) return <Box>{parsed}</Box>;
+        return <Box><span style={{ fontSize: '1.2rem' }}>∞</span></Box>;
+      }
     },
     {
       field: 'usageCount',

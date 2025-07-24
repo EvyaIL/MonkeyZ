@@ -272,11 +272,15 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         # Normalize code to lowercase and trim spaces
         coupon_data["code"] = coupon_data["code"].strip().lower()
         # Ensure maxUsagePerUser is always present and integer
-        # Robustly handle maxUsagePerUser from frontend
         # Accept string, int, float, but never boolean, and always save as integer
-        # Accept string, int, float, but never boolean, and always save as integer
-        # Accept string, int, float, but never boolean, and always save as integer
-        value = coupon_data.get("maxUsagePerUser", None)
+        # Accept both camelCase and snake_case from frontend
+        value = None
+        # Patch: Print the entire coupon_data for debugging
+        print(f"[DEBUG] Incoming coupon_data: {coupon_data}")
+        for k in ["maxUsagePerUser", "max_usage_per_user", "max_usage_per_User", "maxusageperuser"]:
+            if k in coupon_data:
+                value = coupon_data[k]
+                break
         try:
             parsed = 0
             if value is None or value == "" or value == [] or isinstance(value, bool):
@@ -293,8 +297,11 @@ class ProductCollection(MongoDb, metaclass=Singleton):
                     parsed = int(v)
             else:
                 parsed = 0
-            coupon_data["maxUsagePerUser"] = parsed if parsed >= 1 else 0
-        except Exception:
+            # Always save as integer, but allow 0 ONLY for empty/invalid, otherwise save positive integer
+            coupon_data["maxUsagePerUser"] = parsed if (isinstance(parsed, int) and parsed > 0) else 0
+            print(f"[DEBUG] Saved maxUsagePerUser: {coupon_data['maxUsagePerUser']} (input: {value}, type: {type(value)})")
+        except Exception as e:
+            print(f"[ERROR] Failed to parse maxUsagePerUser: {value} ({e})")
             coupon_data["maxUsagePerUser"] = 0
         result = await collection.insert_one(coupon_data)
         return {"id": str(result.inserted_id), **coupon_data}
@@ -328,7 +335,10 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         # Accept string, int, float, but never boolean, and always save as integer
         # Accept string, int, float, but never boolean, and always save as integer
         # Accept string, int, float, but never boolean, and always save as integer
+        # Robustly handle both camelCase and snake_case from frontend
         value = coupon_data.get("maxUsagePerUser", None)
+        if value is None:
+            value = coupon_data.get("max_usage_per_user", None)
         try:
             parsed = 0
             if value is None or value == "" or value == [] or isinstance(value, bool):
@@ -345,8 +355,11 @@ class ProductCollection(MongoDb, metaclass=Singleton):
                     parsed = int(v)
             else:
                 parsed = 0
-            coupon_data["maxUsagePerUser"] = parsed if parsed >= 1 else 0
-        except Exception:
+            # Patch: Always save as integer, but allow 0 ONLY for empty/invalid, otherwise save positive integer
+            coupon_data["maxUsagePerUser"] = parsed if (isinstance(parsed, int) and parsed > 0) else 0
+            print(f"[DEBUG] Updated maxUsagePerUser: {coupon_data['maxUsagePerUser']} (input: {value})")
+        except Exception as e:
+            print(f"[ERROR] Failed to parse maxUsagePerUser: {value} ({e})")
             coupon_data["maxUsagePerUser"] = 0
         await collection.update_one({"_id": coupon_object_id}, {"$set": coupon_data})
         updated_coupon = await collection.find_one({"_id": coupon_object_id})
