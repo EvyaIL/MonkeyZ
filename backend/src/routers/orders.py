@@ -472,14 +472,10 @@ async def delete_order(
     if not order_from_db:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # --- Decrement Coupon Usage on Deletion ---
-    # Only decrement if the order was completed, as usage is only incremented on completion.
-    coupon_code = order_from_db.get("couponCode")
-    order_status = order_from_db.get("status")
-    if coupon_code and order_status == StatusEnum.COMPLETED.value:
-        from ..services.coupon_service import CouponService
-        coupon_service = CouponService(db)
-        await coupon_service.decrement_coupon_usage(coupon_code)
+    # --- Decrement Coupon Usage on Deletion or Cancel ---
+    coupon_code = order_from_db.get("couponCode") or order_from_db.get("coupon_code")
+    if coupon_code:
+        await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": -1}})
         print(f"Order {order_id}: Decremented usage for coupon {coupon_code}.")
     # --- End Coupon Logic ---
 
