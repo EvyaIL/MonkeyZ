@@ -166,9 +166,19 @@ async def create_order(
         if coupon_error:
             print(f"Coupon error: {coupon_error}")
         else:
-            # If coupon is valid, increment usage count
+            # Enforce maxUsagePerUser before incrementing usage
             if coupon_obj:
-                await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": 1}})
+                user_email = order_data.email
+                max_usage_per_user = coupon_obj.get('maxUsagePerUser', 0)
+                user_usages = coupon_obj.get('userUsages', {})
+                user_usage_count = user_usages.get(user_email, 0) if user_email else 0
+                if max_usage_per_user and user_usage_count >= max_usage_per_user:
+                    raise HTTPException(status_code=400, detail=f"Coupon usage limit per user reached ({max_usage_per_user})")
+                # Update total usage
+                await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": 1, "usageAnalytics.total": 1, "usageAnalytics.pending": 1}})
+                # Update per-user usage
+                if user_email:
+                    await db.coupons.update_one({"code": coupon_code}, {"$inc": {f"userUsages.{user_email}": 1}})
                 print(f"Coupon {coupon_code} usage incremented for order {order_data.id}")
     order_data.discount_amount = discount_amount
     order_data.original_total = original_total
@@ -420,23 +430,26 @@ async def update_order_status(
         }
     )
 
-    # If status is being set to Cancelled and it wasn't previously Cancelled, release keys
     previous_status = order_from_db.get('status')
+    coupon_code = order_from_db.get('couponCode') or order_from_db.get('coupon_code')
+    # If status is being set to Cancelled and it wasn't previously Cancelled, release keys and decrement coupon usage
     if status_update.status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
         print(f"Order {order_id}: Released keys on cancel.")
-    # If setting status to Completed and was not Completed, increment coupon usage
-    if status_update.status == StatusEnum.COMPLETED.value and previous_status != StatusEnum.COMPLETED.value:
-        from ..services.coupon_service import CouponService
-        coupon_code = order_from_db.get('couponCode') or order_from_db.get('coupon_code')
-        original_total = order_from_db.get('originalTotal') or order_from_db.get('original_total') or 0
         if coupon_code:
-            svc = CouponService(db)
-            # validate_and_apply increments usageCount
-            _, _, err = await svc.validate_and_apply_coupon(coupon_code, original_total)
-            if err:
-                print(f"Failed to increment coupon usage for order {order_id}: {err}")
+            # Always decrement usageCount by 1 (never below zero)
+            await db.coupons.update_one({"code": coupon_code, "usageCount": {"$gt": 0}}, {"$inc": {"usageCount": -1, "usageAnalytics.cancelled": 1, "usageAnalytics.pending": -1}})
+            # Decrement per-user usage if needed (optional, usually not decremented)
+            print(f"Order {order_id}: Decremented usage for coupon {coupon_code} (cancelled).")
+    # If status is being changed from Cancelled to any other status, increment coupon usage
+    if previous_status == StatusEnum.CANCELLED.value and status_update.status != StatusEnum.CANCELLED.value:
+        if coupon_code:
+            await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": 1, "usageAnalytics.total": 1, f"usageAnalytics.{status_update.status}": 1, "usageAnalytics.cancelled": -1}})
+            # Update per-user usage
+            if order_from_db.get('email'):
+                await db.coupons.update_one({"code": coupon_code}, {"$inc": {f"userUsages.{order_from_db.get('email')}": 1}})
+            print(f"Order {order_id}: Incremented usage for coupon {coupon_code} (uncancelled).")
 
     if update_result.modified_count == 0:
         # This might happen if the status is the same or order not found (already checked)

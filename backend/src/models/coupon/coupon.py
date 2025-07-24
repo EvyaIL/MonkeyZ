@@ -8,3 +8,6 @@ class Coupon(BaseModel):
     discountType: str
     discountValue: float
     uses: int = 0
+    usageAnalytics: dict = {}  # {"total": 0, "completed": 0, "cancelled": 0, "pending": 0}
+    maxUsagePerUser: int = 0  # 0 means unlimited
+    userUsages: dict = {}     # {"user@email.com": 2, ...}

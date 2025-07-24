@@ -271,6 +271,15 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         coupon_data["createdAt"] = datetime.utcnow()
         # Normalize code to lowercase and trim spaces
         coupon_data["code"] = coupon_data["code"].strip().lower()
+        # Ensure maxUsagePerUser is always present and integer
+        value = coupon_data.get("maxUsagePerUser", None)
+        if value is None or value == "" or value == []:
+            coupon_data["maxUsagePerUser"] = 0
+        else:
+            try:
+                coupon_data["maxUsagePerUser"] = int(value)
+            except Exception:
+                coupon_data["maxUsagePerUser"] = 0
         result = await collection.insert_one(coupon_data)
         return {"id": str(result.inserted_id), **coupon_data}
 
@@ -298,6 +307,15 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         # Normalize code to lowercase and trim spaces
         if "code" in coupon_data:
             coupon_data["code"] = coupon_data["code"].strip().lower()
+        # Ensure maxUsagePerUser is always present and integer
+        value = coupon_data.get("maxUsagePerUser", None)
+        if value is None or value == "" or value == []:
+            coupon_data["maxUsagePerUser"] = 0
+        else:
+            try:
+                coupon_data["maxUsagePerUser"] = int(value)
+            except Exception:
+                coupon_data["maxUsagePerUser"] = 0
         await collection.update_one({"_id": coupon_object_id}, {"$set": coupon_data})
         updated_coupon = await collection.find_one({"_id": coupon_object_id})
         if updated_coupon:

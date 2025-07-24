@@ -25,7 +25,10 @@ function AdminCoupons() {
     discountValue: '',
     expiryDate: '',
     maxUses: '',
+    maxUsagePerUser: '', // NEW FIELD
   });
+  const [analyticsDialogOpen, setAnalyticsDialogOpen] = useState(false);
+  const [selectedCouponAnalytics, setSelectedCouponAnalytics] = useState(null);
   // State for loading and error feedback
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -97,7 +100,8 @@ function AdminCoupons() {
         discountValue: parseFloat(newCoupon.discountValue),
         active: true,
         expiresAt: newCoupon.expiryDate ? new Date(newCoupon.expiryDate).toISOString() : null,
-        maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses, 10) : null
+        maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses, 10) : null,
+        maxUsagePerUser: newCoupon.maxUsagePerUser ? parseInt(newCoupon.maxUsagePerUser, 10) : null, // NEW
       };
       
       const result = newCoupon.id
@@ -114,6 +118,7 @@ function AdminCoupons() {
           discountValue: '',
           expiryDate: '',
           maxUses: '',
+          maxUsagePerUser: '', // NEW FIELD RESET
         });
         
         setError('Coupon created successfully!');
@@ -151,113 +156,119 @@ function AdminCoupons() {
   };
 
   const columns = [
-    { 
-      field: 'code', 
-      headerName: 'Code', 
-      width: 150,
+    {
+      field: 'analytics',
+      headerName: 'Analytics',
+      width: 110,
+      sortable: false,
       renderCell: (params) => (
-        <Box sx={{ 
-          fontWeight: 'bold', 
-          bgcolor: 'primary.light', 
-          color: 'primary.contrastText', 
-          px: 1, 
-          py: 0.5, 
-          borderRadius: 1 
-        }}>
+        <Button
+          variant="outlined"
+          size="small"
+          title="View detailed analytics for this coupon"
+          onClick={() => {
+            setSelectedCouponAnalytics(params.row);
+            setAnalyticsDialogOpen(true);
+          }}
+        >
+          Analytics
+        </Button>
+      )
+    },
+    {
+      field: 'code',
+      headerName: 'Code',
+      width: 120,
+      renderCell: (params) => (
+        <Box sx={{ fontWeight: 'bold', bgcolor: 'primary.light', color: 'primary.contrastText', px: 1, py: 0.5, borderRadius: 1 }}>
           {params.value}
         </Box>
       )
     },
-    { 
-      field: 'discountType', 
-      headerName: 'Type', 
-      width: 120,
-      valueFormatter: (params) => 
-        params.value === 'percentage' ? 'Percentage' : 'Fixed Amount',
-    },
-    {      field: 'discountValue', 
-      headerName: 'Value', 
+    {
+      field: 'discountType',
+      headerName: 'Type',
       width: 100,
+      valueFormatter: (params) => params.value === 'percentage' ? 'Percentage' : 'Fixed',
+    },
+    {
+      field: 'discountValue',
+      headerName: 'Value',
+      width: 80,
       renderCell: (params) => {
         const value = parseFloat(params.value);
         return (
-          <Box sx={{ 
-            fontWeight: 'medium', 
-            color: params.row.discountType === 'percentage' ? 'success.main' : 'info.main',
-          }}>
-            {params.row.discountType === 'percentage' ? 
-              `${value}%` : 
-              `$${value.toFixed(2)}`}
+          <Box sx={{ fontWeight: 'medium', color: params.row.discountType === 'percentage' ? 'success.main' : 'info.main' }}>
+            {params.row.discountType === 'percentage' ? `${value}%` : `$${value.toFixed(2)}`}
           </Box>
         );
       }
     },
-    { 
-      field: 'expiryDate', 
-      headerName: 'Expires', 
-      width: 150,
-      valueFormatter: (params) => {
-        if (!params.value) return 'Never';
-        const date = new Date(params.value);
-        const isExpired = date < new Date();
-        return isExpired 
-          ? `Expired on ${date.toLocaleDateString()}` 
-          : date.toLocaleDateString();
-      },
-      renderCell: (params) => {
-        if (!params.value) return <span>Never expires</span>;
-        
-        const date = new Date(params.value);
-        const isExpired = date < new Date();
-        
-        return (
-          <Box sx={{ 
-            color: isExpired ? 'error.main' : 'text.primary',
-            fontStyle: isExpired ? 'italic' : 'normal'
-          }}>
-            {isExpired 
-              ? `Expired on ${date.toLocaleDateString()}` 
-              : date.toLocaleDateString()}
-          </Box>
-        );
-      }
+    {
+      field: 'maxUses',
+      headerName: 'Max Uses',
+      width: 80,
+      headerAlign: 'center',
+      align: 'center',
+      valueFormatter: (params) => params.value > 0 ? params.value : '∞',
+      renderCell: (params) => (
+        <Box>{params.value > 0 ? params.value : <span style={{ fontSize: '1.2rem' }}>∞</span>}</Box>
+      )
     },
-    { 
-      field: 'usageCount', 
-      headerName: 'Uses', 
-      width: 100,
+    {
+      field: 'maxUsagePerUser',
+      headerName: 'Max/User',
+      width: 80,
+      headerAlign: 'center',
+      align: 'center',
+      valueFormatter: (params) => params.value > 0 ? params.value : '∞',
+      renderCell: (params) => (
+        <Box>{params.value > 0 ? params.value : <span style={{ fontSize: '1.2rem' }}>∞</span>}</Box>
+      )
+    },
+    {
+      field: 'usageCount',
+      headerName: 'Used',
+      width: 60,
       type: 'number',
       headerAlign: 'center',
       align: 'center',
       valueFormatter: (params) => params.value || '0',
     },
-    { 
-      field: 'maxUses', 
-      headerName: 'Max Uses', 
-      width: 100,
-      headerAlign: 'center',
-      align: 'center',
-      valueFormatter: (params) => params.value || '∞',
-      renderCell: (params) => (
-        <Box>
-          {!params.value ? 
-            <span style={{ fontSize: '1.2rem' }}>∞</span> : 
-            params.value}
-        </Box>
-      )
+    {
+      field: 'expiryDate',
+      headerName: 'Expires',
+      width: 110,
+      valueFormatter: (params) => {
+        if (!params.value) return 'Never';
+        const date = new Date(params.value);
+        const isExpired = date < new Date();
+        return isExpired ? `Expired ${date.toLocaleDateString()}` : date.toLocaleDateString();
+      },
+      renderCell: (params) => {
+        if (!params.value) return <span>Never</span>;
+        const date = new Date(params.value);
+        const isExpired = date < new Date();
+        return (
+          <Box sx={{ color: isExpired ? 'error.main' : 'text.primary', fontStyle: isExpired ? 'italic' : 'normal' }}>
+            {isExpired ? `Expired ${date.toLocaleDateString()}` : date.toLocaleDateString()}
+          </Box>
+        );
+      }
     },
     {
       field: 'createdAt',
       headerName: 'Created',
-      width: 150,
+      width: 110,
       valueFormatter: (params) => {
         if (!params.value) return '';
         return new Date(params.value).toLocaleDateString();
       }
     },
-    {      field: 'actions',
+    {
+      field: 'actions',
       headerName: 'Actions',
-      width: 100,
+      width: 90,
       sortable: false,
       renderCell: (params) => (
         <Box>
@@ -266,6 +277,7 @@ function AdminCoupons() {
             variant="outlined"
             size="small"
             sx={{ minWidth: '30px', p: '4px' }}
+            title="Delete this coupon"
             onClick={() => handleDeleteCoupon(params.row.id)}
           >
             Delete
@@ -338,6 +350,7 @@ function AdminCoupons() {
                 discountValue: '',
                 expiryDate: '',
                 maxUses: '',
+                maxUsagePerUser: '', // NEW FIELD RESET
               });
               setOpenDialog(true);
             }}
@@ -501,6 +514,15 @@ function AdminCoupons() {
                 inputProps: { min: 1 }
               }}
             />
+            <TextField
+              label="Max Uses Per User (by email)"
+              type="number"
+              value={newCoupon.maxUsagePerUser}
+              onChange={(e) => setNewCoupon({ ...newCoupon, maxUsagePerUser: e.target.value })}
+              helperText="Leave empty for unlimited per-user uses"
+              disabled={isSubmitting}
+              InputProps={{ inputProps: { min: 1 } }}
+            />
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -524,6 +546,53 @@ function AdminCoupons() {
             type="submit"
           >            {isSubmitting ? 'Creating...' : 'Create Coupon'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Analytics Dialog */}
+      <Dialog open={analyticsDialogOpen} onClose={() => setAnalyticsDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Coupon Analytics</DialogTitle>
+        <DialogContent>
+          {selectedCouponAnalytics ? (
+            <Box sx={{ p: 2 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}><strong>Code:</strong> {selectedCouponAnalytics.code}</Typography>
+              <Typography variant="body2"><strong>Type:</strong> {selectedCouponAnalytics.discountType === 'percentage' ? 'Percentage' : 'Fixed Amount'}</Typography>
+              <Typography variant="body2"><strong>Value:</strong> {selectedCouponAnalytics.discountType === 'percentage' ? `${selectedCouponAnalytics.discountValue}%` : `$${selectedCouponAnalytics.discountValue}`}</Typography>
+              <Typography variant="body2"><strong>Expires:</strong> {selectedCouponAnalytics.expiryDate ? new Date(selectedCouponAnalytics.expiryDate).toLocaleDateString() : 'Never expires'}</Typography>
+              <Typography variant="body2"><strong>Uses:</strong> {selectedCouponAnalytics.usageCount || 0}</Typography>
+              <Typography variant="body2"><strong>Max Uses:</strong> {selectedCouponAnalytics.maxUses || '∞'}</Typography>
+              <Typography variant="body2"><strong>Max Uses Per User:</strong> {selectedCouponAnalytics.maxUsagePerUser || '∞'}</Typography>
+              <Typography variant="body2"><strong>Created:</strong> {selectedCouponAnalytics.createdAt ? new Date(selectedCouponAnalytics.createdAt).toLocaleDateString() : '-'}</Typography>
+              {/* Usage Analytics */}
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2">Usage Analytics</Typography>
+                <Typography variant="body2">Total: {selectedCouponAnalytics.usageAnalytics?.total ?? 0}</Typography>
+                <Typography variant="body2">Completed: {selectedCouponAnalytics.usageAnalytics?.completed ?? 0}</Typography>
+                <Typography variant="body2">Cancelled: {selectedCouponAnalytics.usageAnalytics?.cancelled ?? 0}</Typography>
+                <Typography variant="body2">Pending: {selectedCouponAnalytics.usageAnalytics?.pending ?? 0}</Typography>
+                <Typography variant="body2">Processing: {selectedCouponAnalytics.usageAnalytics?.processing ?? 0}</Typography>
+                <Typography variant="body2">Awaiting Stock: {selectedCouponAnalytics.usageAnalytics?.awaitingStock ?? 0}</Typography>
+              </Box>
+              {/* Per-User Usage */}
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2">Per-User Usage</Typography>
+                <Typography variant="body2"><strong>Unique Users:</strong> {selectedCouponAnalytics.userUsages ? Object.keys(selectedCouponAnalytics.userUsages).length : 0}</Typography>
+                <Typography variant="body2"><strong>Max Uses Per User:</strong> {selectedCouponAnalytics.maxUsagePerUser || '∞'}</Typography>
+                {selectedCouponAnalytics.userUsages && Object.keys(selectedCouponAnalytics.userUsages).length > 0 ? (
+                  <Box sx={{ mt: 1 }}>
+                    {Object.entries(selectedCouponAnalytics.userUsages).map(([email, count]) => (
+                      <Typography key={email} variant="body2">{email}: {count}</Typography>
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="body2">No users have used this coupon yet.</Typography>
+                )}
+              </Box>
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAnalyticsDialogOpen(false)} color="primary">Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

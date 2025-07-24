@@ -560,24 +560,28 @@ async def create_coupon(
     await verify_admin(user_controller, current_user)
       # Convert the model to a dict for processing
     coupon_data = coupon.dict()
-    
     # Keep the discount type as specified in the request
     # Only convert values to proper format
     if coupon_data["discountType"] == "percentage":
-        # For percentage, ensure we're using discountValue correctly
         coupon_data["discountValue"] = float(coupon_data["discountValue"])
         if "discountPercent" in coupon_data:
-            # If discountPercent is provided, use that value instead
             if coupon_data["discountPercent"] is not None:
                 coupon_data["discountValue"] = float(coupon_data.pop("discountPercent"))
     else:
-        # For fixed amount, just ensure the value is a float
         coupon_data["discountType"] = "fixed"
         coupon_data["discountValue"] = float(coupon_data["discountValue"])
-    
     # Convert ISOString to datetime if present
     if coupon.expiresAt and isinstance(coupon.expiresAt, str):
         coupon_data["expiresAt"] = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
+    # Ensure maxUsagePerUser is always present and integer
+    value = coupon_data.get("maxUsagePerUser", None)
+    if value is None or value == "" or value == []:
+        coupon_data["maxUsagePerUser"] = 0
+    else:
+        try:
+            coupon_data["maxUsagePerUser"] = int(value)
+        except Exception:
+            coupon_data["maxUsagePerUser"] = 0
     
     new_coupon = await user_controller.create_coupon(coupon_data)
     

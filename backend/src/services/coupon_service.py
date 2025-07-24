@@ -46,15 +46,6 @@ class CouponService:
             return 0.0, None, str(e)
 
     async def validate_and_apply_coupon(self, coupon_code, original_total):
-        """Validate coupon and apply it (with usage increment)."""
-        discount, coupon, error = await self.validate_coupon(coupon_code, original_total)
-        if error or not coupon:
-            return discount, None, error
-        try:
-            admin_db = self.db.client.admin
-            collection = admin_db.get_collection("coupons")
-            await collection.update_one({'_id': coupon['_id']}, {'$inc': {'usageCount': 1}})
-        except Exception as e:
-            # Log but continue
-            print(f"Failed to increment coupon usage: {e}")
-        return discount, coupon, None
+        """Validate coupon and apply it (NO usage increment here)."""
+        # Only validate and return discount, do NOT increment usage here!
+        return await self.validate_coupon(coupon_code, original_total)

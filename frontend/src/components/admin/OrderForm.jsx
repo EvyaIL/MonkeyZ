@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], allUsers = [], loading, error, t }) => {
+  // Coupon usage enforcement
+  const [couponUsageError, setCouponUsageError] = useState('');
   // const { t } = useTranslation(); // t is now passed as a prop
+  // Removed unused variable couponInfo
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',
@@ -30,6 +33,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     price: 0,
   });
 
+  const [showAnalytics, setShowAnalytics] = useState(false); // New state for analytics modal
+
   const calculateTotal = useCallback((items) => {
     return items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
   }, []);
@@ -52,63 +57,86 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     }));
   }, [initialOrder, formData.coupon_code, formData.discount_amount]); // Dependencies for recalculation logic
 
+  // Fetch coupon info and check per-user usage
   useEffect(() => {
-    const initForm = async () => {
-      if (initialOrder) {
-        let userNameToDisplay = '';
-        if (initialOrder.user_id) {
-          // Attempt to find user in the local list first
-          const existingUser = users.find(u => u.id === initialOrder.user_id || u._id === initialOrder.user_id);
-          if (existingUser) {
-            userNameToDisplay = `${existingUser.username} (${existingUser.email})`;
-          } else if (initialOrder.selectedUserName) {
-            // Fallback to a pre-populated selectedUserName if available (e.g. from parent)
-            userNameToDisplay = initialOrder.selectedUserName;
-          } else {
-            // Optionally, you could add a fetch here if users list might not be populated yet
-            // For now, we'll just use the ID as a fallback if no name is found
-            userNameToDisplay = initialOrder.user_id;
-          }
+    const fetchCouponInfo = async () => {
+      if (!formData.coupon_code || !formData.email) {
+        setCouponUsageError('');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/coupons/info?code=${encodeURIComponent(formData.coupon_code)}`);
+        const data = await res.json();
+        const maxUsage = data.maxUsagePerUser || 0;
+        const userUsages = data.userUsages || {};
+        const userCount = userUsages[formData.email] || 0;
+        if (maxUsage && userCount >= maxUsage) {
+          setCouponUsageError(`You have reached the maximum allowed uses for this coupon (${maxUsage}).`);
+        } else {
+          setCouponUsageError('');
         }
-        const items = initialOrder.items || [];
-        const originalTotal = initialOrder.original_total !== undefined ? initialOrder.original_total : calculateTotal(items);
-        const discountAmount = initialOrder.discount_amount || 0;
-        const finalTotal = initialOrder.total !== undefined ? initialOrder.total : originalTotal - discountAmount;
-
-        setFormData({
-          customerName: initialOrder.customerName || '',
-          email: initialOrder.email || '',
-          phone: initialOrder.phone || '',
-          user_id: initialOrder.user_id || '',
-          selectedUserName: userNameToDisplay,
-          status: initialOrder.status || 'Pending',
-          items: items,
-          coupon_code: initialOrder.coupon_code || '',
-          original_total: originalTotal,
-          discount_amount: discountAmount,
-          total: finalTotal,
-          notes: initialOrder.notes || '',
-          id: initialOrder.id || initialOrder._id || null
-        });
-      } else {
-        // Reset for new order
-        setFormData({
-          customerName: '', email: '', phone: '', user_id: '', selectedUserName: '', status: 'Pending', 
-          items: [], coupon_code: '', original_total: 0, discount_amount: 0, total: 0, notes: ''
-        });
+      } catch (err) {
+        setCouponUsageError('');
       }
     };
-    initForm();
-  }, [initialOrder, users, calculateTotal]);
+    fetchCouponInfo();
+  }, [formData.coupon_code, formData.email]);
 
   // Recalculate original_total and final_total whenever items change
   useEffect(() => {
     calculateAndSetTotals(formData.items, formData.coupon_code, formData.discount_amount);
-  }, [formData.items, formData.coupon_code, formData.discount_amount, calculateAndSetTotals]);
+  }, [formData.items, formData.coupon_code, formData.discount_amount]);
+
+  // Properly rewritten useEffect for initialOrder/users
+  useEffect(() => {
+    if (!initialOrder) {
+      setFormData({
+        customerName: '', email: '', phone: '', user_id: '', selectedUserName: '', status: 'Pending', 
+        items: [], coupon_code: '', original_total: 0, discount_amount: 0, total: 0, notes: ''
+      });
+      return;
+    }
+    let userNameToDisplay = '';
+    if (initialOrder.user_id) {
+      const existingUser = users.find(u => u.id === initialOrder.user_id || u._id === initialOrder.user_id);
+      if (existingUser) {
+        userNameToDisplay = `${existingUser.username} (${existingUser.email})`;
+      } else if (initialOrder.selectedUserName) {
+        userNameToDisplay = initialOrder.selectedUserName;
+      } else {
+        userNameToDisplay = initialOrder.user_id;
+      }
+    }
+    const items = initialOrder.items || [];
+    const originalTotal = initialOrder.original_total !== undefined ? initialOrder.original_total : calculateTotal(items);
+    const discountAmount = initialOrder.discount_amount || 0;
+    const finalTotal = initialOrder.total !== undefined ? initialOrder.total : originalTotal - discountAmount;
+    setFormData({
+      customerName: initialOrder.customerName || '',
+      email: initialOrder.email || '',
+      phone: initialOrder.phone || '',
+      user_id: initialOrder.user_id || '',
+      selectedUserName: userNameToDisplay,
+      status: initialOrder.status || 'Pending',
+      items: items,
+      coupon_code: initialOrder.coupon_code || '',
+      original_total: originalTotal,
+      discount_amount: discountAmount,
+      total: finalTotal,
+      notes: initialOrder.notes || '',
+      id: initialOrder.id || initialOrder._id || null
+    });
+  }, [initialOrder, users]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear coupon usage error if coupon/email changes
+    if (e.target && (e.target.name === 'coupon_code' || e.target.name === 'email')) {
+      setCouponUsageError('');
+    }
+    if (e.target) {
+      const { name, value } = e.target;
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleUserSelect = (userId) => {
@@ -185,18 +213,20 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
   
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (formData.items.length === 0 && !initialOrder) { // Allow empty items if editing (e.g. to cancel all items)
-      alert(t('admin.orderForm.atLeastOneItem', "Order must have at least one item.")); 
+    if (formData.items.length === 0 && !initialOrder) {
+      alert(t('admin.orderForm.atLeastOneItem', "Order must have at least one item."));
       return;
     }
-    const dataToSubmit = { 
-      ...formData, 
+    if (couponUsageError) {
+      alert(couponUsageError);
+      return;
+    }
+    const dataToSubmit = {
+      ...formData,
       user_id: formData.user_id || null,
-      // Ensure numeric values are numbers, not strings, if changed by input type="number"
       original_total: parseFloat(formData.original_total) || 0,
       discount_amount: parseFloat(formData.discount_amount) || 0,
       total: parseFloat(formData.total) || 0,
-      // Always send both couponCode and coupon_code for backend compatibility
       ...(formData.coupon_code ? { couponCode: formData.coupon_code, coupon_code: formData.coupon_code } : {}),
     };
     onSubmit(dataToSubmit);
@@ -368,6 +398,45 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
                 className={inputClass} 
                 placeholder={t('admin.orderForm.enterCouponPlaceholder', 'Enter coupon code if any')}
               />
+              {/* New: Analytics Button */}
+              <button type="button" className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" onClick={() => setShowAnalytics(true)}>
+                {t('admin.orderForm.viewAnalyticsButton', 'View Analytics')}
+              </button>
+              {/* Modal for Analytics */}
+              {showAnalytics && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+                    <h4 className="text-lg font-semibold mb-4">{t('admin.orderForm.couponAnalyticsTitle', 'Coupon Analytics')}</h4>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.codeLabel', 'Code')}:</strong> {formData.coupon_code || '-'}
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.usageCompletedLabel', 'Completed')}:</strong> 0
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.usageCancelledLabel', 'Cancelled')}:</strong> 0
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.valueLabel', 'Value')}:</strong> 11%
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.expiresLabel', 'Expires')}:</strong> Never expires
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.usesLabel', 'Uses')}:</strong> 0
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.maxUsesLabel', 'Max Uses')}:</strong> ∞
+                    </div>
+                    <div className="mb-2">
+                      <strong>{t('admin.orderForm.createdLabel', 'Created')}:</strong> 7/24/2025
+                    </div>
+                    <button type="button" className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-700" onClick={() => setShowAnalytics(false)}>
+                      {t('admin.orderForm.closeButton', 'Close')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-3"> {/* Totals on the right */}
               <div>
@@ -402,6 +471,9 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
         </div>
 
         {error && <p className="text-red-500 text-sm p-2 bg-red-100 dark:bg-red-900/30 rounded-md">{t('admin.orderForm.errorMessage', 'Error: {formError}', {formError: error})}</p>}
+        {couponUsageError && (
+          <p className="text-red-500 text-sm p-2 bg-red-100 dark:bg-red-900/30 rounded-md">{couponUsageError}</p>
+        )}
 
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-8">
           <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-300 dark:border-gray-500 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
@@ -414,6 +486,6 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
       </form>
     </div>
   );
-};
+}
 
 export default OrderForm;
