@@ -222,15 +222,7 @@ async def create_order(
                 )
             except Exception as e:
                 print(f"Failed to send CD key email: {e}")
-            # Send SMS/WhatsApp (pseudo-code, replace with your actual service)
-            try:
-                from ..services.sms_service import send_sms_whatsapp
-                await send_sms_whatsapp(
-                    to=user_email, # Replace with user's phone number if available
-                    message=f"Your CD Key(s): {', '.join(assigned_keys)}"
-                )
-            except Exception as e:
-                print(f"Failed to send CD key SMS/WhatsApp: {e}")
+            # SMS/WhatsApp sending removed (no longer used)
 
     return Order(**created_order)
 
