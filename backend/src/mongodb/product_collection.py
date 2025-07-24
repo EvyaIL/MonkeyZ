@@ -272,14 +272,30 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         # Normalize code to lowercase and trim spaces
         coupon_data["code"] = coupon_data["code"].strip().lower()
         # Ensure maxUsagePerUser is always present and integer
+        # Robustly handle maxUsagePerUser from frontend
+        # Accept string, int, float, but never boolean, and always save as integer
+        # Accept string, int, float, but never boolean, and always save as integer
+        # Accept string, int, float, but never boolean, and always save as integer
         value = coupon_data.get("maxUsagePerUser", None)
-        if value is None or value == "" or value == []:
+        try:
+            parsed = 0
+            if value is None or value == "" or value == [] or isinstance(value, bool):
+                parsed = 0
+            elif isinstance(value, (int, float)):
+                parsed = int(value)
+            elif isinstance(value, str):
+                v = value.strip()
+                if v == "":
+                    parsed = 0
+                elif "." in v:
+                    parsed = int(float(v))
+                else:
+                    parsed = int(v)
+            else:
+                parsed = 0
+            coupon_data["maxUsagePerUser"] = parsed if parsed >= 1 else 0
+        except Exception:
             coupon_data["maxUsagePerUser"] = 0
-        else:
-            try:
-                coupon_data["maxUsagePerUser"] = int(value)
-            except Exception:
-                coupon_data["maxUsagePerUser"] = 0
         result = await collection.insert_one(coupon_data)
         return {"id": str(result.inserted_id), **coupon_data}
 
@@ -308,14 +324,30 @@ class ProductCollection(MongoDb, metaclass=Singleton):
         if "code" in coupon_data:
             coupon_data["code"] = coupon_data["code"].strip().lower()
         # Ensure maxUsagePerUser is always present and integer
+        # Robustly handle maxUsagePerUser from frontend
+        # Accept string, int, float, but never boolean, and always save as integer
+        # Accept string, int, float, but never boolean, and always save as integer
+        # Accept string, int, float, but never boolean, and always save as integer
         value = coupon_data.get("maxUsagePerUser", None)
-        if value is None or value == "" or value == []:
+        try:
+            parsed = 0
+            if value is None or value == "" or value == [] or isinstance(value, bool):
+                parsed = 0
+            elif isinstance(value, (int, float)):
+                parsed = int(value)
+            elif isinstance(value, str):
+                v = value.strip()
+                if v == "":
+                    parsed = 0
+                elif "." in v:
+                    parsed = int(float(v))
+                else:
+                    parsed = int(v)
+            else:
+                parsed = 0
+            coupon_data["maxUsagePerUser"] = parsed if parsed >= 1 else 0
+        except Exception:
             coupon_data["maxUsagePerUser"] = 0
-        else:
-            try:
-                coupon_data["maxUsagePerUser"] = int(value)
-            except Exception:
-                coupon_data["maxUsagePerUser"] = 0
         await collection.update_one({"_id": coupon_object_id}, {"$set": coupon_data})
         updated_coupon = await collection.find_one({"_id": coupon_object_id})
         if updated_coupon:

@@ -1,12 +1,11 @@
 import React, { useRef, useState, useEffect } from "react";
-import emailjs from "@emailjs/browser";
+// EmailJS removed. Please use backend API for all email sending.
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { addStructuredData, generateBreadcrumbSchema } from "../lib/seo-helper";
 
 const SERVICE_ID = "service_xheer8t"; 
-const TEMPLATE_ID = "template_vmjo60f"; 
-const PUBLIC_KEY = "OZANGbTigZyYpNfAT"; 
+// EmailJS config removed
 
 const Contact = () => {
   const { t } = useTranslation();
@@ -46,19 +45,24 @@ const Contact = () => {
     e.preventDefault();
     setStatus("");
     setLoading(true);
-    emailjs
-      .sendForm(SERVICE_ID, TEMPLATE_ID, formRef.current, PUBLIC_KEY)
-      .then(
-        (result) => {
-          setStatus(t("success"));
-          setLoading(false);
-          formRef.current.reset();
-        },
-        (error) => {
-          setStatus(t("fail"));
-          setLoading(false);
-        }
-      );
+    try {
+      // Replace with your backend API call
+      const formData = new FormData(formRef.current);
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        body: formData
+      });
+      if (response.ok) {
+        setStatus(t("success"));
+        formRef.current.reset();
+      } else {
+        setStatus(t("fail"));
+      }
+    } catch (error) {
+      setStatus(t("fail"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

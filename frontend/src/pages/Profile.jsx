@@ -125,7 +125,7 @@ const Profile = () => {
                   </div>
                   <div className={`grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-gray-400 ${isRTL ? "text-right" : "text-left"}`}>
                     <p><span className="font-medium">{t("order_date_label", "Date:")}</span> {new Date(order.createdAt || order.date).toLocaleDateString()}</p>
-                    <p><span className="font-medium">{t("order_total_label", "Total:")}</span> ${order.total?.toFixed(2) || 'N/A'}</p> {/* Changed totalAmount to total */}
+                    <p><span className="font-medium">{t("order_total_label", "Total:")}</span> ${order.total?.toFixed(2) || 'N/A'}</p>
                   </div>
                   {/* Display Order Items */}
                   <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
@@ -136,6 +136,12 @@ const Profile = () => {
                           <li key={index} className={`flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 ${isRTL ? "flex-row-reverse" : ""}`}>
                             <span className={isRTL ? "text-right" : "text-left"}>
                               {item.name} (x{item.quantity})
+                              {/* Show CD Key(s) if present */}
+                              {item.assigned_keys && item.assigned_keys.length > 0 && (
+                                <span className="ml-2 text-green-700 dark:text-green-300 font-mono text-xs">
+                                  | CD Key{item.assigned_keys.length > 1 ? 's' : ''}: {item.assigned_keys.join(', ')}
+                                </span>
+                              )}
                             </span>
                             <span>${(item.price * item.quantity).toFixed(2)}</span>
                           </li>
@@ -145,8 +151,6 @@ const Profile = () => {
                       <p className={`text-sm text-gray-500 dark:text-gray-400 ${isRTL ? "text-right" : "text-left"}`}>{t("no_items_in_order", "No items found in this order.")}</p>
                     )}
                   </div>
-                  {/* You could add a button/link here to view order details if you have a separate order details page */}
-                  {/* e.g., <PrimaryButton title={t("view_details", "View Details")} onClick={() => navigate(`/order/${order.id}`)} otherStyle="mt-4 text-sm py-1.5 px-3" /> */}
                 </div>
               ))}
             </div>          ) : (

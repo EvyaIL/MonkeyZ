@@ -64,6 +64,7 @@ function AdminCoupons() {
         discountValue: coupon.discountType === 'fixed' ? coupon.discountValue : (coupon.discountPercent || 0),
         expiryDate: coupon.expiresAt || coupon.expiryDate,
         maxUses: coupon.maxUses || null,
+        maxUsagePerUser: coupon.maxUsagePerUser ?? 0,
         usageCount: coupon.usageCount || 0,
         createdAt: coupon.createdAt,
         active: coupon.active !== undefined ? coupon.active : true
@@ -94,20 +95,41 @@ function AdminCoupons() {
     setIsSubmitting(true);
     setSubmitError('');
     try {
+      // Robust integer-only handling for maxUsagePerUser and maxUses
+      let maxUsagePerUser = 0;
+      if (
+        newCoupon.maxUsagePerUser !== undefined &&
+        newCoupon.maxUsagePerUser !== null &&
+        String(newCoupon.maxUsagePerUser).trim() !== ''
+      ) {
+        const parsed = parseInt(newCoupon.maxUsagePerUser, 10);
+        maxUsagePerUser = isNaN(parsed) || parsed < 1 ? 0 : parsed;
+      }
+
+      let maxUses = 0;
+      if (
+        newCoupon.maxUses !== undefined &&
+        newCoupon.maxUses !== null &&
+        String(newCoupon.maxUses).trim() !== ''
+      ) {
+        const parsed = parseInt(newCoupon.maxUses, 10);
+        maxUses = isNaN(parsed) || parsed < 1 ? 0 : parsed;
+      }
+
       const backendCoupon = {
         code: newCoupon.code.trim(),
         discountType: newCoupon.discountType,
         discountValue: parseFloat(newCoupon.discountValue),
         active: true,
         expiresAt: newCoupon.expiryDate ? new Date(newCoupon.expiryDate).toISOString() : null,
-        maxUses: newCoupon.maxUses ? parseInt(newCoupon.maxUses, 10) : null,
-        maxUsagePerUser: newCoupon.maxUsagePerUser ? parseInt(newCoupon.maxUsagePerUser, 10) : null, // NEW
+        maxUses,
+        maxUsagePerUser,
       };
-      
+
       const result = newCoupon.id
         ? await api.patch(`/admin/coupons/${newCoupon.id}`, backendCoupon)
         : await api.post('/admin/coupons', backendCoupon);
-      
+
       if (result.error) {
         setSubmitError(result.error);
       } else {
@@ -120,7 +142,7 @@ function AdminCoupons() {
           maxUses: '',
           maxUsagePerUser: '', // NEW FIELD RESET
         });
-        
+
         setError('Coupon created successfully!');
         await fetchCoupons();
         setTimeout(() => setError(''), 3000);
@@ -518,10 +540,16 @@ function AdminCoupons() {
               label="Max Uses Per User (by email)"
               type="number"
               value={newCoupon.maxUsagePerUser}
-              onChange={(e) => setNewCoupon({ ...newCoupon, maxUsagePerUser: e.target.value })}
+              onChange={(e) => {
+                // Only allow positive integers or empty
+                const val = e.target.value;
+                if (val === '' || (/^\d+$/.test(val) && parseInt(val, 10) > 0)) {
+                  setNewCoupon({ ...newCoupon, maxUsagePerUser: val });
+                }
+              }}
               helperText="Leave empty for unlimited per-user uses"
               disabled={isSubmitting}
-              InputProps={{ inputProps: { min: 1 } }}
+              InputProps={{ inputProps: { min: 1, step: 1 } }}
             />
           </Box>
         </DialogContent>

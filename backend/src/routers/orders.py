@@ -146,7 +146,7 @@ async def create_order(
     if not all_items_have_keys:
         current_order_status = StatusEnum.AWAITING_STOCK
     else:
-        current_order_status = StatusEnum.PROCESSING # Or COMPLETED if payment is also handled
+        current_order_status = StatusEnum.COMPLETED
 
     order_data.status = current_order_status
     order_data.statusHistory.append(StatusHistoryEntry(status=current_order_status, date=datetime.now(timezone.utc)))
@@ -192,7 +192,7 @@ async def create_order(
     order_to_insert["_id"] = order_id_obj # Ensure _id is ObjectId
 
     insert_result = await db.orders.insert_one(order_to_insert)
-    
+
     if not insert_result.inserted_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create order")
 
@@ -200,6 +200,38 @@ async def create_order(
     # Ensure _id is a string for Pydantic validation
     if created_order and isinstance(created_order.get('_id'), ObjectId):
         created_order['_id'] = str(created_order['_id'])
+
+    # Send CD key(s) by email and SMS/WhatsApp if order is completed and keys assigned
+    if created_order.get('status') == StatusEnum.COMPLETED:
+        user_email = created_order.get('email')
+        assigned_keys = []
+        products = []
+        for item in created_order.get('items', []):
+            if 'assigned_keys' in item and item['assigned_keys']:
+                assigned_keys.extend(item['assigned_keys'])
+                products.append({"name": item.get("name", "Product"), "id": item.get("productId")})
+        if assigned_keys:
+            # Send email using correct signature
+            try:
+                email_service = EmailService()
+                await email_service.send_order_email(
+                    to=user_email,
+                    subject=f"Your Order {created_order.get('_id')} - CD Key(s)",
+                    products=products,
+                    keys=assigned_keys
+                )
+            except Exception as e:
+                print(f"Failed to send CD key email: {e}")
+            # Send SMS/WhatsApp (pseudo-code, replace with your actual service)
+            try:
+                from ..services.sms_service import send_sms_whatsapp
+                await send_sms_whatsapp(
+                    to=user_email, # Replace with user's phone number if available
+                    message=f"Your CD Key(s): {', '.join(assigned_keys)}"
+                )
+            except Exception as e:
+                print(f"Failed to send CD key SMS/WhatsApp: {e}")
+
     return Order(**created_order)
 
 # ... (rest of the existing router code for get_orders, get_order, update_order_status, etc.)

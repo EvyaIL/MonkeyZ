@@ -575,13 +575,29 @@ async def create_coupon(
         coupon_data["expiresAt"] = datetime.fromisoformat(coupon.expiresAt.replace('Z', '+00:00'))
     # Ensure maxUsagePerUser is always present and integer
     value = coupon_data.get("maxUsagePerUser", None)
-    if value is None or value == "" or value == []:
-        coupon_data["maxUsagePerUser"] = 0
-    else:
-        try:
-            coupon_data["maxUsagePerUser"] = int(value)
-        except Exception:
+    # Accept string, int, float, but never boolean, and always save as integer
+    try:
+        if value is None or value == "" or value == []:
             coupon_data["maxUsagePerUser"] = 0
+        elif isinstance(value, bool):
+            coupon_data["maxUsagePerUser"] = 0
+        elif isinstance(value, (int, float)):
+            coupon_data["maxUsagePerUser"] = int(value)
+        elif isinstance(value, str):
+            v = value.strip()
+            if v == "":
+                coupon_data["maxUsagePerUser"] = 0
+            elif v.isdigit():
+                coupon_data["maxUsagePerUser"] = int(v)
+            else:
+                try:
+                    coupon_data["maxUsagePerUser"] = int(float(v))
+                except Exception:
+                    coupon_data["maxUsagePerUser"] = 0
+        else:
+            coupon_data["maxUsagePerUser"] = 0
+    except Exception:
+        coupon_data["maxUsagePerUser"] = 0
     
     new_coupon = await user_controller.create_coupon(coupon_data)
     
