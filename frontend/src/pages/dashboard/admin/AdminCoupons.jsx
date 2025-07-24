@@ -29,6 +29,9 @@ function AdminCoupons() {
   });
   const [analyticsDialogOpen, setAnalyticsDialogOpen] = useState(false);
   const [selectedCouponAnalytics, setSelectedCouponAnalytics] = useState(null);
+  // Fix: Add missing state for analytics loading and error
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState(null);
   // State for loading and error feedback
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -204,9 +207,31 @@ function AdminCoupons() {
           variant="outlined"
           size="small"
           title="View detailed analytics for this coupon"
-          onClick={() => {
-            setSelectedCouponAnalytics(params.row);
+          onClick={async () => {
             setAnalyticsDialogOpen(true);
+            setSelectedCouponAnalytics(null);
+            setAnalyticsLoading(true);
+            setAnalyticsError(null);
+            try {
+              // Fetch analytics from backend
+              const res = await api.get(`/admin/coupons/${params.row.code}/analytics`);
+              if (res.error) {
+                setAnalyticsError(res.error);
+                setSelectedCouponAnalytics(null);
+              } else {
+                setSelectedCouponAnalytics({
+                  ...params.row,
+                  ...res.data,
+                  usageAnalytics: res.data.usageAnalytics || res.data.usage_analytics || {},
+                  userUsages: res.data.userUsages || res.data.user_usages || {},
+                });
+              }
+            } catch (err) {
+              setAnalyticsError('Failed to load analytics');
+              setSelectedCouponAnalytics(null);
+            } finally {
+              setAnalyticsLoading(false);
+            }
           }}
         >
           Analytics
@@ -615,7 +640,11 @@ function AdminCoupons() {
       <Dialog open={analyticsDialogOpen} onClose={() => setAnalyticsDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Coupon Analytics</DialogTitle>
         <DialogContent>
-          {selectedCouponAnalytics ? (
+          {analyticsLoading ? (
+            <Box sx={{ p: 2 }}><Typography>Loading analytics...</Typography></Box>
+          ) : analyticsError ? (
+            <Box sx={{ p: 2, color: 'error.main' }}><Typography>{analyticsError}</Typography></Box>
+          ) : selectedCouponAnalytics ? (
             <Box sx={{ p: 2 }}>
               <Typography variant="subtitle1" sx={{ mb: 1 }}><strong>Code:</strong> {selectedCouponAnalytics.code}</Typography>
               <Typography variant="body2"><strong>Type:</strong> {selectedCouponAnalytics.discountType === 'percentage' ? 'Percentage' : 'Fixed Amount'}</Typography>
@@ -638,7 +667,7 @@ function AdminCoupons() {
               {/* Per-User Usage */}
               <Box sx={{ mt: 2 }}>
                 <Typography variant="subtitle2">Per-User Usage</Typography>
-                <Typography variant="body2"><strong>Unique Users:</strong> {selectedCouponAnalytics.userUsages ? Object.keys(selectedCouponAnalytics.userUsages).length : 0}</Typography>
+                <Typography variant="body2"><strong>Unique Users:</strong> {selectedCouponAnalytics.unique_users ?? (selectedCouponAnalytics.userUsages ? Object.keys(selectedCouponAnalytics.userUsages).length : 0)}</Typography>
                 <Typography variant="body2"><strong>Max Uses Per User:</strong> {selectedCouponAnalytics.maxUsagePerUser || '∞'}</Typography>
                 {selectedCouponAnalytics.userUsages && Object.keys(selectedCouponAnalytics.userUsages).length > 0 ? (
                   <Box sx={{ mt: 1 }}>

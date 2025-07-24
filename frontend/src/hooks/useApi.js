@@ -13,9 +13,10 @@ export const useApi = () => {
     return { error: error?.response?.data || 'An error occurred' };
   }, [navigate]);
 
-  const get = useCallback(async (endpoint) => {
+  // PATCH: Accept params for GET requests (for analytics endpoints etc)
+  const get = useCallback(async (endpoint, params = null) => {
     try {
-      const response = await apiService.get(endpoint);
+      const response = await apiService.get(endpoint, params);
       return { data: response.data };
     } catch (error) {
       return handleApiError(error);

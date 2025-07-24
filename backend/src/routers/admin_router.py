@@ -1,10 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+
+# Define the admin_router at the very top so it is available for all endpoints
+admin_router = APIRouter(prefix="/admin", tags=["admin"])
 from pydantic import BaseModel, ValidationError, field_validator # Import BaseModel directly, field_validator instead of field_serializer for Pydantic v2
 from typing import Dict, Any, List, Optional, Union # Ensure Dict, Any are imported
 from datetime import datetime, timedelta # Added datetime
 from pymongo import MongoClient
-from bson import ObjectId # Use bson from pymongo
-from beanie import PydanticObjectId # Added PydanticObjectId for Beanie
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel, ValidationError, field_validator
+from typing import Dict, Any, List, Optional, Union
+from datetime import datetime, timedelta
+from pymongo import MongoClient
+from bson import ObjectId
+from beanie import PydanticObjectId
 import copy
 
 from src.models.user.user import Role
@@ -16,6 +24,8 @@ from src.deps.deps import (
     get_keys_controller_dependency,
     get_admin_product_collection_dependency
 )
+from src.lib.token_handler import get_current_user
+from src.models.token.token import TokenData
 from src.mongodb.product_collection import ProductCollection
 from src.controller.key_controller import KeyController
 from src.lib.token_handler import get_current_user # Added get_current_user
@@ -30,10 +40,6 @@ from .orders import retry_failed_orders_internal
 from ..services.coupon_service import CouponService
 from fastapi.responses import JSONResponse
 
-admin_router = APIRouter(
-    prefix="/admin",
-    tags=["admin"],
-)
 mongo_db_instance = MongoDb()
 
 # Coupon analytics endpoint
@@ -44,7 +50,6 @@ async def get_coupon_analytics(
     current_user: TokenData = Depends(get_current_user)
 ):
     await verify_admin(user_controller, current_user)
-    # Aggressive coupon code matching: case-insensitive, trim, remove spaces, allow partials
     code_variants = [
         coupon_code.strip(),
         coupon_code.strip().lower(),
@@ -53,45 +58,37 @@ async def get_coupon_analytics(
         coupon_code.strip().replace(' ', '').lower(),
         coupon_code.strip().replace(' ', '').upper(),
     ]
-    # Debug logging: log all coupon codes in DB and code variants being checked
-    all_coupons_cursor = user_controller.db.coupons.find({})
-    all_coupons = await all_coupons_cursor.to_list(length=1000)
-    db_codes = [c.get('code', None) for c in all_coupons if c.get('code', None)]
-    print(f"[DEBUG] All coupon codes in DB: {db_codes}")
-    print(f"[DEBUG] Code variants being checked: {code_variants}")
+    # Use controller method to get all coupons
+    all_coupons = await user_controller.get_all_coupons()
+    db_codes = [c.get('code', None) if isinstance(c, dict) else getattr(c, 'code', None) for c in all_coupons if (c.get('code', None) if isinstance(c, dict) else getattr(c, 'code', None))]
     coupon = None
-    # Print all codes and compare each variant
-    for db_code in db_codes:
+    # Try exact match
+    for c in all_coupons:
+        db_code = c.get('code', None) if isinstance(c, dict) else getattr(c, 'code', None)
         for variant in code_variants:
-            print(f"[DEBUG] Comparing DB code '{db_code}' with variant '{variant}'")
             if db_code and variant and db_code.strip().lower() == variant.strip().lower():
-                print(f"[DEBUG] Exact match found: '{db_code}' == '{variant}'")
-                coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                coupon = c
                 break
         if coupon:
             break
+    # Try partial match if not found
     if not coupon:
-        # Try partial match (contains)
-        for db_code in db_codes:
+        for c in all_coupons:
+            db_code = c.get('code', None) if isinstance(c, dict) else getattr(c, 'code', None)
             for variant in code_variants:
-                print(f"[DEBUG] Partial compare DB code '{db_code}' with variant '{variant}'")
                 if db_code and variant and variant.strip().lower() in db_code.strip().lower():
-                    print(f"[DEBUG] Partial match found: '{variant}' in '{db_code}'")
-                    coupon = await user_controller.db.coupons.find_one({"code": db_code})
+                    coupon = c
                     break
             if coupon:
                 break
+    # Try to find by partial code in the whole coupon collection
     if not coupon:
-        # Try to find by partial code in the whole coupon collection
-        all_coupons_cursor = user_controller.db.coupons.find({})
-        all_coupons = await all_coupons_cursor.to_list(length=1000)
         for c in all_coupons:
-            db_code = c.get('code', '')
+            db_code = c.get('code', '') if isinstance(c, dict) else getattr(c, 'code', '')
             if db_code and coupon_code.strip().lower() in db_code.strip().lower():
                 coupon = c
                 break
         # Always return a valid analytics object for frontend compatibility
-        # (Do NOT return 404, always return 200 with default analytics)
         return {
             "total": 0,
             "completed": 0,
@@ -102,21 +99,17 @@ async def get_coupon_analytics(
             "unique_users": 0,
             "user_usages": {},
             "usage_count": 0,
-            "max_usage_per_user": 0
+            "max_usage_per_user": 0,
+            "usageAnalytics": {},
+            "userUsages": {},
         }
 
-    # DEBUG: Log the coupon document for troubleshooting
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("coupon_analytics")
-    logger.info(f"Coupon document for analytics: {coupon}")
-
     # Extract analytics fields from coupon document, fallback to alternative field names if needed
-    usage_analytics = coupon.get("usageAnalytics", coupon.get("usage_analytics", {}))
-    user_usages = coupon.get("userUsages", coupon.get("user_usages", {}))
-    usage_count = coupon.get("uses", coupon.get("usageCount", coupon.get("usage_count", 0)))
+    coupon_dict = coupon if isinstance(coupon, dict) else (coupon.dict() if hasattr(coupon, 'dict') else coupon)
+    usage_analytics = coupon_dict.get("usageAnalytics", coupon_dict.get("usage_analytics", {}))
+    user_usages = coupon_dict.get("userUsages", coupon_dict.get("user_usages", {}))
+    usage_count = coupon_dict.get("uses", coupon_dict.get("usageCount", coupon_dict.get("usage_count", 0)))
 
-    # Helper to get field from analytics dict, fallback to raw value
     def get_field(analytics_dict, *keys, default=0):
         for k in keys:
             if k in analytics_dict:
@@ -132,7 +125,6 @@ async def get_coupon_analytics(
         "awaiting_stock": get_field(usage_analytics, "awaitingStock", "awaiting_stock"),
     }
 
-    # If total is still zero, fallback to sum of all user usages
     if not analytics["total"]:
         analytics["total"] = sum(
             sum(v.values()) if isinstance(v, dict) else v
@@ -140,7 +132,6 @@ async def get_coupon_analytics(
             if isinstance(v, (dict, int, float))
         )
 
-    # Recursively sum all leaf values for each top-level user/email
     def recursive_sum(d):
         if isinstance(d, dict):
             return sum(recursive_sum(v) for v in d.values())
@@ -149,19 +140,12 @@ async def get_coupon_analytics(
         return 0
 
     flat_user_usages = {user: recursive_sum(usage) for user, usage in user_usages.items()}
-
-    # Unique users: only count users with usage > 0
     analytics["unique_users"] = sum(1 for v in flat_user_usages.values() if v > 0)
-
-    # Per-user usage summary
     analytics["user_usages"] = flat_user_usages
-
-    # Raw usage count
     analytics["usage_count"] = usage_count
-
-    # Also include maxUsagePerUser if present
-    analytics["max_usage_per_user"] = coupon.get("maxUsagePerUser", coupon.get("max_usage_per_user", 0))
-
+    analytics["max_usage_per_user"] = coupon_dict.get("maxUsagePerUser", coupon_dict.get("max_usage_per_user", 0))
+    analytics["usageAnalytics"] = usage_analytics if isinstance(usage_analytics, dict) else {}
+    analytics["userUsages"] = flat_user_usages if isinstance(flat_user_usages, dict) else {}
     return analytics
     
 # --- NEW: Coupon info endpoint for frontend dialog ---
@@ -243,21 +227,6 @@ from .orders import retry_failed_orders_internal
 from ..services.coupon_service import CouponService
 from fastapi.responses import JSONResponse
 
-router = APIRouter()
-
-@router.get("/admin/products", response_model=List[ProductModel], tags=["Admin Products"])
-async def get_products_for_admin(
-    current_user: TokenData = Depends(get_current_user),
-    user_controller: UserController = Depends(get_user_controller_dependency)
-):
-    if not await user_controller.has_role(current_user.username, Role.manager):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this resource."
-        )
-    
-    products = await ProductModel.find_all().to_list()
-    return products
 
 class ProductBase(BaseModel):
     name: dict  # {'en': str, 'he': str}
@@ -406,11 +375,7 @@ class ProductKeysRequest(BaseModel):
 class CDKeysAddRequest(BaseModel):
     keys: List[CDKey] # Expecting a list of CDKey objects
 
-admin_router = APIRouter(
-    prefix="/admin",
-    tags=["admin"],
-)
-mongo_db_instance = MongoDb()
+
 
 async def verify_admin(user_controller: UserController, current_user: TokenData):
     """Verify that the current user has admin privileges."""
