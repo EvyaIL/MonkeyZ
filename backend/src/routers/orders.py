@@ -156,7 +156,8 @@ async def create_order(
     # --- Coupon Discount Logic ---
     original_total = sum(item.price * item.quantity for item in order_data.items)
     discount_amount = 0.0
-    coupon_code = order_data.coupon_code
+    # Support both coupon_code and couponCode from frontend
+    coupon_code = getattr(order_data, 'coupon_code', None) or getattr(order_data, 'couponCode', None)
     coupon_obj = None
     coupon_error = None
     if coupon_code:
@@ -164,9 +165,17 @@ async def create_order(
         discount_amount, coupon_obj, coupon_error = await coupon_service.validate_and_apply_coupon(coupon_code, original_total)
         if coupon_error:
             print(f"Coupon error: {coupon_error}")
+        else:
+            # If coupon is valid, increment usage count
+            if coupon_obj:
+                await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": 1}})
+                print(f"Coupon {coupon_code} usage incremented for order {order_data.id}")
     order_data.discount_amount = discount_amount
     order_data.original_total = original_total
     order_data.total = original_total - discount_amount
+    # Always set coupon_code (Pydantic alias will handle couponCode in DB)
+    if coupon_code:
+        order_data.coupon_code = coupon_code
     # --- End Coupon Discount Logic ---
     # Prepare order for insertion
     order_to_insert = order_data.model_dump(by_alias=True) # Use model_dump for Pydantic v2

@@ -196,6 +196,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
       original_total: parseFloat(formData.original_total) || 0,
       discount_amount: parseFloat(formData.discount_amount) || 0,
       total: parseFloat(formData.total) || 0,
+      // Always send both couponCode and coupon_code for backend compatibility
+      ...(formData.coupon_code ? { couponCode: formData.coupon_code, coupon_code: formData.coupon_code } : {}),
     };
     onSubmit(dataToSubmit);
   };

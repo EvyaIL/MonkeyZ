@@ -29,7 +29,7 @@ const CouponList = () => {
                         <th>Active</th>
                         <th>Discount Type</th>
                         <th>Discount Value</th>
-                        <th>Uses</th>
+                        <th>Usage Count</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -39,7 +39,7 @@ const CouponList = () => {
                             <td>{coupon.active ? 'Yes' : 'No'}</td>
                             <td>{coupon.discountType}</td>
                             <td>{coupon.discountValue}</td>
-                            <td>{coupon.uses}</td>
+                            <td>{coupon.usageCount ?? coupon.uses ?? 0}</td>
                         </tr>
                     ))}
                 </tbody>
