@@ -41,8 +41,9 @@ mongo_db_instance = MongoDb()
 async def get_coupon_analytics(
     coupon_code: str,
     user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
 ):
-    # REMOVE admin check so anyone can view coupon analytics
+    await verify_admin(user_controller, current_user)
     # Aggressive coupon code matching: case-insensitive, trim, remove spaces, allow partials
     code_variants = [
         coupon_code.strip(),
@@ -168,7 +169,9 @@ async def get_coupon_analytics(
 async def get_coupon_info(
     code: str,
     user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
 ):
+    await verify_admin(user_controller, current_user)
     # Aggressive code matching (same as analytics)
     code_variants = [
         code.strip(),
@@ -735,9 +738,10 @@ async def delete_cd_key_for_product(
 # Coupon routes
 @admin_router.get("/coupons", response_model=List[Coupon])
 async def get_coupons(
-    user_controller: UserController = Depends(get_user_controller_dependency)
+    user_controller: UserController = Depends(get_user_controller_dependency),
+    current_user: TokenData = Depends(get_current_user)
 ):
-    # REMOVE admin check so anyone can view coupon details
+    await verify_admin(user_controller, current_user)
     coupons = await user_controller.get_all_coupons()  # Using the controller method instead of accessing collection directly
     
     # Convert backend model to frontend format for each coupon
@@ -1141,9 +1145,10 @@ async def validate_coupon(request: Request):
     data = await request.json()
     code = data.get("code")
     amount = data.get("amount", 0)
+    user_email = data.get("email")
     db = await MongoDb().get_db()
     coupon_service = CouponService(db)
-    discount, coupon, error = await coupon_service.validate_and_apply_coupon(code, amount)
+    discount, coupon, error = await coupon_service.validate_and_apply_coupon(code, amount, user_email=user_email)
     if error:
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
     return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}

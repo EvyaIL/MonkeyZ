@@ -4,8 +4,8 @@ class CouponService:
     def __init__(self, db):
         self.db = db
 
-    async def validate_coupon(self, coupon_code, original_total):
-        """Validate coupon without applying (no usage increment)."""
+    async def validate_coupon(self, coupon_code, original_total, user_email=None):
+        """Validate coupon without applying (no usage increment). Enforces expiry, max total, and max per-user usage."""
         try:
             if not coupon_code:
                 return 0.0, None, 'No coupon code provided.'
@@ -33,6 +33,13 @@ class CouponService:
                         return 0.0, None, 'Coupon expired.'
             if coupon.get('maxUses') is not None and coupon.get('usageCount', 0) >= coupon['maxUses']:
                 return 0.0, None, 'Coupon usage limit reached.'
+            # --- ENFORCE MAX USAGES PER USER ---
+            max_per_user = coupon.get('maxUsagePerUser', 0)
+            user_usages = coupon.get('userUsages', {})
+            if user_email and max_per_user:
+                user_count = user_usages.get(user_email, 0)
+                if user_count >= max_per_user:
+                    return 0.0, None, f'Maximum uses per user reached ({max_per_user}).'
             discount = 0.0
             dtype = coupon.get('discountType', '').lower()
             dval = coupon.get('discountValue')
@@ -45,7 +52,7 @@ class CouponService:
         except Exception as e:
             return 0.0, None, str(e)
 
-    async def validate_and_apply_coupon(self, coupon_code, original_total):
+    async def validate_and_apply_coupon(self, coupon_code, original_total, user_email=None):
         """Validate coupon and apply it (NO usage increment here)."""
         # Only validate and return discount, do NOT increment usage here!
-        return await self.validate_coupon(coupon_code, original_total)
+        return await self.validate_coupon(coupon_code, original_total, user_email=user_email)

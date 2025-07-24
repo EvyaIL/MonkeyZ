@@ -179,6 +179,20 @@ function AdminCoupons() {
     }
   };
 
+  // Helper to determine if a coupon is invalid for any reason
+  const isCouponInvalid = (coupon) => {
+    // Expiry check
+    const expired = coupon.expiryDate && new Date(coupon.expiryDate) < new Date();
+    // Max total usage check
+    const maxUses = coupon.maxUses ?? 0;
+    const usageCount = coupon.usageCount ?? 0;
+    const maxUsesExceeded = maxUses > 0 && usageCount >= maxUses;
+    // Max per user check (only analytics dialog shows per-user, so just flag if maxUsagePerUser is set)
+    // For admin table, we can't know per-user, so just show if maxUsagePerUser is set and is 0 (unlimited) or > 0
+    // If you want to show per-user, you need to fetch analytics for each row, which is expensive
+    return expired || maxUsesExceeded;
+  };
+
   const columns = [
     {
       field: 'analytics',
@@ -459,8 +473,9 @@ function AdminCoupons() {
           disableRowSelectionOnClick
           loading={isLoading}
           getRowClassName={(params) => {
-            const isExpired = new Date(params.row.expiryDate) < new Date();
-            return isExpired ? 'expired-row' : '';
+            // Red if expired or max usages reached
+            if (isCouponInvalid(params.row)) return 'expired-row';
+            return '';
           }}
         />
       </Box>
