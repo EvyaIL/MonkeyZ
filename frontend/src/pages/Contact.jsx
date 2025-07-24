@@ -41,12 +41,11 @@ const Contact = () => {
     addStructuredData([localBusinessSchema, breadcrumbSchema]);
   }, [t]);
 
-  const sendEmail = (e) => {
+  const sendEmail = async (e) => {
     e.preventDefault();
     setStatus("");
     setLoading(true);
     try {
-      // Replace with your backend API call
       const formData = new FormData(formRef.current);
       const response = await fetch("/api/contact", {
         method: "POST",

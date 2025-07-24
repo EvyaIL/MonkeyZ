@@ -1,20 +1,58 @@
-import requests
+import smtplib
 import logging
 import os
 from dotenv import load_dotenv
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 load_dotenv()  # Load environment variables from .env file
 
-## EmailJS removed. Please use FastAPI backend or SMTP for all email sending.
-        
-        if response.status_code != 200:
-            logging.error(f"[EMAILJS] Error sending {template_type} email: {response.status_code} - {response.text}")
-            return False
-            
-        logging.info(f"[EMAILJS] Successfully sent {template_type} email")
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+SMTP_FROM = os.getenv("SMTP_FROM")
+
+def _send_email(template_type: str, template_params: dict) -> bool:
+    """
+    Send an email using SMTP based on template type and params.
+    """
+    try:
+        subject = "MonkeyZ Notification"
+        body = ""
+        # Basic template logic (customize as needed)
+        if template_type == "password_reset":
+            subject = "Password Reset Request"
+            body = f"Hello,\n\nClick the link to reset your password: {template_params.get('link')}\n\nIf you did not request this, ignore this email."
+        elif template_type == "otp":
+            subject = "Your One-Time Password (OTP)"
+            body = f"Hello,\n\nYour OTP is: {template_params.get('otp')}\n\nDo not share this code."
+        elif template_type == "welcome":
+            subject = "Welcome to MonkeyZ!"
+            body = f"Hello {template_params.get('username', '')},\n\nWelcome to MonkeyZ! We're glad to have you."
+        elif template_type == "contact_us":
+            subject = "Contact Form Submission"
+            body = f"Name: {template_params.get('from_name', '')}\nEmail: {template_params.get('to_email', '')}\nMessage: {template_params.get('message', '')}"
+        elif template_type == "auto_reply":
+            subject = template_params.get('subject', 'Auto Reply')
+            body = template_params.get('message', '')
+        else:
+            body = str(template_params)
+
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_FROM
+        msg['To'] = template_params.get('to_email', SMTP_FROM)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_FROM, [msg['To']], msg.as_string())
+        logging.info(f"[SMTP] Successfully sent {template_type} email to {msg['To']}")
         return True
-    except requests.exceptions.RequestException as e:
-        logging.error(f"[EMAILJS] Request failed for {template_type} email: {e}")
+    except Exception as e:
+        logging.error(f"[SMTP] Error sending {template_type} email: {e}")
         return False
 
 def send_password_reset_email(to_email: str, reset_link: str) -> bool:
