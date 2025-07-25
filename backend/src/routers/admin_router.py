@@ -1,3 +1,44 @@
+from src.mongodb.orders_collection import OrdersCollection
+from src.models.order import normalize_status
+# --- COUPON ANALYTICS RECALCULATION ---
+async def recalculate_coupon_analytics(coupon_code: str, db):
+    """
+    Recalculate coupon analytics (total, completed, cancelled, per-user usage, etc.)
+    for the given coupon code. This should be called after any order is created, deleted, or its status changes.
+    """
+    orders_collection = OrdersCollection()
+    orders = await orders_collection.get_orders_by_coupon_code(coupon_code)
+    # Normalize status and coupon fields
+    per_user = {}
+    analytics = {
+        "total": 0,
+        "completed": 0,
+        "cancelled": 0,
+        "pending": 0,
+        "processing": 0,
+        "awaiting_stock": 0,
+    }
+    for order in orders:
+        status = normalize_status(order.get("status"))
+        email = order.get("email")
+        if not email:
+            continue
+        if status != "cancelled":
+            per_user[email] = per_user.get(email, 0) + 1
+        analytics[status] = analytics.get(status, 0) + 1
+        analytics["total"] += 1
+    # Write analytics to coupon doc
+    update = {
+        "usageAnalytics": {
+            **analytics,
+            "unique_users": len(per_user),
+            "userUsages": per_user,
+        },
+        "usageCount": sum(per_user.values()),
+        "userUsages": per_user,
+    }
+    await db.coupons.update_one({"code": coupon_code}, {"$set": update})
+    return update
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
 # Define the admin_router at the very top so it is available for all endpoints

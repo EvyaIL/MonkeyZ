@@ -456,24 +456,21 @@ async def update_order_status(
 
     previous_status = order_from_db.get('status')
     coupon_code = order_from_db.get('couponCode') or order_from_db.get('coupon_code')
-    # If status is being set to Cancelled and it wasn't previously Cancelled, release keys and decrement coupon usage
+    # If status is being set to Cancelled and it wasn't previously Cancelled, release keys and recalculate coupon analytics
     if status_update.status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
         print(f"Order {order_id}: Released keys on cancel.")
         if coupon_code:
-            # Always decrement usageCount by 1 (never below zero)
-            await db.coupons.update_one({"code": coupon_code, "usageCount": {"$gt": 0}}, {"$inc": {"usageCount": -1, "usageAnalytics.cancelled": 1, "usageAnalytics.pending": -1}})
-            # Decrement per-user usage if needed (optional, usually not decremented)
-            print(f"Order {order_id}: Decremented usage for coupon {coupon_code} (cancelled).")
-    # If status is being changed from Cancelled to any other status, increment coupon usage
+            from .admin_router import recalculate_coupon_analytics
+            await recalculate_coupon_analytics(coupon_code, db)
+            print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after cancellation.")
+    # If status is being changed from Cancelled to any other status, recalculate coupon analytics
     if previous_status == StatusEnum.CANCELLED.value and status_update.status != StatusEnum.CANCELLED.value:
         if coupon_code:
-            await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": 1, "usageAnalytics.total": 1, f"usageAnalytics.{status_update.status}": 1, "usageAnalytics.cancelled": -1}})
-            # Update per-user usage
-            if order_from_db.get('email'):
-                await db.coupons.update_one({"code": coupon_code}, {"$inc": {f"userUsages.{order_from_db.get('email')}": 1}})
-            print(f"Order {order_id}: Incremented usage for coupon {coupon_code} (uncancelled).")
+            from .admin_router import recalculate_coupon_analytics
+            await recalculate_coupon_analytics(coupon_code, db)
+            print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after uncancellation.")
 
     if update_result.modified_count == 0:
         # This might happen if the status is the same or order not found (already checked)
@@ -509,12 +506,12 @@ async def delete_order(
     if not order_from_db:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # --- Decrement Coupon Usage on Deletion or Cancel ---
+    # --- Recalculate Coupon Analytics on Deletion ---
     coupon_code = order_from_db.get("couponCode") or order_from_db.get("coupon_code")
     if coupon_code:
-        await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": -1}})
-        print(f"Order {order_id}: Decremented usage for coupon {coupon_code}.")
-    # --- End Coupon Logic ---
+        from .admin_router import recalculate_coupon_analytics
+        await recalculate_coupon_analytics(coupon_code, db)
+        print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after deletion.")
 
     # Release keys before deleting
     await release_keys_for_order(order_from_db, db)
@@ -559,6 +556,12 @@ async def patch_order(
     updated_order_doc = await db.orders.find_one({"_id": query_id})
     if '_id' in updated_order_doc and isinstance(updated_order_doc['_id'], ObjectId):
         updated_order_doc['_id'] = str(updated_order_doc['_id'])
+    # --- Recalculate Coupon Analytics if coupon and status changed to cancelled ---
+    coupon_code = order_from_db.get("couponCode") or order_from_db.get("coupon_code")
+    if coupon_code and new_status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
+        from .admin_router import recalculate_coupon_analytics
+        await recalculate_coupon_analytics(coupon_code, db)
+        print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after cancellation.")
     return Order(**updated_order_doc).model_dump(by_alias=True)
 
 # --- PayPal Integration Endpoints ---

@@ -10,6 +10,18 @@ class OrdersCollection(MongoDb, metaclass=Singleton):
     A class for interacting with the Orders Collection, implemented as a Singleton.
     """
 
+    async def get_orders_by_coupon_code(self, coupon_code: str):
+        db = await self.get_db()
+        # Support both couponCode and coupon_code for legacy data
+        orders_cursor = db.orders.find({"$or": [{"couponCode": coupon_code}, {"coupon_code": coupon_code}]})
+        orders_list = []
+        async for order_doc in orders_cursor:
+            # Normalize coupon fields for model
+            order_doc['coupon_code'] = order_doc.get('coupon_code') or order_doc.get('couponCode')
+            order_doc['couponCode'] = order_doc['coupon_code']
+            orders_list.append(order_doc)
+        return orders_list
+
     async def initialize(self) -> None:
         """
         Initializes the OrdersCollection with the 'shop' database and Order document.

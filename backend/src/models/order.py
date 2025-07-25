@@ -46,9 +46,20 @@ class OrderStatusUpdateRequest(BaseModel):
     note: Optional[str] = None
 
 class StatusEnum(str, Enum):
-    PENDING = "Pending"
-    PROCESSING = "Processing"
-    COMPLETED = "Completed"
-    CANCELLED = "Cancelled"
-    AWAITING_STOCK = "Awaiting Stock"
-    FAILED = "Failed"
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    AWAITING_STOCK = "awaiting_stock"
+    FAILED = "failed"
+
+def normalize_status(status: str) -> str:
+    if not status:
+        return StatusEnum.PENDING.value
+    s = status.lower().replace(" ", "_")
+    if s in (StatusEnum.PENDING.value, StatusEnum.PROCESSING.value, StatusEnum.COMPLETED.value, StatusEnum.CANCELLED.value, StatusEnum.AWAITING_STOCK.value, StatusEnum.FAILED.value):
+        return s
+    # fallback for legacy/typo statuses
+    if s in ("cancel", "canceled"): return StatusEnum.CANCELLED.value
+    if s in ("done", "success"): return StatusEnum.COMPLETED.value
+    return StatusEnum.PENDING.value
