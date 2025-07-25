@@ -122,9 +122,22 @@ class ProductCollection(MongoDb, metaclass=Singleton):
                     sanitized_keys = []
                     for key_data in copy.deepcopy(p_data["cdKeys"]):
                         if "orderId" in key_data and key_data["orderId"]:
-                            try:
-                                PydanticObjectId(key_data["orderId"])
-                            except (ValidationError, TypeError, ValueError):
+                            oid = key_data["orderId"]
+                            # Accept valid ObjectId or any non-empty string (for PayPal orders)
+                            from beanie import PydanticObjectId
+                            from bson import ObjectId as BsonObjectId
+                            import re
+                            is_valid_oid = False
+                            if isinstance(oid, (PydanticObjectId, BsonObjectId)):
+                                is_valid_oid = True
+                            elif isinstance(oid, str):
+                                # Accept as ObjectId if valid hex, else accept as string (PayPal)
+                                if re.fullmatch(r"[a-fA-F0-9]{24}", oid):
+                                    is_valid_oid = True
+                                else:
+                                    # Accept as string (PayPal orderId)
+                                    is_valid_oid = True
+                            if not is_valid_oid:
                                 key_data["orderId"] = None
                         sanitized_keys.append(key_data)
                     p_data["cdKeys"] = sanitized_keys

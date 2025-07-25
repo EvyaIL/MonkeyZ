@@ -747,7 +747,14 @@ async def capture_paypal_order(
                     key_obj = available_keys[i]
                     key_obj.isUsed = True
                     key_obj.usedAt = datetime.now(timezone.utc)
-                    key_obj.orderId = order_id
+                    # PayPal order_id is not a valid ObjectId, so store as string only if valid, else None
+                    from bson import ObjectId as BsonObjectId
+                    try:
+                        # If order_id is a valid ObjectId, store as ObjectId, else as string
+                        key_obj.orderId = BsonObjectId(order_id)
+                    except Exception:
+                        # If not a valid ObjectId, store as string (for PayPal orders)
+                        key_obj.orderId = str(order_id) if order_id else None
                     assigned_keys.append(key_obj.key)
                 await product_doc.save()
             item.assigned_keys = assigned_keys
