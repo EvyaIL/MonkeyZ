@@ -134,7 +134,7 @@ class ProductCollection(MongoDb, metaclass=Singleton):
                                 # Accept as ObjectId if valid hex, else accept as string (PayPal)
                                 if re.fullmatch(r"[a-fA-F0-9]{24}", oid):
                                     is_valid_oid = True
-                                else:
+                                elif len(oid) > 0:
                                     # Accept as string (PayPal orderId)
                                     is_valid_oid = True
                             if not is_valid_oid:

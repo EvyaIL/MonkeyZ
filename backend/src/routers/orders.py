@@ -766,6 +766,9 @@ async def capture_paypal_order(
 
     # Coupon logic (reuse discount from pending order, but recalc analytics if needed)
     coupon_code = order_doc.get("couponCode") or order_doc.get("coupon_code")
+    # Normalize coupon code for analytics and DB
+    if coupon_code:
+        coupon_code = coupon_code.strip().lower()
     discount_amount = order_doc.get("discountAmount") or 0.0
     original_total = order_doc.get("originalTotal") or order_doc.get("total") or 0.0
     paid_amount = float(cap_resp.result.purchase_units[0].payments.captures[0].amount.value)
@@ -788,8 +791,12 @@ async def capture_paypal_order(
         "discountAmount": discount_amount,
         "originalTotal": original_total,
         "totalPaid": paid_amount,
-        "items": [item.model_dump() for item in order_items]
+        "items": [item.model_dump() for item in order_items],
     }
+    # Always set couponCode and coupon_code fields for analytics compatibility
+    if coupon_code:
+        update_fields["couponCode"] = coupon_code
+        update_fields["coupon_code"] = coupon_code
     await db.orders.update_one({"_id": order_id}, {"$set": update_fields})
 
     # Send confirmation email if completed
