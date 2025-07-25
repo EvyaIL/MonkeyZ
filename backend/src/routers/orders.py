@@ -678,13 +678,19 @@ async def capture_paypal_order(
     This ensures PayPal orders are identical to manual orders in all admin/user views.
     """
     db = await mongo_db.get_db()
-    # Step 1: Capture payment
-    cap_req = OrdersCaptureRequest(order_id)
-    cap_req.prefer("return=representation")
+    # Step 1: Capture payment (run PayPal SDK in thread to avoid blocking async loop)
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    def capture_paypal():
+        cap_req = OrdersCaptureRequest(order_id)
+        cap_req.prefer("return=representation")
+        return paypal_client.execute(cap_req)
     try:
         print(f"Capturing PayPal order {order_id}...")
-        cap_resp = paypal_client.execute(cap_req)
-        print(f"Successfully captured PayPal order {order_id}.")
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as pool:
+            cap_resp = await loop.run_in_executor(pool, capture_paypal)
+        print(f"Successfully captured PayPal order {order_id}. Status: {cap_resp.result.status}")
     except Exception as e:
         print(f"Error capturing PayPal order {order_id}: {e}")
         await db.orders.update_one(
@@ -703,6 +709,12 @@ async def capture_paypal_order(
 
     # Step 2: Retrieve the pending order document
     order_doc = await db.orders.find_one({"_id": order_id})
+    if not order_doc:
+        print(f"Order not found in database with _id={order_id}")
+        raise HTTPException(404, f"Order not found in database with _id={order_id}")
+
+    # Log coupon/discount/original/total for debugging
+    print(f"[PayPal Capture] order_id={order_id} original_total={order_doc.get('originalTotal')} discount_amount={order_doc.get('discountAmount')} total={order_doc.get('total')} coupon_code={order_doc.get('couponCode') or order_doc.get('coupon_code')}")
     if not order_doc:
         raise HTTPException(404, "Order not found in database")
 
