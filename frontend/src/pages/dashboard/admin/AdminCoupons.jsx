@@ -664,15 +664,16 @@ function AdminCoupons() {
                     const cancelled = Number(ua.cancelled ?? 0);
                     const pending = Number(ua.pending ?? 0);
                     const processing = Number(ua.processing ?? 0);
-                    const awaitingStock = Number(ua.awaitingStock ?? ua.awaitaining_stock ?? 0);
-                    return completed + cancelled + pending + processing + awaitingStock;
+                    // Always use snake_case for awaiting_stock, fallback to 0
+                    const awaiting_stock = Number(ua.awaiting_stock ?? 0);
+                    return completed + cancelled + pending + processing + awaiting_stock;
                   })()}
                 </Typography>
                 <Typography variant="body2">Completed: {selectedCouponAnalytics.usageAnalytics?.completed ?? 0}</Typography>
                 <Typography variant="body2">Cancelled: {selectedCouponAnalytics.usageAnalytics?.cancelled ?? 0}</Typography>
                 <Typography variant="body2">Pending: {selectedCouponAnalytics.usageAnalytics?.pending ?? 0}</Typography>
                 <Typography variant="body2">Processing: {selectedCouponAnalytics.usageAnalytics?.processing ?? 0}</Typography>
-                <Typography variant="body2">Awaiting Stock: {selectedCouponAnalytics.usageAnalytics?.awaitingStock ?? 0}</Typography>
+                <Typography variant="body2">Awaiting Stock: {selectedCouponAnalytics.usageAnalytics?.awaiting_stock ?? 0}</Typography>
               </Box>
               {/* Per-User Usage */}
               <Box sx={{ mt: 2 }}>

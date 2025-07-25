@@ -173,11 +173,13 @@ async def get_coupon_analytics(
             "userUsages": {},
         }
 
-    # Extract analytics fields from coupon document, fallback to alternative field names if needed
-    coupon_dict = coupon if isinstance(coupon, dict) else (coupon.dict() if hasattr(coupon, 'dict') else coupon)
-    usage_analytics = coupon_dict.get("usageAnalytics", coupon_dict.get("usage_analytics", {}))
-    user_usages = coupon_dict.get("userUsages", coupon_dict.get("user_usages", {}))
-    usage_count = coupon_dict.get("uses", coupon_dict.get("usageCount", coupon_dict.get("usage_count", 0)))
+
+    # --- Always recalculate analytics from live orders for accuracy ---
+    db = user_controller.db if hasattr(user_controller, 'db') else await MongoDb().get_db()
+    recalc = await recalculate_coupon_analytics(coupon_code, db)
+    usage_analytics = recalc.get("usageAnalytics", {})
+    user_usages = recalc.get("userUsages", {})
+    usage_count = recalc.get("usageCount", 0)
 
     def get_field(analytics_dict, *keys, default=0):
         for k in keys:
@@ -185,13 +187,23 @@ async def get_coupon_analytics(
                 return analytics_dict[k]
         return default
 
+    # --- Robustly sum all possible variants for awaiting_stock ---
+    awaiting_stock_variants = [
+        "awaiting_stock", "awaitingStock", "awaiting stock", "awaitingstock", "backordered", "out_of_stock", "outofstock"
+    ]
+    awaiting_stock_count = sum(
+        usage_analytics.get(k, 0) for k in awaiting_stock_variants if isinstance(usage_analytics.get(k, 0), (int, float))
+    )
+    if not awaiting_stock_count:
+        awaiting_stock_count = 0
+
     analytics = {
         "total": get_field(usage_analytics, "total", "uses", default=usage_count),
         "completed": get_field(usage_analytics, "completed"),
         "cancelled": get_field(usage_analytics, "cancelled"),
         "pending": get_field(usage_analytics, "pending"),
         "processing": get_field(usage_analytics, "processing"),
-        "awaiting_stock": get_field(usage_analytics, "awaitingStock", "awaiting_stock"),
+        "awaiting_stock": awaiting_stock_count,
     }
 
     if not analytics["total"]:
@@ -212,7 +224,14 @@ async def get_coupon_analytics(
     analytics["unique_users"] = sum(1 for v in flat_user_usages.values() if v > 0)
     analytics["user_usages"] = flat_user_usages
     analytics["usage_count"] = usage_count
-    analytics["max_usage_per_user"] = coupon_dict.get("maxUsagePerUser", coupon_dict.get("max_usage_per_user", 0))
+    # Use the recalc result for max_usage_per_user, fallback to coupon if needed
+    max_usage_per_user = 0
+    if "maxUsagePerUser" in recalc:
+        max_usage_per_user = recalc["maxUsagePerUser"]
+    elif coupon:
+        coupon_dict = coupon if isinstance(coupon, dict) else (coupon.dict() if hasattr(coupon, 'dict') else coupon)
+        max_usage_per_user = coupon_dict.get("maxUsagePerUser", coupon_dict.get("max_usage_per_user", 0))
+    analytics["max_usage_per_user"] = max_usage_per_user
     analytics["usageAnalytics"] = usage_analytics if isinstance(usage_analytics, dict) else {}
     analytics["userUsages"] = flat_user_usages if isinstance(flat_user_usages, dict) else {}
     return analytics
