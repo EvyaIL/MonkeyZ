@@ -657,7 +657,17 @@ function AdminCoupons() {
               {/* Usage Analytics */}
               <Box sx={{ mt: 2 }}>
                 <Typography variant="subtitle2">Usage Analytics</Typography>
-                <Typography variant="body2">Total: {selectedCouponAnalytics.usageAnalytics?.total ?? 0}</Typography>
+                <Typography variant="body2">
+                  Total: {(() => {
+                    const ua = selectedCouponAnalytics.usageAnalytics || {};
+                    const completed = Number(ua.completed ?? 0);
+                    const cancelled = Number(ua.cancelled ?? 0);
+                    const pending = Number(ua.pending ?? 0);
+                    const processing = Number(ua.processing ?? 0);
+                    const awaitingStock = Number(ua.awaitingStock ?? ua.awaitaining_stock ?? 0);
+                    return completed + cancelled + pending + processing + awaitingStock;
+                  })()}
+                </Typography>
                 <Typography variant="body2">Completed: {selectedCouponAnalytics.usageAnalytics?.completed ?? 0}</Typography>
                 <Typography variant="body2">Cancelled: {selectedCouponAnalytics.usageAnalytics?.cancelled ?? 0}</Typography>
                 <Typography variant="body2">Pending: {selectedCouponAnalytics.usageAnalytics?.pending ?? 0}</Typography>
