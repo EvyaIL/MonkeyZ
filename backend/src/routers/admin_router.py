@@ -1011,23 +1011,44 @@ async def create_order(
     current_user: TokenData = Depends(get_current_user),
     user_controller: UserController = Depends(get_user_controller_dependency)
 ):
+
+    import logging
+    from fastapi import Request
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    from fastapi.encoders import jsonable_encoder
+    import json
     try:
-        import logging
-        logging.basicConfig(level=logging.INFO)
-        logger = logging.getLogger(__name__)
-        
-        # Log the incoming order data
-        logger.info(f"Creating order: {order}")
-        
+        # Log the parsed order data
+        logger.info(f"Received order payload: {json.dumps(jsonable_encoder(order), default=str)}")
+
         # Verify admin role
         if not user_controller.has_role(current_user.sub, Role.ADMIN):
-            raise UserException(
-                "Unauthorized: Admin role required",
-                status_code=403
-            )
-        
-        # Create order document
+            logger.warning(f"User {getattr(current_user, 'username', 'unknown')} is not admin.")
+            return JSONResponse(status_code=403, content={"error": "Unauthorized: Admin role required"})
+
+        # Validate order items
         order_dict = order.model_dump()
+        items = order_dict.get("items", [])
+        if not items or not isinstance(items, list):
+            logger.error("Order creation failed: No items in order or items is not a list")
+            return JSONResponse(status_code=400, content={"error": "Order must contain at least one item", "order_dict": order_dict})
+        for idx, item in enumerate(items):
+            missing_fields = []
+            for field in ["productId", "name", "quantity", "price"]:
+                if field not in item or item[field] in [None, ""]:
+                    missing_fields.append(field)
+            if missing_fields:
+                logger.error(f"Order creation failed: Item {idx} missing fields: {missing_fields}. Item: {item}")
+                return JSONResponse(status_code=400, content={"error": f"Order item at index {idx} is missing required fields: {', '.join(missing_fields)}", "item": item, "order_dict": order_dict})
+            # Extra: type checks
+            if not isinstance(item["quantity"], int) or item["quantity"] <= 0:
+                logger.error(f"Order creation failed: Item {idx} has invalid quantity: {item['quantity']}")
+                return JSONResponse(status_code=400, content={"error": f"Order item at index {idx} has invalid quantity: {item['quantity']}", "item": item, "order_dict": order_dict})
+            if not isinstance(item["price"], (int, float)) or item["price"] < 0:
+                logger.error(f"Order creation failed: Item {idx} has invalid price: {item['price']}")
+                return JSONResponse(status_code=400, content={"error": f"Order item at index {idx} has invalid price: {item['price']}", "item": item, "order_dict": order_dict})
+
         order_dict["statusHistory"] = [
             {
                 "status": order.status,
@@ -1037,34 +1058,39 @@ async def create_order(
         ]
         order_dict["createdAt"] = datetime.utcnow()
         order_dict["date"] = datetime.utcnow()
-        
+
         # Log order_dict before insertion
         logger.info(f"Order document to insert: {order_dict}")
-        
+
         # Insert order into database
         try:
             result = user_controller.db.orders.insert_one(order_dict)
             logger.info(f"Order inserted with ID: {result.inserted_id}")
-            
+
             # Retrieve the created order
             created_order = user_controller.db.orders.find_one({"_id": result.inserted_id})
             if not created_order:
                 logger.error(f"Could not find created order with ID: {result.inserted_id}")
-                raise HTTPException(status_code=500, detail="Order was created but could not be retrieved")
-                
+                return JSONResponse(status_code=500, content={"error": "Order was created but could not be retrieved"})
+
             # Add string ID for compatibility
             created_order["id"] = str(created_order["_id"])
             logger.info(f"Returning created order: {created_order}")
-            
+
             return created_order
         except Exception as e:
             logger.error(f"Database error creating order: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-        
+            return JSONResponse(status_code=500, content={"error": f"Database error: {str(e)}"})
+
     except UserException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.msg)
+        logger.error(f"UserException: {e}")
+        return JSONResponse(status_code=getattr(e, 'status_code', 400), content={"error": str(e)})
+    except HTTPException as e:
+        logger.error(f"HTTPException: {e.detail}")
+        return JSONResponse(status_code=e.status_code, content={"error": e.detail})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Unexpected error: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @admin_router.patch("/orders/{order_id}", response_model=Order)
 async def update_order_status(
