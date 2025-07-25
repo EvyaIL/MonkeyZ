@@ -1,5 +1,5 @@
 from src.mongodb.orders_collection import OrdersCollection
-from src.models.order import normalize_status
+from src.models.order import normalize_status, StatusEnum
 # --- COUPON ANALYTICS RECALCULATION ---
 async def recalculate_coupon_analytics(coupon_code: str, db):
     """
@@ -9,54 +9,49 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
 
     It computes:
     - A breakdown of orders by status (completed, cancelled, pending, etc.).
-    - A per-user usage count, which only includes COMPLETED orders.
-    - The total number of times the coupon has been successfully used (completed orders).
+    - A per-user usage count for all non-cancelled/failed orders.
+    - The total number of times the coupon has been successfully used (i.e., is in an active state).
     """
     orders_collection = OrdersCollection()
-    # Fetch all orders, past and present, that used this coupon.
     orders = await orders_collection.get_orders_by_coupon_code(coupon_code)
 
-    # Initialize fresh analytics counters
     analytics = {
-        "total_orders": 0, # Total orders associated with the coupon, regardless of status
-        "completed": 0,    # Successfully completed orders
-        "cancelled": 0,    # Cancelled orders
-        "pending": 0,      # Orders pending payment or action
-        "processing": 0,   # Orders being processed
-        "awaiting_stock": 0, # Orders waiting for stock
+        "total_orders": 0,
+        "completed": 0,
+        "cancelled": 0,
+        "pending": 0,
+        "processing": 0,
+        "awaiting_stock": 0,
+        "failed": 0, # Ensure all statuses are tracked
     }
-    per_user_usage = {} # Tracks usage per user, only for completed orders
+    per_user_usage = {}
+
+    # Define which statuses count as an "active" or "used" coupon.
+    # This now includes pending orders. It excludes only cancelled or failed orders.
+    active_statuses = {StatusEnum.PENDING.value, StatusEnum.COMPLETED.value, StatusEnum.PROCESSING.value, StatusEnum.AWAITING_STOCK.value}
 
     for order in orders:
         status = normalize_status(order.get("status"))
         email = order.get("email")
 
-        # Increment the total count for the order's current status
         if status in analytics:
             analytics[status] += 1
-        
         analytics["total_orders"] += 1
 
-        # A coupon is only considered "used" by a user if the order is COMPLETED.
+        # A coupon is considered "used" if the order is in an active state.
         # This is the count that should be checked against `maxUsagePerUser`.
-        if status == "completed" and email:
+        if status in active_statuses and email:
             per_user_usage[email] = per_user_usage.get(email, 0) + 1
 
-    # The total `usageCount` for the coupon is the sum of all completed orders.
-    # This is what the frontend should display as "Used".
-    total_completed_uses = sum(per_user_usage.values())
+    # The total `usageCount` for the coupon is the sum of all orders in an active state.
+    total_active_uses = sum(per_user_usage.values())
 
-    # Prepare the comprehensive update for the coupon document
     update_payload = {
-        # This field stores the detailed breakdown by status.
         "usageAnalytics": analytics,
-        # This field stores the per-user breakdown, ONLY for completed orders.
         "userUsages": per_user_usage,
-        # This is the primary "used" count, reflecting completed orders.
-        "usageCount": total_completed_uses,
+        "usageCount": total_active_uses,
     }
 
-    # Atomically update the coupon document in the database
     await db.coupons.update_one({"code": coupon_code}, {"$set": update_payload})
     
     print(f"Recalculated analytics for coupon '{coupon_code}': {update_payload}")
@@ -354,7 +349,6 @@ class CouponBase(BaseModel):
         # This part might need adjustment based on how you access `discountType` in Pydantic v2.
         # Assuming `values` here refers to the model's data, which is not standard for `field_validator`.
         # A common pattern is to use a `model_validator` for cross-field validation.
-        # For simplicity, if `discountType` is needed, this might require a `model_validator`.
         # However, if `discountType` is not available here, this logic will fail.
         # Let's assume for now this is intended to be a simple validator on `discountValue` itself.
         # if values.data.get('discountType') == 'percentage': # Example of accessing other fields in Pydantic v2

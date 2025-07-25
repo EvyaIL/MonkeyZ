@@ -52,6 +52,39 @@ export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
     fetchAnalytics();
   }, [coupon, lastUpdated]); // Re-fetch when lastUpdated changes
 
+  const renderAnalytics = () => {
+    if (!analytics || !analytics.usageAnalytics) return <p>No analytics data available.</p>;
+
+    const { usageAnalytics } = analytics;
+    
+    // Use the total_orders field directly from the backend analytics object.
+    const total = usageAnalytics.total_orders || 0;
+
+    return (
+      <div>
+        <Typography variant="subtitle1" style={{ fontWeight: "bold" }}>Usage Analytics</Typography>
+        <Typography>Total: {total}</Typography>
+        <Typography>Completed: {usageAnalytics.completed || 0}</Typography>
+        <Typography>Cancelled: {usageAnalytics.cancelled || 0}</Typography>
+        <Typography>Pending: {usageAnalytics.pending || 0}</Typography>
+        <Typography>Processing: {usageAnalytics.processing || 0}</Typography>
+        <Typography>Awaiting Stock: {usageAnalytics.awaiting_stock || 0}</Typography>
+        <Typography>Unique Users: {analytics.unique_users}</Typography>
+        <Divider style={{ margin: "12px 0" }} />
+        <Typography variant="subtitle2" style={{ fontWeight: "bold" }}>Per-User Usage</Typography>
+        {analytics.user_usages && Object.keys(analytics.user_usages).length > 0 ? (
+          <div>
+            {Object.entries(analytics.user_usages).map(([user, count]) => (
+              <Typography key={user}>{user}: {count} uses</Typography>
+            ))}
+          </div>
+        ) : (
+          <Typography>No users have used this coupon yet.</Typography>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Coupon Analytics</DialogTitle>
@@ -71,29 +104,7 @@ export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
           </div>
         )}
         <Divider />
-        {analytics && (
-          <div style={{ marginTop: 16 }}>
-            <Typography variant="subtitle1" style={{ fontWeight: "bold" }}>Usage Analytics</Typography>
-            <Typography>Total: {analytics.total}</Typography>
-            <Typography>Completed: {analytics.completed}</Typography>
-            <Typography>Cancelled: {analytics.cancelled}</Typography>
-            <Typography>Pending: {analytics.pending}</Typography>
-            <Typography>Processing: {analytics.processing}</Typography>
-            <Typography>Awaiting Stock: {analytics.awaiting_stock}</Typography>
-            <Typography>Unique Users: {analytics.unique_users}</Typography>
-            <Divider style={{ margin: "12px 0" }} />
-            <Typography variant="subtitle2" style={{ fontWeight: "bold" }}>Per-User Usage</Typography>
-            {analytics.user_usages && Object.keys(analytics.user_usages).length > 0 ? (
-              <div>
-                {Object.entries(analytics.user_usages).map(([user, count]) => (
-                  <Typography key={user}>{user}: {count} uses</Typography>
-                ))}
-              </div>
-            ) : (
-              <Typography>No users have used this coupon yet.</Typography>
-            )}
-          </div>
-        )}
+        {renderAnalytics()}
         {!loading && !coupon && !analytics && <Typography>No analytics available.</Typography>}
         <Button onClick={onClose} style={{ marginTop: 16 }}>Close</Button>
       </DialogContent>
