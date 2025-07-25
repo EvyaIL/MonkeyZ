@@ -3,42 +3,65 @@ from src.models.order import normalize_status
 # --- COUPON ANALYTICS RECALCULATION ---
 async def recalculate_coupon_analytics(coupon_code: str, db):
     """
-    Recalculate coupon analytics (total, completed, cancelled, per-user usage, etc.)
-    for the given coupon code. This should be called after any order is created, deleted, or its status changes.
+    Recalculates and updates the analytics for a given coupon code based on all associated orders.
+
+    This function should be called whenever an order using a coupon is created, deleted, or has its status changed.
+
+    It computes:
+    - A breakdown of orders by status (completed, cancelled, pending, etc.).
+    - A per-user usage count, which only includes COMPLETED orders.
+    - The total number of times the coupon has been successfully used (completed orders).
     """
     orders_collection = OrdersCollection()
+    # Fetch all orders, past and present, that used this coupon.
     orders = await orders_collection.get_orders_by_coupon_code(coupon_code)
-    # Normalize status and coupon fields
-    per_user = {}
+
+    # Initialize fresh analytics counters
     analytics = {
-        "total": 0,
-        "completed": 0,
-        "cancelled": 0,
-        "pending": 0,
-        "processing": 0,
-        "awaiting_stock": 0,
+        "total_orders": 0, # Total orders associated with the coupon, regardless of status
+        "completed": 0,    # Successfully completed orders
+        "cancelled": 0,    # Cancelled orders
+        "pending": 0,      # Orders pending payment or action
+        "processing": 0,   # Orders being processed
+        "awaiting_stock": 0, # Orders waiting for stock
     }
+    per_user_usage = {} # Tracks usage per user, only for completed orders
+
     for order in orders:
         status = normalize_status(order.get("status"))
         email = order.get("email")
-        if not email:
-            continue
-        if status != "cancelled":
-            per_user[email] = per_user.get(email, 0) + 1
-        analytics[status] = analytics.get(status, 0) + 1
-        analytics["total"] += 1
-    # Write analytics to coupon doc
-    update = {
-        "usageAnalytics": {
-            **analytics,
-            "unique_users": len(per_user),
-            "userUsages": per_user,
-        },
-        "usageCount": sum(per_user.values()),
-        "userUsages": per_user,
+
+        # Increment the total count for the order's current status
+        if status in analytics:
+            analytics[status] += 1
+        
+        analytics["total_orders"] += 1
+
+        # A coupon is only considered "used" by a user if the order is COMPLETED.
+        # This is the count that should be checked against `maxUsagePerUser`.
+        if status == "completed" and email:
+            per_user_usage[email] = per_user_usage.get(email, 0) + 1
+
+    # The total `usageCount` for the coupon is the sum of all completed orders.
+    # This is what the frontend should display as "Used".
+    total_completed_uses = sum(per_user_usage.values())
+
+    # Prepare the comprehensive update for the coupon document
+    update_payload = {
+        # This field stores the detailed breakdown by status.
+        "usageAnalytics": analytics,
+        # This field stores the per-user breakdown, ONLY for completed orders.
+        "userUsages": per_user_usage,
+        # This is the primary "used" count, reflecting completed orders.
+        "usageCount": total_completed_uses,
     }
-    await db.coupons.update_one({"code": coupon_code}, {"$set": update})
-    return update
+
+    # Atomically update the coupon document in the database
+    await db.coupons.update_one({"code": coupon_code}, {"$set": update_payload})
+    
+    print(f"Recalculated analytics for coupon '{coupon_code}': {update_payload}")
+
+    return update_payload
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
 # Define the admin_router at the very top so it is available for all endpoints

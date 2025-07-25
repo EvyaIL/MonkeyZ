@@ -5,7 +5,17 @@ class CouponService:
         self.db = db
 
     async def validate_coupon(self, coupon_code, original_total, user_email=None):
-        """Validate coupon without applying (no usage increment). Enforces expiry, max total, and max per-user usage."""
+        """
+        Validates a coupon's eligibility but does NOT modify its usage count.
+        
+        This function checks for:
+        - Existence and activation status.
+        - Expiration date.
+        - Overall usage limit (`maxUses`).
+        - Per-user usage limit (`maxUsagePerUser`), based on COMPLETED orders.
+        
+        Returns the discount amount, the coupon object, and any error message.
+        """
         try:
             if not coupon_code:
                 return 0.0, None, 'No coupon code provided.'
@@ -17,6 +27,8 @@ class CouponService:
                 coupon = await collection.find_one({'code': {'$regex': f'^{code}$', '$options': 'i'}, 'active': True})
             if not coupon:
                 return 0.0, None, f"Coupon code '{coupon_code}' not found or not active."
+
+            # --- Expiration Check ---
             expires_at = coupon.get('expiresAt')
             if expires_at:
                 # If expires_at is a string, parse to datetime
@@ -31,15 +43,22 @@ class CouponService:
                         expires_at = expires_at.replace(tzinfo=timezone.utc)
                     if expires_at < datetime.now(timezone.utc):
                         return 0.0, None, 'Coupon expired.'
+
+            # --- Overall Usage Limit Check ---
+            # This check is based on `usageCount`, which should only reflect completed orders.
             if coupon.get('maxUses') is not None and coupon.get('usageCount', 0) >= coupon['maxUses']:
                 return 0.0, None, 'Coupon usage limit reached.'
-            # --- ENFORCE MAX USAGES PER USER ---
+
+            # --- Per-User Usage Limit Check ---
+            # This check is based on `userUsages`, which should only reflect completed orders.
             max_per_user = coupon.get('maxUsagePerUser', 0)
-            user_usages = coupon.get('userUsages', {})
-            if user_email and max_per_user:
-                user_count = user_usages.get(user_email, 0)
-                if user_count >= max_per_user:
-                    return 0.0, None, f'Maximum uses per user reached ({max_per_user}).'
+            user_usages = coupon.get('userUsages', {}) # This should only contain completed orders.
+            if user_email and max_per_user > 0:
+                user_completed_count = user_usages.get(user_email, 0)
+                if user_completed_count >= max_per_user:
+                    return 0.0, None, f'You have already used this coupon the maximum number of times ({max_per_user}).'
+
+            # --- Calculate Discount ---
             discount = 0.0
             dtype = coupon.get('discountType', '').lower()
             dval = coupon.get('discountValue')
@@ -53,6 +72,10 @@ class CouponService:
             return 0.0, None, str(e)
 
     async def validate_and_apply_coupon(self, coupon_code, original_total, user_email=None):
-        """Validate coupon and apply it (NO usage increment here)."""
-        # Only validate and return discount, do NOT increment usage here!
+        """
+        DEPRECATED: This function is deprecated in favor of calling validate_coupon and then
+        recalculate_coupon_analytics from the endpoint. It no longer applies the coupon.
+        """
+        # This function now only serves as a wrapper for validation.
+        # The responsibility of "applying" (i.e., recalculating analytics) is now in the endpoint.
         return await self.validate_coupon(coupon_code, original_total, user_email=user_email)

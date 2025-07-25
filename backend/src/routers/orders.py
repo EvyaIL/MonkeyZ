@@ -162,24 +162,12 @@ async def create_order(
     coupon_error = None
     if coupon_code:
         coupon_service = CouponService(db)
-        discount_amount, coupon_obj, coupon_error = await coupon_service.validate_and_apply_coupon(coupon_code, original_total)
+        # Step 1: Validate the coupon. This does NOT increment usage counts.
+        discount_amount, coupon_obj, coupon_error = await coupon_service.validate_coupon(coupon_code, original_total, order_data.email)
         if coupon_error:
-            print(f"Coupon error: {coupon_error}")
-        else:
-            # Enforce maxUsagePerUser before incrementing usage
-            if coupon_obj:
-                user_email = order_data.email
-                max_usage_per_user = coupon_obj.get('maxUsagePerUser', 0)
-                user_usages = coupon_obj.get('userUsages', {})
-                user_usage_count = user_usages.get(user_email, 0) if user_email else 0
-                if max_usage_per_user and user_usage_count >= max_usage_per_user:
-                    raise HTTPException(status_code=400, detail=f"Coupon usage limit per user reached ({max_usage_per_user})")
-                # Update total usage
-                await db.coupons.update_one({"code": coupon_code}, {"$inc": {"usageCount": 1, "usageAnalytics.total": 1, "usageAnalytics.pending": 1}})
-                # Update per-user usage
-                if user_email:
-                    await db.coupons.update_one({"code": coupon_code}, {"$inc": {f"userUsages.{user_email}": 1}})
-                print(f"Coupon {coupon_code} usage incremented for order {order_data.id}")
+            # If validation fails, raise an HTTP exception to stop order creation.
+            raise HTTPException(status_code=400, detail=coupon_error)
+
     order_data.discount_amount = discount_amount
     order_data.original_total = original_total
     order_data.total = original_total - discount_amount
@@ -195,6 +183,12 @@ async def create_order(
 
     if not insert_result.inserted_id:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create order")
+
+    # Step 2: After the order is successfully created, recalculate analytics.
+    if coupon_code:
+        from .admin_router import recalculate_coupon_analytics
+        await recalculate_coupon_analytics(coupon_code, db)
+        print(f"Order {order_data.id}: Recalculated analytics for coupon {coupon_code} on creation.")
 
     created_order = await db.orders.find_one({"_id": insert_result.inserted_id})
     # Ensure _id is a string for Pydantic validation
@@ -562,6 +556,13 @@ async def patch_order(
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
         print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after cancellation.")
+    # --- Recalculate Coupon Analytics if coupon and status changed ---
+    coupon_code = updated_order_doc.get("couponCode") or updated_order_doc.get("coupon_code")
+    if coupon_code:
+        from .admin_router import recalculate_coupon_analytics
+        await recalculate_coupon_analytics(coupon_code, db)
+        print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after patch.")
+        
     return Order(**updated_order_doc).model_dump(by_alias=True)
 
 # --- PayPal Integration Endpoints ---
@@ -751,12 +752,15 @@ async def capture_paypal_order(
     # Determine final status based on key assignment
     status_value = StatusEnum.COMPLETED.value if all_items_have_keys else StatusEnum.AWAITING_STOCK.value
     
-    # If fully completed, increment coupon usage
-    if status_value == StatusEnum.COMPLETED.value and coupon_obj:
-        _, _, _ = await svc.validate_and_apply_coupon(
-            order_doc.get("couponCode"),
-            sum(i.get("price", 0) * i.get("quantity", 0) for i in items)
-        )
+    # If the order is complete, we need to recalculate analytics for the coupon.
+    # The original coupon validation happened before payment, so we don't need to re-validate.
+    coupon_code = order_doc.get("couponCode")
+    if status_value == StatusEnum.COMPLETED.value and coupon_code:
+        from .admin_router import recalculate_coupon_analytics
+        # This single call will correctly update all analytics fields (total, completed, user-specific).
+        await recalculate_coupon_analytics(coupon_code, db)
+        print(f"PayPal Order {order_id}: Recalculated analytics for coupon {coupon_code} on capture.")
+
     # Update order in DB with status, discount, totalPaid, and assigned keys
     paid_amount = float(cap_resp.result.purchase_units[0].payments.captures[0].amount.value)
     # Compute fallback discount (original - paid) if coupon discount not applied
@@ -795,6 +799,11 @@ async def capture_paypal_order(
 async def cancel_paypal_order(order_id: str):
     """Endpoint to mark a PayPal order as cancelled when payment is aborted."""
     db = await mongo_db.get_db()
+
+    # First, find the order to see if it had a coupon.
+    order_doc = await db.orders.find_one({"_id": order_id})
+    coupon_code = order_doc.get("couponCode") if order_doc else None
+
     # Update order status to Cancelled
     update_result = await db.orders.update_one(
         {"_id": order_id},
@@ -802,4 +811,11 @@ async def cancel_paypal_order(order_id: str):
     )
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Order not found or already updated")
+
+    # If a coupon was used, trigger recalculation.
+    if coupon_code:
+        from .admin_router import recalculate_coupon_analytics
+        await recalculate_coupon_analytics(coupon_code, db)
+        print(f"PayPal Order {order_id}: Recalculated analytics for coupon {coupon_code} on cancellation.")
+
     return {"message": "Order cancelled"}

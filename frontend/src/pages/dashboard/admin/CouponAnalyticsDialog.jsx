@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Dialog, DialogTitle, DialogContent, Button, Typography, Divider } from "@mui/material";
+import { useStateContext } from '../../context/StateContext';
 
 export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
   const [coupon, setCoupon] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { lastUpdated } = useStateContext();
 
   useEffect(() => {
     if (open && couponCode) {
@@ -31,6 +33,24 @@ export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
       setAnalytics(null);
     }
   }, [open, couponCode]);
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (coupon) {
+        setLoading(true);
+        try {
+          const data = await axios.get(`/admin/coupons/${coupon.code}/analytics`);
+          setAnalytics(data);
+        } catch (error) {
+          console.error("Failed to fetch coupon analytics:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchAnalytics();
+  }, [coupon, lastUpdated]); // Re-fetch when lastUpdated changes
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>

@@ -50,16 +50,27 @@ class StatusEnum(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
-    AWAITING_STOCK = "awaiting_stock"
     FAILED = "failed"
+    AWAITING_STOCK = "awaiting_stock"
 
 def normalize_status(status: str) -> str:
-    if not status:
-        return StatusEnum.PENDING.value
+    """Normalizes a status string to a valid StatusEnum value or a default."""
+    if not isinstance(status, str):
+        return StatusEnum.PENDING.value # Default for non-string inputs
+    
     s = status.lower().replace(" ", "_")
-    if s in (StatusEnum.PENDING.value, StatusEnum.PROCESSING.value, StatusEnum.COMPLETED.value, StatusEnum.CANCELLED.value, StatusEnum.AWAITING_STOCK.value, StatusEnum.FAILED.value):
-        return s
-    # fallback for legacy/typo statuses
-    if s in ("cancel", "canceled"): return StatusEnum.CANCELLED.value
-    if s in ("done", "success"): return StatusEnum.COMPLETED.value
-    return StatusEnum.PENDING.value
+    
+    # Direct mapping for common variations
+    if s in ["completed", "delivered", "shipped"]:
+        return StatusEnum.COMPLETED.value
+    if s in ["cancelled", "canceled"]:
+        return StatusEnum.CANCELLED.value
+    if s in ["awaiting_stock", "backordered", "out_of_stock"]:
+        return StatusEnum.AWAITING_STOCK.value
+    
+    # Fallback to enum members
+    for member in StatusEnum:
+        if s == member.value:
+            return member.value
+            
+    return StatusEnum.PENDING.value # Default for unknown statuses
