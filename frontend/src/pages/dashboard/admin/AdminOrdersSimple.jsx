@@ -640,12 +640,14 @@ function AdminOrdersSimple() {
                         sx={{
                             color: 'white',
                             fontWeight: 'bold',
-                            backgroundColor: 
-                              order.status === 'Completed' ? 'success.main' :
-                              order.status === 'Pending' ? 'warning.main' :
-                              order.status === 'Processing' ? 'info.main' :
-                              order.status === 'Cancelled' ? 'error.main' :
-                              'grey.500'
+                            backgroundColor: (() => {
+                              const status = (order.status || '').trim().toLowerCase();
+                              if (status === 'completed') return 'success.main';
+                              if (status === 'pending') return 'warning.main';
+                              if (status === 'processing') return 'info.main';
+                              if (status === 'cancelled') return 'error.main';
+                              return 'grey.500';
+                            })()
                         }}
                      />
                   </TableCell>
@@ -721,7 +723,19 @@ function AdminOrdersSimple() {
                   <Chip 
                     label={t(`admin.status${selectedOrderDetails.status}`, selectedOrderDetails.status)}
                     size="small"
-                    sx={{ ml:1, color: 'white', fontWeight: 'bold', backgroundColor: selectedOrderDetails.status === 'Completed' ? 'success.main' : selectedOrderDetails.status === 'Pending' ? 'warning.main' : selectedOrderDetails.status === 'Processing' ? 'info.main' : selectedOrderDetails.status === 'Cancelled' ? 'error.main' : 'grey.500' }}
+                    sx={{
+                      ml:1,
+                      color: 'white',
+                      fontWeight: 'bold',
+                      backgroundColor: (() => {
+                        const status = (selectedOrderDetails.status || '').trim().toLowerCase();
+                        if (status === 'completed') return 'success.main';
+                        if (status === 'pending') return 'warning.main';
+                        if (status === 'processing') return 'info.main';
+                        if (status === 'cancelled') return 'error.main';
+                        return 'grey.500';
+                      })()
+                    }}
                   />
                 </Box>
               </Grid>

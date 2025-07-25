@@ -58,7 +58,13 @@ export default function CouponAnalyticsDialog({ open, onClose, couponCode }) {
     const { usageAnalytics } = analytics;
     
     // Use the total_orders field directly from the backend analytics object.
-    const total = usageAnalytics.total_orders || 0;
+    // Calculate total as the sum of all statuses except deleted
+    const total =
+      (usageAnalytics.completed || 0) +
+      (usageAnalytics.pending || 0) +
+      (usageAnalytics.processing || 0) +
+      (usageAnalytics.awaiting_stock || 0) +
+      (usageAnalytics.cancelled || 0);
 
     return (
       <div>

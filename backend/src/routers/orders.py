@@ -500,17 +500,16 @@ async def delete_order(
     if not order_from_db:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # --- Recalculate Coupon Analytics on Deletion ---
+    # --- Release keys before deleting ---
     coupon_code = order_from_db.get("couponCode") or order_from_db.get("coupon_code")
+    await release_keys_for_order(order_from_db, db)
+    print(f"Order {order_id}: Released keys before deletion.")
+    await db.orders.delete_one({"_id": query_id})
+    # --- Recalculate Coupon Analytics AFTER Deletion ---
     if coupon_code:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
         print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after deletion.")
-
-    # Release keys before deleting
-    await release_keys_for_order(order_from_db, db)
-    print(f"Order {order_id}: Released keys before deletion.")
-    await db.orders.delete_one({"_id": query_id})
     return {"detail": "Order deleted, keys released, and coupon usage updated."}
 
 @router.patch("/orders/{order_id}", response_model=Order)
