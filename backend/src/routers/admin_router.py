@@ -27,8 +27,13 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     per_user_usage = {}
 
     # Define which statuses count as an "active" or "used" coupon.
-    # This now includes pending orders. It excludes only cancelled or failed orders.
-    active_statuses = {StatusEnum.PENDING.value, StatusEnum.COMPLETED.value, StatusEnum.PROCESSING.value, StatusEnum.AWAITING_STOCK.value}
+    # This now includes pending, completed, processing, and awaiting_stock orders. It excludes only cancelled or failed orders.
+    active_statuses = {
+        StatusEnum.PENDING.value,
+        StatusEnum.COMPLETED.value,
+        StatusEnum.PROCESSING.value,
+        StatusEnum.AWAITING_STOCK.value
+    }
 
 
     for order in orders:
