@@ -332,9 +332,9 @@ const Navbar = () => {
         ) : (
           <div className="space-y-4 flex flex-col h-[calc(100%-120px)]">
             {/* Cart Items List */}
-            <div className="flex-grow overflow-y-auto space-y-4 pr-2">              {Object.values(cartItems).map((item) => (
+            <div className="flex-grow overflow-y-auto space-y-4 pr-2">              {Object.values(cartItems).map((item, idx) => (
                 <div
-                  key={item.id}
+                  key={item.id || item.productId || `cart-item-${idx}`}
                   className={`flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-4 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}
                 >                  <div className={`flex items-center gap-3 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>                    <div className="relative w-16 h-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 overflow-hidden">
                       <img 

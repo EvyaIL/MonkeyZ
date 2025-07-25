@@ -581,17 +581,21 @@ async def create_paypal_order(
     if not cart:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart cannot be empty.")
 
-    for c in cart:
+
+    # --- DEBUG: Log incoming cart for troubleshooting ---
+    print("[PayPal Order] Incoming cart payload:", cart)
+
+    for idx, c in enumerate(cart):
         product_id = c.get("productId") or c.get("id")
         if not product_id:
-            print(f"Skipping cart item because it is missing a product ID: {c}")
-            continue
-            
+            print(f"[PayPal Order] ERROR: Cart item at index {idx} is missing a productId or id: {c}")
+            raise HTTPException(status_code=400, detail=f"Cart item at index {idx} is missing a productId or id. Please contact support.")
+
         prod = await product_collection.get_product_by_id(product_id)
         if not prod:
-            print(f"Skipping cart item because product with ID {product_id} was not found.")
-            continue
-        
+            print(f"[PayPal Order] ERROR: Product with ID {product_id} not found for cart item at index {idx}.")
+            raise HTTPException(status_code=400, detail=f"Product with ID {product_id} not found in the shop. Please refresh and try again.")
+
         # Sanitize product name to string
         raw_name = prod.name if hasattr(prod, 'name') else ""
         if isinstance(raw_name, dict):
@@ -603,15 +607,16 @@ async def create_paypal_order(
         quantity = c.get("quantity", 0)
         if quantity > 0:
             valid_items_for_db.append({
-                "productId": str(prod.id), # Use the sanitized product ID from DB
+                "productId": str(prod.id),
                 "name": name_str,
                 "quantity": quantity,
-                "price": prod.price, # Use price from DB
+                "price": prod.price,
                 "assigned_keys": []
             })
 
     if not valid_items_for_db:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart contains no valid items.")
+        print("[PayPal Order] ERROR: No valid items in cart after validation. Incoming cart:", cart)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Your cart is empty or contains invalid items. Please refresh and try again.")
 
     # Calculate original total from validated items
     original_total = sum(item.get("price", 0) * item.get("quantity", 0) for item in valid_items_for_db)
@@ -661,138 +666,134 @@ async def create_paypal_order(
     })
     return {"id": order_id}
 
+
+# --- UNIFIED PAYPAL ORDER CAPTURE LOGIC ---
 @router.post("/paypal/orders/{order_id}/capture", tags=["orders"])
 async def capture_paypal_order(
     order_id: str,
     product_collection: ProductCollection = Depends(get_product_collection_dependency)
 ):
     """
-    Capture PayPal payment, apply coupon, assign keys, update stock, send email, finalize order.
+    Capture PayPal payment, then process the order using the same logic as manual order creation.
+    This ensures PayPal orders are identical to manual orders in all admin/user views.
     """
     db = await mongo_db.get_db()
-    # Capture payment
+    # Step 1: Capture payment
     cap_req = OrdersCaptureRequest(order_id)
     cap_req.prefer("return=representation")
     try:
-        print(f"Capturing PayPal order {order_id}...") # Added for debugging
+        print(f"Capturing PayPal order {order_id}...")
         cap_resp = paypal_client.execute(cap_req)
-        print(f"Successfully captured PayPal order {order_id}.") # Added for debugging
+        print(f"Successfully captured PayPal order {order_id}.")
     except Exception as e:
-        print(f"Error capturing PayPal order {order_id}: {e}") # Added for debugging
-        # Mark order as cancelled on capture failure
+        print(f"Error capturing PayPal order {order_id}: {e}")
         await db.orders.update_one(
             {"_id": order_id},
             {"$set": {"status": StatusEnum.CANCELLED.value, "updatedAt": datetime.now(timezone.utc)}}
         )
         raise HTTPException(status_code=502, detail=f"PayPal capture order failed: {e}")
-    # Allow sandbox PENDING captures (if Payment Review off, sandbox may still return PENDING)
+
     capture_status = cap_resp.result.status
     if capture_status not in ("COMPLETED", "PENDING"):
-        # Mark as cancelled for other statuses
         await db.orders.update_one(
             {"_id": order_id},
             {"$set": {"status": StatusEnum.CANCELLED.value, "updatedAt": datetime.now(timezone.utc)}}
         )
         raise HTTPException(status_code=400, detail=f"Payment not completed, status: {capture_status}")
-    # Treat PENDING as successful in sandbox
-    final_status = "COMPLETED"
 
+    # Step 2: Retrieve the pending order document
     order_doc = await db.orders.find_one({"_id": order_id})
     if not order_doc:
-        raise HTTPException(404, "Order not found")
-    # Validate coupon without incrementing usage
-    from ..services.coupon_service import CouponService
-    svc = CouponService(db)
-    discount, coupon_obj, error = await svc.validate_coupon(
-        order_doc.get("couponCode"),
-        sum(i.get("price", 0) * i.get("quantity", 0) for i in order_doc.get("items", []))
-    )
-    # Assign CD keys for digital products
+        raise HTTPException(404, "Order not found in database")
+
+    # Step 3: Build a full Order object (like manual order creation)
+    # Use the same logic as create_order to assign keys, set status, and update coupon analytics
+    order_items = [OrderItem(**item) for item in order_doc.get("items", [])]
+    current_order_status = StatusEnum.PENDING
     all_items_have_keys = True
-    items = order_doc.get("items", [])
-    for item in items:
-        product = await product_collection.get_product_by_id(item.get("productId"))
-        if not product or not product.manages_cd_keys:
-            continue # Skip non-digital products or products not found
 
-        available_keys = [k for k in product.cdKeys if not k.isUsed]
-        if len(available_keys) < item.get("quantity", 0):
+    for item in order_items:
+        if item.quantity <= 0:
+            continue
+        product = await product_collection.get_product_by_id(item.productId)
+        if not product:
             all_items_have_keys = False
-            break # No need to check other items, we already know it's awaiting stock
-
-    # If stock is available, proceed with assignment
-    if all_items_have_keys:
-        for item in items:
+            continue
+        if product.manages_cd_keys:
             assigned_keys = []
-            quantity = item.get("quantity", 0)
-            for _ in range(quantity):
-                # sanitize name field to ensure string input
-                raw_name = item.get("name", "")
-                if isinstance(raw_name, dict):
-                    name_str = raw_name.get("en") or next(iter(raw_name.values()), "")
-                else:
-                    name_str = str(raw_name)
-                oi = OrderItem(
-                    productId=item.get("productId"),
-                    name=name_str,
-                    quantity=1,
-                    price=item.get("price")
+            product_doc = await ProductModel.get(product.id)
+            available_keys = [k for k in product_doc.cdKeys if not k.isUsed]
+            if len(available_keys) < item.quantity:
+                all_items_have_keys = False
+                await db.Product.update_one(
+                    {"_id": product.id},
+                    {"$inc": {"failed_key_assignments": 1}}
                 )
-                # This function modifies the product in the DB and assigns keys to `oi`
-                assigned = await assign_key_to_order_item(order_id, oi, product_collection, db)
-                if assigned and getattr(oi, 'assigned_keys', []):
-                    assigned_keys.extend(oi.assigned_keys)
-                else:
-                    # This case should theoretically not be hit if the pre-check passed,
-                    # but as a safeguard:
-                    all_items_have_keys = False
-            item["assigned_keys"] = assigned_keys
-    
-    # Determine final status based on key assignment
-    status_value = StatusEnum.COMPLETED.value if all_items_have_keys else StatusEnum.AWAITING_STOCK.value
-    
-    # If the order is complete, we need to recalculate analytics for the coupon.
-    # The original coupon validation happened before payment, so we don't need to re-validate.
-    coupon_code = order_doc.get("couponCode")
-    if status_value == StatusEnum.COMPLETED.value and coupon_code:
+                print(f"Order {order_id}, Item {item.productId}: Not enough available keys. Marked for AWAITING_STOCK.")
+            else:
+                for i in range(item.quantity):
+                    key_obj = available_keys[i]
+                    key_obj.isUsed = True
+                    key_obj.usedAt = datetime.now(timezone.utc)
+                    key_obj.orderId = order_id
+                    assigned_keys.append(key_obj.key)
+                await product_doc.save()
+            item.assigned_keys = assigned_keys
+
+    if not all_items_have_keys:
+        current_order_status = StatusEnum.AWAITING_STOCK
+    else:
+        current_order_status = StatusEnum.COMPLETED
+
+    # Coupon logic (reuse discount from pending order, but recalc analytics if needed)
+    coupon_code = order_doc.get("couponCode") or order_doc.get("coupon_code")
+    discount_amount = order_doc.get("discountAmount") or 0.0
+    original_total = order_doc.get("originalTotal") or order_doc.get("total") or 0.0
+    paid_amount = float(cap_resp.result.purchase_units[0].payments.captures[0].amount.value)
+
+    # Update coupon analytics if completed
+    if current_order_status == StatusEnum.COMPLETED and coupon_code:
         from .admin_router import recalculate_coupon_analytics
-        # This single call will correctly update all analytics fields (total, completed, user-specific).
         await recalculate_coupon_analytics(coupon_code, db)
         print(f"PayPal Order {order_id}: Recalculated analytics for coupon {coupon_code} on capture.")
 
-    # Update order in DB with status, discount, totalPaid, and assigned keys
-    paid_amount = float(cap_resp.result.purchase_units[0].payments.captures[0].amount.value)
-    # Compute fallback discount (original - paid) if coupon discount not applied
-    orig_total = order_doc.get("originalTotal", order_doc.get("total", 0))
-    computed_discount = round(orig_total - paid_amount, 2)
-    # Use coupon discount if present, otherwise fallback to computed
-    final_discount = discount if discount and discount > 0 else computed_discount
-    await db.orders.update_one(
-        {"_id": order_id},
-        {"$set": {
-            "status": status_value,
-            "capturedAt": datetime.now(timezone.utc),
-            "discountAmount": final_discount,
-            "totalPaid": paid_amount,
-            "items": items
-        }}
-    )
-    # Send email only if order completed
-    if status_value == StatusEnum.COMPLETED.value:
+    # Update order in DB with unified structure
+    now = datetime.now(timezone.utc)
+    status_history = order_doc.get("statusHistory", [])
+    status_history.append(StatusHistoryEntry(status=current_order_status, date=now, note="PayPal payment captured").model_dump())
+    update_fields = {
+        "status": current_order_status.value,
+        "statusHistory": status_history,
+        "updatedAt": now,
+        "capturedAt": now,
+        "discountAmount": discount_amount,
+        "originalTotal": original_total,
+        "totalPaid": paid_amount,
+        "items": [item.model_dump() for item in order_items]
+    }
+    await db.orders.update_one({"_id": order_id}, {"$set": update_fields})
+
+    # Send confirmation email if completed
+    if current_order_status == StatusEnum.COMPLETED:
         email_service = EmailService()
-        all_keys = []
-        for item in items:
-            all_keys.extend(item.get("assigned_keys", []))
+        all_keys = [key for item in order_items for key in (item.assigned_keys or [])]
         recipient = order_doc.get("email") or order_doc.get("customerEmail")
-        sent = await email_service.send_order_email(
-            to=recipient,
-            subject="Your MonkeyZ Digital Products",
-            products=items,
-            keys=all_keys
-        )
-        if not sent:
-            print(f"Failed to send order email for order {order_id}")
-    return {"message": f"Order {status_value.lower()}"}
+        if recipient and all_keys:
+            try:
+                products_for_email = [
+                    {"name": item.name, "id": item.productId}
+                    for item in order_items if item.assigned_keys
+                ]
+                await email_service.send_order_email(
+                    to=recipient,
+                    subject=f"Your MonkeyZ Order ({order_id})",
+                    products=products_for_email,
+                    keys=all_keys
+                )
+            except Exception as e:
+                print(f"Failed to send CD key email for order {order_id}: {e}")
+
+    return {"message": f"Order {current_order_status.value.lower()}"}
 
 @router.post("/paypal/orders/{order_id}/cancel", tags=["orders"])
 async def cancel_paypal_order(order_id: str):

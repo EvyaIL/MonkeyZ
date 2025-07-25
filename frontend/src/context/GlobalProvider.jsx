@@ -177,6 +177,9 @@ const GlobalProvider = ({ children }) => {
         const cartItem = { 
           ...item, 
           count: count,
+          // Always ensure productId and id are present for backend compatibility
+          productId: item.productId || id,
+          id: id,
           // Prioritize imageUrl, then image for cart display
           image: item.imageUrl || item.image || item.images?.[0] || null
         };

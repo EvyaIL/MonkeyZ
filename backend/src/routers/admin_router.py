@@ -30,6 +30,7 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     # This now includes pending orders. It excludes only cancelled or failed orders.
     active_statuses = {StatusEnum.PENDING.value, StatusEnum.COMPLETED.value, StatusEnum.PROCESSING.value, StatusEnum.AWAITING_STOCK.value}
 
+
     for order in orders:
         status = normalize_status(order.get("status"))
         email = order.get("email")
@@ -57,6 +58,10 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     print(f"Recalculated analytics for coupon '{coupon_code}': {update_payload}")
 
     return update_payload
+
+    # --- Ensure PayPal and manual orders are treated identically ---
+    # This function already aggregates all orders by coupon code, regardless of payment method.
+    # If PayPal orders are missing, ensure they are inserted with the same structure as manual orders in the DB.
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 
 # Define the admin_router at the very top so it is available for all endpoints

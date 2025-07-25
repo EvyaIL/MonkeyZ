@@ -62,11 +62,13 @@ export default function Checkout() {
             <p>Your cart is empty.</p>
           ) : (
             <ul className="divide-y">
-              {cartArray.map((item) => {
+              {cartArray.map((item, idx) => {
                 const displayName =
                   typeof item.name === "object" ? item.name.en : item.name;
+                // Use a fallback key if item.id is missing
+                const key = item.id || item.productId || `cart-item-${idx}`;
                 return (
-                  <li key={item.id} className="py-2 flex justify-between">
+                  <li key={key} className="py-2 flex justify-between">
                     <span>
                       {displayName} x{item.count}
                     </span>
@@ -157,7 +159,13 @@ export default function Checkout() {
               createOrder={async () => {
                 setProcessing(true);
                 const { data } = await axios.post("/api/paypal/orders", {
-                  cart: cartArray.map((i) => ({ id: i.id, quantity: i.count, price: i.price })),
+                  cart: cartArray.map((i) => ({
+                    productId: i.id || i.productId, // Always send productId for backend compatibility
+                    id: i.id, // Also send id for redundancy
+                    name: typeof i.name === "object" ? i.name.en : i.name,
+                    quantity: i.count,
+                    price: i.price
+                  })),
                   couponCode: coupon,
                   customerEmail: email,
                   customerName: name,
