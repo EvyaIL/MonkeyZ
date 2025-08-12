@@ -66,9 +66,14 @@ export const buildPayPalScriptURL = () => {
     locale: PAYPAL_CONFIG.locale,
     components: PAYPAL_CONFIG.scriptConfig.components,
     intent: PAYPAL_CONFIG.scriptConfig.intent,
-    commit: PAYPAL_CONFIG.scriptConfig.commit,
-    'buyer-country': PAYPAL_CONFIG.scriptConfig['buyer-country']
+    commit: PAYPAL_CONFIG.scriptConfig.commit
   });
+  
+  // Only add buyer-country in development/sandbox mode
+  // This parameter is NOT allowed in PayPal live/production environment
+  if (PAYPAL_CONFIG.isDevelopment) {
+    params.append('buyer-country', PAYPAL_CONFIG.scriptConfig['buyer-country']);
+  }
   
   // Add debug parameter in development
   if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
@@ -200,6 +205,10 @@ export const PAYPAL_ERROR_SOLUTIONS = {
     message: 'The request is malformed',
     solution: 'Verify cart items have valid product IDs and prices'
   },
+  'INVALID_RESOURCE_ID': {
+    message: 'PayPal configuration error',
+    solution: 'This is usually a PayPal environment mismatch. Try refreshing the page or contact support if the issue persists.'
+  },
   'AUTHENTICATION_FAILURE': {
     message: 'PayPal authentication failed',
     solution: 'Check your PayPal client ID and secret credentials'
@@ -219,6 +228,10 @@ export const PAYPAL_ERROR_SOLUTIONS = {
   'SCRIPT_LOAD_TIMEOUT': {
     message: 'PayPal script failed to load in time',
     solution: 'Check internet connection and try reloading the page'
+  },
+  'CURRENCY_NOT_SUPPORTED': {
+    message: 'The selected currency is not supported',
+    solution: 'The currency may not be supported for your PayPal account region. Contact support for assistance.'
   }
 };
 

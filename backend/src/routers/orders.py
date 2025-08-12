@@ -7,7 +7,7 @@ from ..models.order import Order, OrderItem, StatusHistoryEntry, OrderStatusUpda
 from ..models.products.products import Product as ProductModel, CDKey # Import CDKey
 from ..mongodb.product_collection import ProductCollection
 from ..deps.deps import get_user_controller_dependency, get_product_collection_dependency
-from datetime import datetime, timezone # Import timezone
+from datetime import datetime, timezone
 from pymongo.database import Database
 from bson import ObjectId
 from ..models.token.token import TokenData
@@ -17,7 +17,6 @@ from paypalcheckoutsdk.core import PayPalHttpClient, SandboxEnvironment, LiveEnv
 from paypalcheckoutsdk.orders import OrdersCreateRequest, OrdersCaptureRequest
 import os
 from ..services.email_service import EmailService
-from datetime import datetime, timezone
 import logging
 
 # Configure logger
@@ -638,22 +637,54 @@ async def create_paypal_order(
     discount, _, _ = await coupon_service.validate_coupon(coupon_code, original_total)
     net_total = original_total - discount
 
-    # Build PayPal order in ILS for net total
+    # Build PayPal order with enhanced error handling
     req = OrdersCreateRequest()
     req.prefer("return=representation")
-    req.request_body({
+    
+    # Use USD for sandbox, ILS for live (ILS can have issues in sandbox)
+    currency = "USD" if paypal_mode == "sandbox" else "ILS"
+    formatted_amount = f"{net_total:.2f}"
+    
+    # Enhanced PayPal order structure
+    order_body = {
         "intent": "CAPTURE",
         "purchase_units": [{
-            "amount": {"currency_code": "ILS", "value": f"{net_total:.2f}"}
-        }]
-    })
+            "amount": {
+                "currency_code": currency,
+                "value": formatted_amount
+            },
+            "description": f"MonkeyZ Order - {len(valid_items_for_db)} item(s)"
+        }],
+        "application_context": {
+            "brand_name": "MonkeyZ",
+            "landing_page": "BILLING", 
+            "shipping_preference": "NO_SHIPPING",
+            "user_action": "PAY_NOW"
+        }
+    }
+    
+    req.request_body(order_body)
+    
     try:
-        logger.debug("Creating PayPal order with body: %s", req.request_body)
+        logger.info(f"Creating PayPal order with amount: {formatted_amount} {currency} (mode: {paypal_mode})")
+        logger.debug("PayPal order body: %s", order_body)
         resp = paypal_client.execute(req)
-        logger.info("Successfully created PayPal order")
+        logger.info(f"Successfully created PayPal order: {resp.result.id}")
     except Exception as e:
-        logger.error("Error creating PayPal order: %s", e)
-        raise HTTPException(status_code=502, detail=f"PayPal create order failed: {e}")
+        error_msg = str(e)
+        logger.error("Error creating PayPal order: %s", error_msg)
+        
+        # Provide specific error messages for common issues
+        if "INVALID_RESOURCE_ID" in error_msg:
+            detail = "PayPal configuration error. Please contact support."
+        elif "CURRENCY_NOT_SUPPORTED" in error_msg:
+            detail = f"Currency {currency} not supported. Please try again."
+        elif "AUTHENTICATION_FAILURE" in error_msg or "CLIENT_ID" in error_msg:
+            detail = "Payment service temporarily unavailable. Please try again later."
+        else:
+            detail = "Payment service error. Please try again or contact support."
+            
+        raise HTTPException(status_code=502, detail=detail)
     order_id = resp.result.id
     # Save PENDING order with discount info
     # Prepare order document with items and totals

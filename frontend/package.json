@@ -19,9 +19,6 @@
     "@tailwindcss/typography": "^0.5.13",
     "@tanstack/react-query": "^5.85.0",
     "@tanstack/react-query-devtools": "^5.85.0",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.8",
@@ -45,7 +42,6 @@
     "react-scripts": "^5.0.1",
     "react-window": "^1.8.11",
     "react-window-infinite-loader": "^1.0.10",
-    "reselect": "^4.1.8",
     "serve": "^14.2.0",
     "tailwindcss": "^3.4.13",
     "web-vitals": "^2.1.4"
@@ -53,9 +49,15 @@
   "devDependencies": {
     "@babel/eslint-parser": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
+    "@sentry/integrations": "^7.114.0",
+    "@sentry/react": "^10.5.0",
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
+    "jest-environment-jsdom": "^30.0.5",
     "prettier": "^3.2.5",
     "react-app-rewired": "^2.2.1",
     "typescript": "^4.9.5"
@@ -64,6 +66,8 @@
     "start": "cross-env PORT=3000 DISABLE_ESLINT_PLUGIN=true react-scripts start",
     "start:prod": "node server.js",
     "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "test": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage --watchAll=false",
     "prod": "npx serve -s build -l 8080",
     "start:debug": "cross-env NODE_DEBUG=http,fs node standalone-server.js"
   },

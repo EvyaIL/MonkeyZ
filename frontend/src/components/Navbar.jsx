@@ -2,11 +2,11 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 import { Link, useNavigate } from "react-router-dom";
 import PrimaryButton from "./buttons/PrimaryButton";
 import SecondaryButton from "./buttons/SecondaryButton";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useTranslation } from "react-i18next";
 
-const Navbar = () => {
+const Navbar = memo(() => {
   const {
     user,
     cartItems,
@@ -69,14 +69,24 @@ const Navbar = () => {
     }
   }, [navigate]);
 
-  // Calculate total items in cart for badge
-  const totalCartItems = Object.values(cartItems).reduce((acc, item) => acc + item.count, 0);
-  
-  // Calculate total price
-  const cartTotal = Object.values(cartItems).reduce(
-    (acc, item) => acc + item.price * item.count, 
-    0
-  ).toFixed(2);
+  // Memoize cart calculations to prevent unnecessary re-renders
+  const cartStats = useMemo(() => {
+    const cartValues = Object.values(cartItems);
+    return {
+      totalItems: cartValues.reduce((acc, item) => acc + item.count, 0),
+      totalPrice: cartValues.reduce((acc, item) => acc + item.price * item.count, 0).toFixed(2)
+    };
+  }, [cartItems]);
+
+  // Memoize cart toggle handler
+  const handleCartToggle = useCallback(() => {
+    setOpenCart(!openCart);
+  }, [openCart, setOpenCart]);
+
+  // Memoize mobile menu toggle
+  const handleMobileMenuToggle = useCallback(() => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  }, [mobileMenuOpen]);
 
   return (
     <header className="top-0 z-20 sticky">
@@ -191,7 +201,7 @@ const Navbar = () => {
             {/* Cart Button */}
             <button
               className="relative bg-accent hover:bg-accent-dark transition-colors duration-200 p-2 rounded-lg text-white flex items-center shadow-sm"
-              onClick={() => setOpenCart(true)}
+              onClick={handleCartToggle}
               aria-label={t("cart")}
               title={t("cart")}
             >
@@ -199,9 +209,9 @@ const Navbar = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               
-              {totalCartItems > 0 && (
+              {cartStats.totalItems > 0 && (
                 <span className="absolute -top-2 -right-2 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                  {totalCartItems}
+                  {cartStats.totalItems}
                 </span>
               )}
             </button>
@@ -209,7 +219,7 @@ const Navbar = () => {
             {/* Mobile Menu Button */}
             <button
               className="md:hidden p-2 rounded-md hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors duration-200"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={handleMobileMenuToggle}
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             >
@@ -422,7 +432,7 @@ const Navbar = () => {
             <div className="sticky bottom-0 bg-white dark:bg-gray-800 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex justify-between font-bold text-lg mb-4 text-gray-800 dark:text-white">
                 <span>{t("total")}:</span>
-                <span>₪{cartTotal}</span>
+                <span>₪{cartStats.totalPrice}</span>
               </div>
               <button
                 className="w-full bg-accent text-white py-3 rounded font-semibold hover:bg-accent/80 transition-colors"
@@ -439,6 +449,8 @@ const Navbar = () => {
       </div>
     </header>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';
 
 export default Navbar;

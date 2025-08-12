@@ -1,34 +1,38 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import * as React from "react";
-import Home from "./pages/Home";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
 import { pageView } from "./lib/analytics";
 import Navbar from "./components/Navbar";
-import SignUp from "./pages/SignUp";
-import SignIn from "./pages/SignIn";
-import AllProducts from "./pages/AllProducts";
-import ProductPage from "./pages/ProductPage";
-import Checkout from "./pages/Checkout";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import PaymentFailed from "./pages/PaymentFailed";
-// import AnalyticsTest from "./pages/AnalyticsTest"; // Disabled for production
 import ErrorBoundary from "./components/ErrorBoundary";
-import AdminProducts from "./pages/dashboard/admin/AdminProducts";
-import FAQ from "./pages/FAQ";
-import AboutUs from "./pages/AboutUs";
-import Contact from "./pages/Contact";
-import ResetPassword from "./pages/ResetPassword";
-import BlogPage from "./pages/BlogPage";
-import BlogPostPage from "./pages/BlogPostPage";
-import AdminOrders from "./pages/dashboard/admin/AdminOrdersSimple";
-import AdminCoupons from "./pages/dashboard/admin/AdminCoupons";
-import AdminStock from "./pages/dashboard/admin/AdminStock";
-import AdminOrderCreate from "./pages/dashboard/admin/AdminOrderCreate";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
+import DashboardLayout from "./components/dashboard/DashboardLayout";
+import LoadingSpinner from "./components/Spinner";
+
+// Lazy load pages for better code splitting and performance
+const Home = React.lazy(() => import("./pages/Home"));
+const Profile = React.lazy(() => import("./pages/Profile"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const SignUp = React.lazy(() => import("./pages/SignUp"));
+const SignIn = React.lazy(() => import("./pages/SignIn"));
+const AllProducts = React.lazy(() => import("./pages/AllProducts"));
+const ProductPage = React.lazy(() => import("./pages/ProductPage"));
+const Checkout = React.lazy(() => import("./pages/Checkout"));
+const PaymentSuccess = React.lazy(() => import("./pages/PaymentSuccess"));
+const PaymentFailed = React.lazy(() => import("./pages/PaymentFailed"));
+const FAQ = React.lazy(() => import("./pages/FAQ"));
+const AboutUs = React.lazy(() => import("./pages/AboutUs"));
+const Contact = React.lazy(() => import("./pages/Contact"));
+const ResetPassword = React.lazy(() => import("./pages/ResetPassword"));
+const BlogPage = React.lazy(() => import("./pages/BlogPage"));
+const BlogPostPage = React.lazy(() => import("./pages/BlogPostPage"));
+const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = React.lazy(() => import("./pages/TermsOfService"));
+
+// Lazy load admin components (heavy components for admin panel)
+const AdminProducts = React.lazy(() => import("./pages/dashboard/admin/AdminProducts"));
+const AdminOrders = React.lazy(() => import("./pages/dashboard/admin/AdminOrdersSimple"));
+const AdminCoupons = React.lazy(() => import("./pages/dashboard/admin/AdminCoupons"));
+const AdminStock = React.lazy(() => import("./pages/dashboard/admin/AdminStock"));
+const AdminOrderCreate = React.lazy(() => import("./pages/dashboard/admin/AdminOrderCreate"));
 
 function AppRouter() {
   const location = useLocation();
@@ -42,12 +46,17 @@ function AppRouter() {
   return (
     <>
       <Navbar />
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/sign-in" element={<SignIn />} />
-        <Route path="/sign-up" element={<SignUp />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      <React.Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <LoadingSpinner />
+        </div>
+      }>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/sign-up" element={<SignUp />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected user routes */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -141,7 +150,8 @@ function AppRouter() {
         
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
-      </Routes>
+        </Routes>
+      </React.Suspense>
     </>
   );
 }

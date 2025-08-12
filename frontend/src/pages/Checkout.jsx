@@ -169,8 +169,8 @@ export default function Checkout() {
     locale: PAYPAL_CONFIG.locale,
     // Performance optimization: disable unused funding
     "disable-funding": PAYPAL_CONFIG.scriptConfig['disable-funding'],
-    // Buyer country for optimization
-    "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'],
+    // Buyer country for optimization (only in development/sandbox - not allowed in production)
+    ...(PAYPAL_CONFIG.isDevelopment && { "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'] }),
     // Debug mode in development
     ...(PAYPAL_CONFIG.isDevelopment && { debug: PAYPAL_CONFIG.scriptConfig.debug }),
     // Add unique identifier to prevent zoid conflicts
@@ -382,7 +382,9 @@ export default function Checkout() {
                   // Mark order as cancelled when capture fails
                   try {
                     await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
-                  } catch {};
+                  } catch (cancelErr) {
+                    console.warn("Failed to cancel order:", cancelErr);
+                  }
                   window.location.href = "/fail";
                 } finally {
                   if (isComponentMountedRef.current) {
@@ -394,7 +396,11 @@ export default function Checkout() {
                 if (!isComponentMountedRef.current) return;
                 
                 // Mark order as cancelled when user aborts
-                await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
+                try {
+                  await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
+                } catch (cancelErr) {
+                  console.warn("Failed to cancel order:", cancelErr);
+                }
                 window.location.href = "/fail";
               }}
               onError={async (err) => {
@@ -411,6 +417,7 @@ export default function Checkout() {
                   console.groupEnd();
                 }
                 
+                // Cancel order if one exists
                 if (orderID) {
                   try {
                     await axios.post(`/api/paypal/orders/${orderID}/cancel`);
@@ -418,6 +425,9 @@ export default function Checkout() {
                     console.error("Failed to cancel order:", cancelErr);
                   }
                 }
+                
+                // Reset processing state
+                setProcessing(false);
               }}
             />
           </PayPalScriptProvider>

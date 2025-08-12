@@ -7,8 +7,12 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { addStructuredData } from "../lib/seo-helper";
 import imagePreloadService from "../lib/imagePreloadService";
+import { usePerformanceMonitoring, trackRoutePerformance } from "../hooks/usePerformanceMonitoring";
+import { ProductGridSkeleton } from "../components/SkeletonLoaders";
 
 const Home = () => {
+  // Add performance monitoring
+  usePerformanceMonitoring('HomePage');
   const [bestSellers, setBestSellers] = useState([]);
   const [homeProducts, setHomeProducts] = useState([]);
   const [loadingBest, setLoadingBest] = useState(true);  const [loadingHome, setLoadingHome] = useState(true);
@@ -47,6 +51,9 @@ const Home = () => {
   }, [t]);
 
   useEffect(() => {
+    // Track route performance
+    const trackEnd = trackRoutePerformance('Home');
+    
     getBestSellers();
     getHomeProducts();
     
@@ -71,6 +78,7 @@ const Home = () => {
     return () => {
       const script = document.getElementById('structured-data');
       if (script) script.remove();
+      trackEnd(); // Track route load completion
     };
   }, [getBestSellers, getHomeProducts]); // Added missing dependencies
 
@@ -124,9 +132,7 @@ const Home = () => {
 
         <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
           {loadingBest ? (
-            <div className="flex justify-center py-8 bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm">
-              <Spinner />
-            </div>
+            <ProductGridSkeleton count={8} />
           ) : errorBest ? (
             <p className="text-error text-center bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700" role="alert">
               {errorBest}
@@ -144,9 +150,7 @@ const Home = () => {
             {t("featured_products")}
           </h2>
           {loadingHome ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
+            <ProductGridSkeleton count={12} />
           ) : errorHome ? (
             <p className="text-error text-center text-lg p-4" role="alert">
               {errorHome}
