@@ -18,7 +18,10 @@ if (process.env.NODE_ENV === 'development') {
       message.includes('Warning: componentWillMount') ||
       message.includes('Warning: componentWillReceiveProps') ||
       message.includes('Warning: Failed prop type') ||
-      message.includes('[Intervention] Images loaded lazily')
+      message.includes('[Intervention] Images loaded lazily') ||
+      message.includes('Refused to load the stylesheet') ||
+      message.includes('Content Security Policy directive') ||
+      message.includes('Refused to frame')
     ) {
       return; // Skip these warnings
     }
@@ -37,7 +40,10 @@ if (process.env.NODE_ENV === 'development') {
       message.includes('Deprecation') ||
       message.includes('Images loaded lazily') ||
       message.includes('Each child in a list should have a unique "key" prop') ||
-      message.includes('[Intervention]')
+      message.includes('[Intervention]') ||
+      message.includes('Refused to load the stylesheet') ||
+      message.includes('Content Security Policy directive') ||
+      message.includes('Refused to frame')
     ) {
       return; // Skip these warnings
     }

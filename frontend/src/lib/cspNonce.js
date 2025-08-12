@@ -74,23 +74,33 @@ export const setCSPNonce = (nonce = null) => {
   return nonceToUse;
 };
 
-// Check if PayPal domains are allowed in CSP
+// Check if PayPal and Google OAuth domains are allowed in CSP
 export const verifyPayPalCSP = () => {
   const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
   if (!cspMeta) {
-    console.warn('CSP meta tag not found. PayPal integration may be blocked.');
+    console.warn('CSP meta tag not found. PayPal and Google OAuth integration may be blocked.');
     return false;
   }
   
   const content = cspMeta.getAttribute('content');
-  const requiredDomains = ['paypal.com', 'paypalobjects.com', 'venmo.com'];
+  const requiredPayPalDomains = ['paypal.com', 'paypalobjects.com', 'venmo.com'];
+  const requiredGoogleDomains = ['accounts.google.com'];
   
-  const missingDomains = requiredDomains.filter(domain => 
+  const missingPayPalDomains = requiredPayPalDomains.filter(domain => 
     !content.includes(`*.${domain}`)
   );
   
-  if (missingDomains.length > 0) {
-    console.warn('Missing PayPal domains in CSP:', missingDomains);
+  const missingGoogleDomains = requiredGoogleDomains.filter(domain => 
+    !content.includes(domain)
+  );
+  
+  if (missingPayPalDomains.length > 0) {
+    console.warn('Missing PayPal domains in CSP:', missingPayPalDomains);
+    return false;
+  }
+  
+  if (missingGoogleDomains.length > 0) {
+    console.warn('Missing Google OAuth domains in CSP:', missingGoogleDomains);
     return false;
   }
   
@@ -126,6 +136,14 @@ export const fixDevelopmentCSP = () => {
     updatedContent = updatedContent.replace(
       /connect-src ([^;]+)/,
       'connect-src $1 https://accounts.google.com'
+    );
+    updatedContent = updatedContent.replace(
+      /frame-src ([^;]+)/,
+      'frame-src $1 https://accounts.google.com'
+    );
+    updatedContent = updatedContent.replace(
+      /style-src ([^;]+)/,
+      'style-src $1 https://accounts.google.com'
     );
   }
   

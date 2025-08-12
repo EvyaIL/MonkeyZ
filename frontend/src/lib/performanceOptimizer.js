@@ -11,7 +11,10 @@ if (process.env.NODE_ENV === 'development') {
     if (message.includes('-ms-high-contrast') || 
         message.includes('Deprecation') ||
         message.includes('Images loaded lazily') ||
-        message.includes('Each child in a list should have a unique "key" prop')) {
+        message.includes('Each child in a list should have a unique "key" prop') ||
+        message.includes('Refused to load the stylesheet') ||
+        message.includes('Content Security Policy directive') ||
+        message.includes('Refused to frame')) {
       return; // Skip these warnings
     }
     

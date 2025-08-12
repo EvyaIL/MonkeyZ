@@ -15,15 +15,15 @@ const generateNonce = () => {
 app.use((req, res, next) => {
   const nonce = generateNonce();
   
-  // PayPal Best Practice: CSP Headers
+  // PayPal and Google OAuth Best Practice: CSP Headers
   const cspPolicy = [
     "default-src 'self'",
-    `script-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com 'nonce-${nonce}' 'unsafe-eval'`,
-    "connect-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com",
-    "child-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com",
-    "frame-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com",
-    "img-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com data: https:",
-    `style-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com 'nonce-${nonce}'`,
+    `script-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://apis.google.com 'nonce-${nonce}' 'unsafe-eval'`,
+    "connect-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
+    "child-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
+    "frame-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
+    "img-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com data: https:",
+    `style-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com 'nonce-${nonce}'`,
     "font-src 'self' data: https:",
     "object-src 'none'",
     "base-uri 'self'"
