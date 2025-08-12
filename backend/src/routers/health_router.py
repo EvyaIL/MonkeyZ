@@ -12,6 +12,7 @@ import psutil
 import os
 
 from ..mongodb.mongodb import MongoDb
+from ..lib.database_manager import db_manager
 from ..deps.deps import get_product_collection_dependency
 from ..lib.logging_config import get_logger
 
@@ -25,30 +26,15 @@ class HealthChecker:
         self.mongo_db = MongoDb()
         
     async def check_database(self) -> Dict[str, Any]:
-        """Check database connectivity and basic operations."""
+        """Check database connectivity using optimized connection manager."""
         try:
-            start_time = time.time()
-            db = await self.mongo_db.get_db()
-            
-            # Test basic connectivity
-            await db.command("ping")
-            
-            # Test collection access
-            collections = await db.list_collection_names()
-            
-            response_time = (time.time() - start_time) * 1000
-            
-            return {
-                "status": "healthy",
-                "response_time_ms": round(response_time, 2),
-                "collections_count": len(collections),
-                "available_collections": collections[:5]  # Limit output
-            }
+            return await db_manager.health_check()
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "error": str(e)
+                "error": str(e),
+                "connection_stats": db_manager.get_connection_stats()
             }
     
     async def check_products_service(self) -> Dict[str, Any]:

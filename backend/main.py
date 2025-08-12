@@ -21,7 +21,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from src.lib.mongo_json_encoder import MongoJSONEncoder
 from bson.objectid import ObjectId
 from src.middleware.rate_limiter import rate_limit_middleware
+from src.middleware.security_middleware import SecurityMiddleware, get_csrf_token
 from src.lib.logging_config import setup_logging, get_logger, error_tracker
+from src.lib.database_manager import initialize_database, cleanup_database
 
 load_dotenv()
 
@@ -84,6 +86,10 @@ app.add_middleware(
 # Add rate limiting middleware
 app.middleware("http")(rate_limit_middleware)
 
+# Add security middleware
+IS_DEV = os.getenv("ENVIRONMENT", "development").lower() == "development"
+app.add_middleware(SecurityMiddleware, is_development=IS_DEV)
+
 # Health check endpoint for DigitalOcean App Platform
 @app.get("/health", tags=["health"])
 def health_check():
@@ -100,6 +106,13 @@ app.include_router(admin_router)  # Add admin router
 app.include_router(admin_key_router) # Add admin_key_router
 app.include_router(orders_router, prefix="/api", tags=["orders"])  # Add orders router
 app.include_router(health_router, prefix="/api", tags=["health"])  # Add health router
+
+# CSRF token endpoint
+@app.get("/api/csrf-token", tags=["security"])
+async def get_csrf_token_endpoint():
+    """Get a CSRF token for protected operations."""
+    token = get_csrf_token()
+    return {"csrf_token": token}
 
 # Add coupon validation endpoint
 @app.post("/api/coupons/validate")
@@ -205,11 +218,31 @@ async def sitemap_xml():
 
 @app.on_event("startup")
 async def startup_event():
+    """Initialize application on startup."""
     global mongo_client, contact_collection
+    
+    # Initialize optimized database connection
+    logger.info("Starting application initialization...")
+    
+    success = await initialize_database()
+    if not success:
+        logger.error("Failed to initialize database connection")
+        raise RuntimeError("Database initialization failed")
+    
+    # Initialize legacy collections for backward compatibility
     mongo = MongoDb()
     await mongo.connection()
     mongo_client = await mongo.get_client()
     contact_collection = ContactCollection(mongo_client)
+    
+    logger.info("Application initialization completed successfully")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown."""
+    logger.info("Starting application shutdown...")
+    await cleanup_database()
+    logger.info("Application shutdown completed")
 
 @app.post("/contact", response_model=ContactResponse)
 async def handle_contact_form(contact_form: ContactForm):

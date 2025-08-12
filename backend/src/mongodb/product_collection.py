@@ -18,8 +18,14 @@ class ProductCollection(MongoDb, metaclass=Singleton):
     
     async def initialize(self):
         """Initialize the collection with the shop database."""
+        # Ensure we have a connection
+        await self.connection()
+        
+        # Use the existing database connection but access the 'shop' database
         database_name = "shop"  # Ensure this is 'shop'
-        self.db = await self.add_new_collection(database_name)
+        self.db = self.client[database_name]
+        
+        # Initialize Beanie with the database and Product model
         await self.initialize_beanie(self.db, [Product]) # Ensure Product model is used
         
     async def add_keys_to_product(self, product_id: PydanticObjectId, keys: List[str]) -> Product:

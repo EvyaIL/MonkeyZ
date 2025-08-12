@@ -2,144 +2,142 @@ import os
 import logging
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClient
 from beanie import init_beanie
-from beanie import Document, Indexed
-from pydantic import Field, condecimal
 from typing import Optional
-from datetime import datetime
+
+from ..lib.database_manager import db_manager, get_database, get_client
 
 class MongoDb:
     """
-        A class for interacting with a MongoDB database
+    Optimized MongoDB connection class using the enhanced database manager.
     """
 
     def __init__(self) -> None:
         """
-            Initializes the MongoDb class with no client initially connected.
+        Initializes the MongoDb class with the global database manager.
         """
-        self.client: AsyncIOMotorClient = None
-        self.db: AsyncIOMotorDatabase = None # Ensure self.db is initialized
+        self.manager = db_manager
+        self.client: Optional[AsyncIOMotorClient] = None
+        self.db: Optional[AsyncIOMotorDatabase] = None
         self.is_connected: bool = False
 
     async def connection(self) -> None:
         """
-        Establishes a connection to the MongoDB server using the MONGODB_URI environment variable.
-        Sets self.client and self.db upon successful connection.
+        Establishes a connection to the MongoDB server using the optimized connection manager.
+        Falls back to direct connection if optimized manager fails.
         """
-        if self.is_connected:
+        if self.is_connected and self.client is not None and self.db is not None:
             return
 
-        mongo_uri = os.getenv("MONGODB_URI")
-        if not mongo_uri:
-            logging.error("MONGODB_URI environment variable is not set.")
-            raise ValueError("MONGODB_URI environment variable is not set.")
-        
-        # For DigitalOcean VPC, ensure the URI uses the private hostname and correct credentials
-        if not is_valid_mongodb_uri(mongo_uri):
-            logging.error("MONGODB_URI has an invalid format.")
-            raise ValueError("MONGODB_URI has an invalid format. Please check your connection string.")
-        
         try:
-            logging.info(f"Connecting to MongoDB at: {mongo_uri[:30]}...") # Log only part of the URI for security
+            # Try the optimized database manager first
+            if not self.manager.is_connected:
+                success = await self.manager.connect(max_retries=2, retry_delay=1.0)
+                if not success:
+                    raise ConnectionError("Optimized manager connection failed")
             
-            # DigitalOcean MongoDB connection options - needed for proper replicaset handling
-            connection_options = {
-                "serverSelectionTimeoutMS": 15000, 
-                "connectTimeoutMS": 30000, 
-                "socketTimeoutMS": 45000,
-                "retryWrites": True,
-                "retryReads": True,
-                "tlsAllowInvalidCertificates": False,  # Set to True only if using self-signed certs
-                "directConnection": False  # Important for replica sets
-            }
-            
-            # Check if replicaSet parameter is in URI, add it if missing (DigitalOcean requires this)
-            if ("replicaSet=" not in mongo_uri) and ("mongodb+srv://" in mongo_uri):
-                hostname = mongo_uri.split('@')[1].split('/')[0]
-                
-                # Handle public vs private DigitalOcean MongoDB URIs
-                if "private-mongodb" in hostname:
-                    # For private VPC URIs
-                    cluster_id = hostname.split('-')[2] if len(hostname.split('-')) > 2 else "rs0"
-                    replica_set = f"rs-{cluster_id}"
-                else:
-                    # For public URIs, the replica set name is usually the first part of the hostname
-                    cluster_id = hostname.split('-')[0] if '-' in hostname else "mongodb"
-                    replica_set = cluster_id
-                
-                # If there's a query string, append to it
-                if "?" in mongo_uri:
-                    mongo_uri = mongo_uri.replace("?", f"?replicaSet={replica_set}&")
-                else:
-                    mongo_uri = f"{mongo_uri}?replicaSet={replica_set}"
-                logging.info(f"Added replicaSet parameter: replicaSet={replica_set}")
-            
-            self.client = AsyncIOMotorClient(mongo_uri, **connection_options)
-            await self.client.admin.command('ping')
-            logging.info("Successfully connected to MongoDB")
-            
-            # Set the database instance
-            db_name_from_env = os.getenv("MONGO_DB_NAME")
-            if db_name_from_env:
-                self.db = self.client[db_name_from_env]
-                logging.info(f"Using database: {db_name_from_env}")
-            else:
-                self.db = self.client.get_database() # Gets default from URI path, or a predefined default
-                logging.info(f"Using database: {self.db.name if self.db is not None else 'N/A (check URI or set MONGO_DB_NAME)'}")
-
+            # Get connections from the manager
+            self.client = await get_client()
+            self.db = await get_database()
             self.is_connected = True
+            logging.debug("Database connection established successfully via optimized manager")
+            return
+                
         except Exception as e:
+            logging.warning(f"Optimized connection failed: {e}, attempting direct connection...")
+        
+        # Fallback to direct connection using MONGODB_URI
+        try:
+            mongodb_uri = os.getenv("MONGODB_URI")
+            if not mongodb_uri:
+                # If no MONGODB_URI, try to build one from individual variables
+                host = os.getenv("MONGO_HOST", "localhost")
+                port = os.getenv("MONGO_PORT", "27017")
+                database = os.getenv("MONGO_DATABASE", "monkeyz")
+                mongodb_uri = f"mongodb://{host}:{port}/{database}"
+                
+            logging.info(f"Attempting direct MongoDB connection to: {mongodb_uri[:50]}...")
+            
+            from motor.motor_asyncio import AsyncIOMotorClient
+            
+            # Create client with basic connection options
+            self.client = AsyncIOMotorClient(
+                mongodb_uri,
+                serverSelectionTimeoutMS=15000,
+                connectTimeoutMS=30000,
+                socketTimeoutMS=45000,
+                retryWrites=True,
+                retryReads=True
+            )
+            
+            # Test the connection
+            await self.client.admin.command('ping')
+            
+            # Get database
+            if "/" in mongodb_uri and "?" in mongodb_uri:
+                db_name = mongodb_uri.split("/")[-1].split("?")[0]
+            elif "/" in mongodb_uri:
+                db_name = mongodb_uri.split("/")[-1]
+            else:
+                db_name = os.getenv("MONGO_DATABASE", "monkeyz")
+                
+            self.db = self.client[db_name]
+            await self.db.command('ping')
+            
+            self.is_connected = True
+            logging.info("Direct database connection established successfully")
+            
+        except Exception as e:
+            logging.error(f"Failed to establish any database connection: {e}")
             self.is_connected = False
-            self.db = None # Ensure db is None if connection fails
-            logging.error(f"Failed to connect to MongoDB: {str(e)}")
-            raise ValueError(f"Failed to connect to MongoDB: {str(e)}")
-
-    async def disconnect(self) -> None:
-        """
-        Disconnects from the MongoDB server and cleans up resources.
-        """
-        if self.client and self.is_connected:
-            try:
-                logging.info("Disconnecting from MongoDB...")
-                self.client.close()
-                self.is_connected = False
-                self.client = None
-                self.db = None
-            except Exception as e:
-                logging.error(f"Error disconnecting from MongoDB: {e}")
-
-    async def get_client(self) -> AsyncIOMotorClient:
-        """ Returns the MongoDB client. """
-        if not self.is_connected or not self.client:
-            await self.connection()
-        if not self.client:
-            logging.error("MongoDB client is not initialized even after connection attempt.")
-            raise RuntimeError("MongoDB client is not initialized.")
-        return self.client
+            raise ConnectionError(f"All database connection methods failed: {e}")
 
     async def get_db(self) -> AsyncIOMotorDatabase:
         """
-        Ensures the database connection is active and returns the database instance.
+        Returns the database instance, establishing connection if needed.
         """
         if not self.is_connected or self.db is None:
-            logging.info("Not connected or self.db not set, attempting connection...")
-            await self.connection() # This will set self.client and self.db
-
-        if self.db is None: # If still not set after attempting connection
-            logging.error("Database instance (self.db) not set after connection attempt.")
-            raise RuntimeError("Failed to obtain database instance. Check MongoDB URI and connection.")
-            
+            await self.connection()
         return self.db
 
-    async def add_new_collection(self, collection_name: str) -> AsyncIOMotorDatabase:
-        """ Adds a new collection with the given name and returns it. """
-        db = self.client.get_database(collection_name)
-        return db
+    async def get_client(self) -> AsyncIOMotorClient:
+        """
+        Returns the client instance, establishing connection if needed.
+        """
+        if not self.is_connected or self.client is None:
+            await self.connection()
+        return self.client
+
+    async def close(self) -> None:
+        """
+        Closes the database connection.
+        """
+        try:
+            # Only disconnect if we haven't already
+            if self.is_connected:
+                self.is_connected = False
+                self.client = None
+                self.db = None
+                logging.debug("Collection connection closed")
+        except Exception as e:
+            logging.error(f"Error closing database connection: {e}")
+
+    async def disconnect(self) -> None:
+        """
+        Alias for close() method for backward compatibility.
+        """
+        await self.close()
 
     async def initialize_beanie(self, database: AsyncIOMotorDatabase, document_models: list) -> None:
         """
         Initializes Beanie with the given database and document models.
         """
-        await init_beanie(database=database, document_models=document_models)
+        try:
+            await init_beanie(database=database, document_models=document_models)
+            model_names = [model.__name__ for model in document_models]
+            logging.debug(f"Beanie initialized for {', '.join(model_names)} in database: {database.name}")
+        except Exception as e:
+            logging.error(f"Failed to initialize Beanie: {e}")
+            raise e
 
 def is_valid_mongodb_uri(uri: str) -> bool:
     """
@@ -151,50 +149,16 @@ def is_valid_mongodb_uri(uri: str) -> bool:
     Returns:
         bool: True if the URI is valid, False otherwise
     """
-    # Basic format check for MongoDB URI
     if not isinstance(uri, str):
         return False
     
     # Check for mongodb:// or mongodb+srv:// protocol
-    if not (uri.startswith("mongodb://") or uri.startswith("mongodb+srv://")):
-        return False
-    
-    # For comprehensive validation, we could add more checks like:
-    # - Properly formatted host:port
-    # - Valid query parameters
-    # - etc.
-    
-    return True
+    return uri.startswith("mongodb://") or uri.startswith("mongodb+srv://")
 
 class MongoDbBase:
-    """Base class for MongoDB collections."""
+    """Base class for MongoDB collections with optimized connection handling."""
     
     _client = None
     _db = None
-
-    async def initialize(self):
-        """Initialize the MongoDB connection."""
-        if not self._client:
-            self._client = AsyncIOMotorClient(os.getenv("MONGO_URL"))
-            self._db = self._client.get_database(os.getenv("MONGO_DB"))
-            await init_beanie(database=self._db, document_models=[Product, User, Key])
-
-    async def disconnect(self):
-        """Disconnect from MongoDB."""
-        if self._client:
-            await self._client.close()
-            self._client = None
-            self._db = None
-
-class Coupon(Document):
-    code: Indexed(str, unique=True)  # type: ignore
-    discountType: str = "percentage"  # "percentage" or "fixed"
-    discountValue: float
-    active: bool = True
-    expiresAt: Optional[datetime] = None
-    maxUses: Optional[int] = None
-    usageCount: int = 0
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
     
-    class Settings:
-        name = "coupons"
+

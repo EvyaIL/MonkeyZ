@@ -32,8 +32,14 @@ class UserCollection(MongoDb, metaclass=Singleton):
         """
             Initializes the UserDB with the 'shop' database and User model.
         """
+        # Ensure we have a connection
+        await self.connection()
+        
+        # Use the existing database connection but access the 'shop' database
         database_name = "shop"
-        self.db = await self.add_new_collection(database_name)
+        self.db = self.client[database_name]
+        
+        # Initialize Beanie with the database and User model
         await self.initialize_beanie(self.db, [User])
 
     async def get_all_users(self) -> list[User]:

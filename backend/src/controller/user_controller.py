@@ -1,4 +1,5 @@
 ﻿import asyncio
+import logging
 from src.models.token.token import LoginResponse
 from src.lib.token_handler import create_access_token
 from src.models.user.user_response import SelfResponse
@@ -58,6 +59,7 @@ class UserController(ControllerInterface):
             
         if init_tasks: # Ensure there are tasks to gather
              await asyncio.gather(*init_tasks)
+             logging.info(f"Successfully initialized {len(init_tasks)} database collections with Beanie ODM")
 
     async def has_role(self, username: str, role: Role) -> bool:
         """

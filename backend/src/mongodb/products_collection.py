@@ -21,8 +21,14 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
         """
         Initializes the Products Collection with the 'shop' database and Product model.
         """
+        # Ensure we have a connection
+        await self.connection()
+        
+        # Use the existing database connection but access the 'shop' database
         database_name = "shop"
-        self.db = await self.add_new_collection(database_name)
+        self.db = self.client[database_name]
+        
+        # Initialize Beanie with the database and Product model
         await self.initialize_beanie(self.db, [Product])
 
     def _sanitize_product_doc(self, p_data: Dict[str, Any]) -> Dict[str, Any]:
