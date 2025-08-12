@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from "axios";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
-import { PAYPAL_CONFIG, debugPayPalConfig, getPayPalErrorMessage } from "../lib/paypalConfig";
+import { PAYPAL_CONFIG, debugPayPalConfig, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
 
 export default function Checkout() {
   const { cartItems } = useGlobalProvider();
@@ -18,9 +18,27 @@ export default function Checkout() {
   const [orderID, setOrderID] = useState(null);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const [cspNonce, setCspNonce] = useState(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState(null);
+  const [componentKey, setComponentKey] = useState(0); // Key for PayPal component isolation
 
-  // Initialize CSP nonce for PayPal security
+  // Refs for cleanup
+  const paypalPerformanceRef = useRef(null);
+  const cleanupTimeoutRef = useRef(null);
+  const isComponentMountedRef = useRef(true);
+
+  // Performance monitoring instance with cleanup tracking
+  if (!paypalPerformanceRef.current) {
+    paypalPerformanceRef.current = measurePayPalPerformance();
+  }
+  const paypalPerformance = paypalPerformanceRef.current;
+
+  // Initialize CSP nonce and PayPal performance optimization with cleanup
   useEffect(() => {
+    isComponentMountedRef.current = true;
+    
+    // Start performance monitoring
+    paypalPerformance.markScriptStart();
+    
     // Fix development CSP issues first
     if (PAYPAL_CONFIG.isDevelopment) {
       fixDevelopmentCSP();
@@ -29,8 +47,8 @@ export default function Checkout() {
     const nonce = getCurrentNonce();
     setCspNonce(nonce);
     
-    // Debug PayPal configuration in development
-    if (PAYPAL_CONFIG.isDevelopment) {
+    // Debug PayPal configuration in development (only when debug is enabled)
+    if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
       debugPayPalConfig();
     }
     
@@ -42,13 +60,71 @@ export default function Checkout() {
         setError('Payment security configuration needs attention. Please reload the page.');
       }
     }
+
+    // Create a unique component key to prevent zoid conflicts
+    setComponentKey(Date.now());
     
-    // Delay PayPal loading to ensure DOM is ready
-    const timer = setTimeout(() => {
-      setPaypalLoaded(true);
-    }, 500);
-    
-    return () => clearTimeout(timer);
+    // Performance Optimization: Preload PayPal script (PayPal Best Practice)
+    if (PAYPAL_CONFIG.performance.enablePreload) {
+      preloadPayPalScript()
+        .then(() => {
+          if (!isComponentMountedRef.current) return;
+          
+          paypalPerformance.markScriptEnd();
+          // Reduced logging - only log in debug mode
+          if (PAYPAL_CONFIG.scriptConfig.debug) {
+            console.log('PayPal script preloaded for optimal performance');
+          }
+          
+          // Instant render strategy (PayPal Best Practice) with delay to prevent zoid conflicts
+          if (PAYPAL_CONFIG.performance.renderStrategy === 'instant') {
+            // Small delay to prevent React StrictMode conflicts
+            cleanupTimeoutRef.current = setTimeout(() => {
+              if (isComponentMountedRef.current) {
+                setPaypalLoaded(true);
+              }
+            }, 200);
+          } else {
+            // Delayed render with minimal delay
+            cleanupTimeoutRef.current = setTimeout(() => {
+              if (isComponentMountedRef.current) {
+                setPaypalLoaded(true);
+              }
+            }, 500);
+          }
+        })
+        .catch((error) => {
+          if (!isComponentMountedRef.current) return;
+          console.error('PayPal script preload failed:', error);
+          setError('Unable to load payment services. Please check your internet connection.');
+        });
+    } else {
+      // Fallback: Standard loading with performance timing
+      cleanupTimeoutRef.current = setTimeout(() => {
+        if (!isComponentMountedRef.current) return;
+        
+        paypalPerformance.markScriptEnd();
+        setPaypalLoaded(true);
+      }, 500);
+    }
+
+    // Cleanup function to prevent memory leaks and zoid conflicts
+    return () => {
+      isComponentMountedRef.current = false;
+      
+      if (cleanupTimeoutRef.current) {
+        clearTimeout(cleanupTimeoutRef.current);
+        cleanupTimeoutRef.current = null;
+      }
+      
+      // Reset PayPal loaded state to prevent stale renders
+      setPaypalLoaded(false);
+      
+      // Log cleanup in development
+      if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
+        console.log('PayPal Checkout component cleanup completed');
+      }
+    };
   }, []);
 
   const cartArray = Object.values(cartItems);
@@ -79,18 +155,26 @@ export default function Checkout() {
     }
   };
 
+  // Performance-optimized PayPal configuration with zoid conflict prevention
   const initialOptions = {
     "client-id": PAYPAL_CONFIG.clientId,
     currency: PAYPAL_CONFIG.currency,
     intent: "capture",
-    components: "buttons",
-    commit: true,
+    // Only load required components for performance
+    components: PAYPAL_CONFIG.scriptConfig.components,
+    commit: PAYPAL_CONFIG.scriptConfig.commit,
     // CSP nonce for enhanced security (only in production)
     ...(cspNonce && !PAYPAL_CONFIG.isDevelopment && { "data-csp-nonce": cspNonce }),
     // Localization for Israeli users
     locale: PAYPAL_CONFIG.locale,
-    // Performance optimization
-    ...(PAYPAL_CONFIG.performance.enableLazyLoading && { "data-lazy-load": "true" }),
+    // Performance optimization: disable unused funding
+    "disable-funding": PAYPAL_CONFIG.scriptConfig['disable-funding'],
+    // Buyer country for optimization
+    "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'],
+    // Debug mode in development
+    ...(PAYPAL_CONFIG.isDevelopment && { debug: PAYPAL_CONFIG.scriptConfig.debug }),
+    // Add unique identifier to prevent zoid conflicts
+    "data-uid": `paypal-${componentKey}`,
   };
 
   return (
@@ -192,33 +276,65 @@ export default function Checkout() {
           {error && <div className="text-red-600 mb-4">{error}</div>}
           {(cspNonce || PAYPAL_CONFIG.isDevelopment) && paypalLoaded && (
             <PayPalScriptProvider 
+              key={`paypal-provider-${componentKey}`} // Unique key to prevent zoid conflicts
               options={initialOptions}
               onLoadScript={() => {
-                console.log("PayPal script loaded successfully");
-                setPaypalLoaded(true);
+                if (!isComponentMountedRef.current) return;
+                
+                paypalPerformance.markRenderStart();
+                // Reduced logging - only log when debug is enabled
+                if (PAYPAL_CONFIG.scriptConfig.debug) {
+                  console.log("PayPal script loaded successfully with optimized configuration");
+                }
+                
+                // Log performance metrics in development
+                if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
+                  const metrics = paypalPerformance.getMetrics();
+                  if (metrics) {
+                    console.log('PayPal Performance Metrics:', metrics);
+                    setPerformanceMetrics(metrics);
+                  }
+                }
               }}
               onError={(err) => {
+                if (!isComponentMountedRef.current) return;
+                
                 console.error("PayPal script load error:", err);
                 const errorInfo = getPayPalErrorMessage(err);
                 setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
                 
-                if (PAYPAL_CONFIG.isDevelopment) {
+                if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
                   console.group('PayPal Debug Info:');
                   console.log('Error details:', errorInfo);
                   console.log('CSP nonce:', cspNonce);
+                  console.log('Component key:', componentKey);
                   debugPayPalConfig();
                   console.groupEnd();
                 }
               }}
             >
             <PayPalButtons
+              key={`paypal-buttons-${componentKey}`} // Unique key for buttons
               style={{
                 layout: "vertical",
                 color: "gold",
                 shape: "pill",
+                height: 40, // Optimize height for performance
               }}
               disabled={processing || !email || !name || !phone || cartArray.length === 0}
+              onInit={() => {
+                if (!isComponentMountedRef.current) return;
+                
+                // Performance optimization: mark render completion
+                paypalPerformance.markRenderEnd();
+                // Reduced logging - only when debug is enabled
+                if (PAYPAL_CONFIG.scriptConfig.debug) {
+                  console.log("PayPal buttons initialized with optimized rendering");
+                }
+              }}
               createOrder={async () => {
+                if (!isComponentMountedRef.current) return;
+                
                 setProcessing(true);
                 try {
                   // Validate cart items before sending
@@ -254,10 +370,14 @@ export default function Checkout() {
                 }
               }}
               onApprove={async (data) => {
+                if (!isComponentMountedRef.current) return;
+                
                 try {
                   await axios.post(`/api/paypal/orders/${data.orderID}/capture`);
                   window.location.href = "/success";
                 } catch (err) {
+                  if (!isComponentMountedRef.current) return;
+                  
                   setError(err.response?.data?.message || "Payment failed");
                   // Mark order as cancelled when capture fails
                   try {
@@ -265,22 +385,29 @@ export default function Checkout() {
                   } catch {};
                   window.location.href = "/fail";
                 } finally {
-                  setProcessing(false);
+                  if (isComponentMountedRef.current) {
+                    setProcessing(false);
+                  }
                 }
               }}
               onCancel={async (data) => {
+                if (!isComponentMountedRef.current) return;
+                
                 // Mark order as cancelled when user aborts
                 await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
                 window.location.href = "/fail";
               }}
               onError={async (err) => {
+                if (!isComponentMountedRef.current) return;
+                
                 console.error("PayPal payment error:", err);
                 const errorInfo = getPayPalErrorMessage(err);
                 setError(`Payment failed: ${errorInfo.message}`);
                 
-                if (PAYPAL_CONFIG.isDevelopment) {
+                if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
                   console.group('PayPal Payment Error:');
                   console.log('Error details:', errorInfo);
+                  console.log('Component key:', componentKey);
                   console.groupEnd();
                 }
                 
@@ -301,13 +428,26 @@ export default function Checkout() {
               <p className="mt-2 text-gray-600">Loading secure payment options...</p>
               <p className="text-sm text-gray-500">
                 {PAYPAL_CONFIG.isDevelopment 
-                  ? "Development mode: Configuring security..." 
+                  ? "Development mode: Optimizing PayPal performance..." 
                   : "Ensuring PayPal security compliance..."
                 }
               </p>
+              {PAYPAL_CONFIG.isDevelopment && performanceMetrics && (
+                <div className="mt-2 text-xs text-blue-600">
+                  Script Load: {Math.round(performanceMetrics.scriptLoadTime)}ms | 
+                  Render: {Math.round(performanceMetrics.renderTime)}ms
+                </div>
+              )}
             </div>
           ) : null}
-          {processing && <p className="text-center mt-4">Processing payment…</p>}
+          {processing && (
+            <div className="text-center mt-4">
+              <div className="inline-flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                <p className="text-blue-600">Processing payment…</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -31,7 +31,7 @@ export const getCurrentNonce = () => {
       if (cspMeta) {
         const content = cspMeta.getAttribute('content');
         if (content.includes("'unsafe-inline'")) {
-          console.log('Development mode: Using unsafe-inline for CSP');
+          // Silent in development - no need to log every time
           return null; // No nonce needed in development with unsafe-inline
         }
       }
@@ -100,7 +100,7 @@ export const verifyPayPalCSP = () => {
     console.warn('Development mode requires unsafe-inline for CSS-in-JS libraries');
   }
   
-  console.log('PayPal CSP configuration verified successfully');
+  // Reduced logging - only log errors, not success
   return true;
 };
 

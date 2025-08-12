@@ -52,6 +52,14 @@
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
+    <!-- Performance Optimization: PayPal DNS Prefetch and Preconnect (PayPal Best Practice) -->
+    <link rel="dns-prefetch" href="//www.paypal.com" />
+    <link rel="dns-prefetch" href="//t.paypal.com" />
+    <link rel="dns-prefetch" href="//api.paypal.com" />
+    <link rel="preconnect" href="https://www.paypal.com" crossorigin />
+    <link rel="preconnect" href="https://t.paypal.com" crossorigin />
+    <link rel="preconnect" href="https://api.paypal.com" crossorigin />
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://monkeyz.co.il/" />
