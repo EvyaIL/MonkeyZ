@@ -86,8 +86,7 @@ export default function AdminProducts() {  const { t } = useTranslation();
     try {
       const response = await apiService.get('/admin/products');
       
-      // Log the response for debugging
-      console.log('Products API response:', response);
+      // Debug logging removed for production
       
       if (response.error) {
         setError(response.error || t('admin.loadError'));
@@ -114,7 +113,7 @@ export default function AdminProducts() {  const { t } = useTranslation();
       }));
       
       setProducts(productsWithIds);
-      console.log('Processed products:', productsWithIds);
+      // Debug logging removed for production
       calculateAnalytics(productsWithIds); // Calculate analytics after loading products
     } catch (err) {
       console.error('Error loading products:', err);

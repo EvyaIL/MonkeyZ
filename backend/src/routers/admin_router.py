@@ -94,11 +94,11 @@ from src.deps.deps import (
     get_admin_product_collection_dependency
 )
 from src.lib.token_handler import get_current_user
+from src.deps.auth_deps import get_current_admin_user  # Import admin authentication
 from src.models.token.token import TokenData
+from src.models.user.user import User  # Import User model for admin user
 from src.mongodb.product_collection import ProductCollection
 from src.controller.key_controller import KeyController
-from src.lib.token_handler import get_current_user # Added get_current_user
-from src.models.token.token import TokenData # Added TokenData
 from src.models.user.user_exception import UserException # Added UserException
 
 from src.models.products.products import Product as ProductModel, CDKey, CDKeyUpdateRequest, CDKeysAddRequest, AddKeysRequest

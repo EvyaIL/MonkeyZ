@@ -12,7 +12,7 @@ import ProductPage from "./pages/ProductPage";
 import Checkout from "./pages/Checkout";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentFailed from "./pages/PaymentFailed";
-import AnalyticsTest from "./pages/AnalyticsTest";
+// import AnalyticsTest from "./pages/AnalyticsTest"; // Disabled for production
 import ErrorBoundary from "./components/ErrorBoundary";
 import AdminProducts from "./pages/dashboard/admin/AdminProducts";
 import FAQ from "./pages/FAQ";
@@ -127,8 +127,8 @@ function AppRouter() {
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         
-        {/* Analytics test */}
-        <Route path="/analytics-test" element={<AnalyticsTest />} />
+        {/* Analytics test - Disabled for production */}
+        {/* <Route path="/analytics-test" element={<AnalyticsTest />} /> */}
         
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />

@@ -85,7 +85,7 @@ function AdminStock() {
         const cachedData = localStorage.getItem('adminStockData');
 
         if (isCacheValid && cachedData) {
-          console.debug('Using cached stock data');
+          // Debug: Using cached stock data (removed for production)
           setStockItems(JSON.parse(cachedData));
           setLoading(false);
           return;
@@ -94,7 +94,7 @@ function AdminStock() {
         // If forcing refresh, clear the cache
         localStorage.removeItem('adminStockData');
         localStorage.removeItem('adminStockDataTimestamp');
-        console.debug('Cache cleared due to forceRefresh');
+        // Debug: Cache cleared due to forceRefresh (removed for production)
       }
 
       const [metricsResponse, productsResponse] = await Promise.all([
@@ -147,7 +147,7 @@ function AdminStock() {
         try {
           const cachedData = localStorage.getItem('adminStockData');
           if (cachedData) {
-            console.debug('Using cached stock data as fallback');
+            // Debug: Using cached stock data as fallback (removed for production)
             setStockItems(JSON.parse(cachedData));
           }
         } catch (cacheError) {

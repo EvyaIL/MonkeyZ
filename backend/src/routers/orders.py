@@ -18,10 +18,14 @@ from paypalcheckoutsdk.orders import OrdersCreateRequest, OrdersCaptureRequest
 import os
 from ..services.email_service import EmailService
 from datetime import datetime, timezone
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 # Initialize PayPal client
 paypal_mode = os.getenv("PAYPAL_MODE", "sandbox").lower()
-print(f"Initializing PayPal client in {paypal_mode} mode.") # Added for debugging
+logger.info(f"Initializing PayPal client in {paypal_mode} mode.")
 if paypal_mode == "live":
     environment = LiveEnvironment(
         client_id=os.getenv("PAYPAL_LIVE_CLIENT_ID"),
@@ -32,7 +36,7 @@ else:
         client_id=os.getenv("PAYPAL_CLIENT_ID"),
         client_secret=os.getenv("PAYPAL_CLIENT_SECRET")
     )
-print(f"Using PayPal Client ID: {environment.client_id[:8]}... for {paypal_mode} mode") # Added for debugging
+logger.debug(f"PayPal environment configured for {paypal_mode} mode")
 paypal_client = PayPalHttpClient(environment)
 
 router = APIRouter()
@@ -128,7 +132,7 @@ async def create_order(
                     {"_id": product.id},
                     {"$inc": {"failed_key_assignments": 1}}
                 )
-                print(f"Order {order_data.id}, Item {item.productId}: Not enough available keys. Marked for AWAITING_STOCK.")
+                logger.warning(f"Order {order_data.id}, Item {item.productId}: Not enough available keys. Marked for AWAITING_STOCK.")
             else:
                 for i in range(item.quantity):
                     key_obj = available_keys[i]
@@ -188,7 +192,7 @@ async def create_order(
     if coupon_code:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        print(f"Order {order_data.id}: Recalculated analytics for coupon {coupon_code} on creation.")
+        logger.info(f"Order {order_data.id}: Recalculated analytics for coupon {coupon_code} on creation.")
 
     created_order = await db.orders.find_one({"_id": insert_result.inserted_id})
     # Ensure _id is a string for Pydantic validation
@@ -215,7 +219,7 @@ async def create_order(
                     keys=assigned_keys
                 )
             except Exception as e:
-                print(f"Failed to send CD key email: {e}")
+                logger.error("Failed to send CD key email: %s", e)
             # SMS/WhatsApp sending removed (no longer used)
 
     return Order(**created_order)
@@ -263,10 +267,10 @@ async def retry_failed_orders_internal(db: Database, product_collection: Product
                     await product.save()
                     item.assigned_keys = assigned_keys
                     needs_update = True
-                    print(f"Retry successful: Keys assigned to item {item.productId} in order {order.id}")
+                    logger.info("Retry successful: Keys assigned to item %s in order %s", item.productId, order.id)
                 else:
                     all_items_processed_successfully = False
-                    print(f"Retry failed: Not enough keys for item {item.productId} in order {order.id}")
+                    logger.warning("Retry failed: Not enough keys for item %s in order %s", item.productId, order.id)
                     break
 
         if needs_update: # If any key was assigned in this retry attempt
@@ -379,7 +383,7 @@ async def get_orders(
             try:
                 processed_orders.append(Order(**order_doc))
             except Exception as e:
-                print(f"Error parsing order {order_doc.get('_id')}: {e}")
+                logger.error("Error parsing order %s: %s", order_doc.get('_id'), e)
                 continue
         return [order.model_dump(by_alias=True) for order in processed_orders]
     except Exception as e:
@@ -454,17 +458,17 @@ async def update_order_status(
     if status_update.status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
-        print(f"Order {order_id}: Released keys on cancel.")
+        logger.info("Order %s: Released keys on cancel", order_id)
         if coupon_code:
             from .admin_router import recalculate_coupon_analytics
             await recalculate_coupon_analytics(coupon_code, db)
-            print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after cancellation.")
+            logger.info("Order %s: Recalculated coupon analytics for %s after cancellation", order_id, coupon_code)
     # If status is being changed from Cancelled to any other status, recalculate coupon analytics
     if previous_status == StatusEnum.CANCELLED.value and status_update.status != StatusEnum.CANCELLED.value:
         if coupon_code:
             from .admin_router import recalculate_coupon_analytics
             await recalculate_coupon_analytics(coupon_code, db)
-            print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after uncancellation.")
+            logger.info("Order %s: Recalculated coupon analytics for %s after uncancellation", order_id, coupon_code)
 
     if update_result.modified_count == 0:
         # This might happen if the status is the same or order not found (already checked)
@@ -503,13 +507,13 @@ async def delete_order(
     # --- Release keys before deleting ---
     coupon_code = order_from_db.get("couponCode") or order_from_db.get("coupon_code")
     await release_keys_for_order(order_from_db, db)
-    print(f"Order {order_id}: Released keys before deletion.")
+    logger.info("Order %s: Released keys before deletion", order_id)
     await db.orders.delete_one({"_id": query_id})
     # --- Recalculate Coupon Analytics AFTER Deletion ---
     if coupon_code:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after deletion.")
+        logger.info("Order %s: Recalculated coupon analytics for %s after deletion", order_id, coupon_code)
     return {"detail": "Order deleted, keys released, and coupon usage updated."}
 
 @router.patch("/orders/{order_id}", response_model=Order)
@@ -539,7 +543,7 @@ async def patch_order(
     if new_status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .orders_key_release_utils import release_keys_for_order
         await release_keys_for_order(order_from_db, db)
-        print(f"Order {order_id}: Released keys on cancel (PATCH endpoint).")
+        logger.info("Order %s: Released keys on cancel (PATCH endpoint)", order_id)
 
     # Update the order with provided fields
     update_fields = {k: v for k, v in order_update.items() if k != '_id'}
@@ -554,13 +558,13 @@ async def patch_order(
     if coupon_code and new_status == StatusEnum.CANCELLED.value and previous_status != StatusEnum.CANCELLED.value:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after cancellation.")
+        logger.info("Order %s: Recalculated coupon analytics for %s after cancellation", order_id, coupon_code)
     # --- Recalculate Coupon Analytics if coupon and status changed ---
     coupon_code = updated_order_doc.get("couponCode") or updated_order_doc.get("coupon_code")
     if coupon_code:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        print(f"Order {order_id}: Recalculated coupon analytics for {coupon_code} after patch.")
+        logger.info("Order %s: Recalculated coupon analytics for %s after patch", order_id, coupon_code)
         
     return Order(**updated_order_doc).model_dump(by_alias=True)
 
@@ -582,21 +586,21 @@ async def create_paypal_order(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cart cannot be empty.")
 
 
-    # --- DEBUG: Log incoming cart for troubleshooting ---
-    print("[PayPal Order] Incoming cart payload:", cart)
+    # Log incoming cart for troubleshooting
+    logger.debug("Incoming cart payload: %s", cart)
 
     for idx, c in enumerate(cart):
         product_id = c.get("productId") or c.get("id")
         if not product_id:
             error_msg = f"Cart item at position {idx + 1} is missing a product ID. Please refresh the page and try again."
-            print(f"[PayPal Order] ERROR: {error_msg}")
-            print(f"[PayPal Order] Problematic item: {c}")
+            logger.error("Cart validation error: %s", error_msg)
+            logger.error("Problematic cart item: %s", c)
             raise HTTPException(status_code=400, detail=error_msg)
 
         prod = await product_collection.get_product_by_id(product_id)
         if not prod:
             error_msg = f"Product with ID {product_id} not found. Please refresh the page and try again."
-            print(f"[PayPal Order] ERROR: {error_msg}")
+            logger.error("Product validation error: %s", error_msg)
             raise HTTPException(status_code=400, detail=error_msg)
 
         # Sanitize product name to string
@@ -610,7 +614,7 @@ async def create_paypal_order(
         quantity = c.get("quantity", 0)
         if quantity <= 0:
             error_msg = f"Invalid quantity ({quantity}) for product '{name_str}'. Quantity must be greater than 0."
-            print(f"[PayPal Order] ERROR: {error_msg}")
+            logger.error("PayPal Order validation error: %s", error_msg)
             raise HTTPException(status_code=400, detail=error_msg)
             
         if quantity > 0:
@@ -623,7 +627,7 @@ async def create_paypal_order(
             })
 
     if not valid_items_for_db:
-        print("[PayPal Order] ERROR: No valid items in cart after validation. Incoming cart:", cart)
+        logger.error("PayPal Order: No valid items in cart after validation. Cart: %s", cart)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Your cart is empty or contains invalid items. Please refresh and try again.")
 
     # Calculate original total from validated items
@@ -644,11 +648,11 @@ async def create_paypal_order(
         }]
     })
     try:
-        print(f"Creating PayPal order with body: {req.request_body}") # Added for debugging
+        logger.debug("Creating PayPal order with body: %s", req.request_body)
         resp = paypal_client.execute(req)
-        print("Successfully created PayPal order.") # Added for debugging
+        logger.info("Successfully created PayPal order")
     except Exception as e:
-        print(f"Error creating PayPal order: {e}") # Added for debugging
+        logger.error("Error creating PayPal order: %s", e)
         raise HTTPException(status_code=502, detail=f"PayPal create order failed: {e}")
     order_id = resp.result.id
     # Save PENDING order with discount info
@@ -694,13 +698,13 @@ async def capture_paypal_order(
         cap_req.prefer("return=representation")
         return paypal_client.execute(cap_req)
     try:
-        print(f"Capturing PayPal order {order_id}...")
+        logger.info("Capturing PayPal order %s", order_id)
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor() as pool:
             cap_resp = await loop.run_in_executor(pool, capture_paypal)
-        print(f"Successfully captured PayPal order {order_id}. Status: {cap_resp.result.status}")
+        logger.info("Successfully captured PayPal order %s. Status: %s", order_id, cap_resp.result.status)
     except Exception as e:
-        print(f"Error capturing PayPal order {order_id}: {e}")
+        logger.error("Error capturing PayPal order %s: %s", order_id, e)
         await db.orders.update_one(
             {"_id": order_id},
             {"$set": {"status": StatusEnum.CANCELLED.value, "updatedAt": datetime.now(timezone.utc)}}
@@ -718,11 +722,13 @@ async def capture_paypal_order(
     # Step 2: Retrieve the pending order document
     order_doc = await db.orders.find_one({"_id": order_id})
     if not order_doc:
-        print(f"Order not found in database with _id={order_id}")
+        logger.warning("Order not found in database with _id=%s", order_id)
         raise HTTPException(404, f"Order not found in database with _id={order_id}")
 
     # Log coupon/discount/original/total for debugging
-    print(f"[PayPal Capture] order_id={order_id} original_total={order_doc.get('originalTotal')} discount_amount={order_doc.get('discountAmount')} total={order_doc.get('total')} coupon_code={order_doc.get('couponCode') or order_doc.get('coupon_code')}")
+    logger.debug("PayPal Capture order_id=%s original_total=%s discount_amount=%s total=%s coupon_code=%s", 
+                order_id, order_doc.get('originalTotal'), order_doc.get('discountAmount'), 
+                order_doc.get('total'), order_doc.get('couponCode') or order_doc.get('coupon_code'))
     if not order_doc:
         raise HTTPException(404, "Order not found in database")
 
@@ -749,7 +755,7 @@ async def capture_paypal_order(
                     {"_id": product.id},
                     {"$inc": {"failed_key_assignments": 1}}
                 )
-                print(f"Order {order_id}, Item {item.productId}: Not enough available keys. Marked for AWAITING_STOCK.")
+                logger.warning("Order %s, Item %s: Not enough available keys. Marked for AWAITING_STOCK", order_id, item.productId)
             else:
                 for i in range(item.quantity):
                     key_obj = available_keys[i]
@@ -785,7 +791,7 @@ async def capture_paypal_order(
     if current_order_status == StatusEnum.COMPLETED and coupon_code:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        print(f"PayPal Order {order_id}: Recalculated analytics for coupon {coupon_code} on capture.")
+        logger.info("PayPal Order %s: Recalculated analytics for coupon %s on capture", order_id, coupon_code)
 
     # Update order in DB with unified structure
     now = datetime.now(timezone.utc)
@@ -825,7 +831,7 @@ async def capture_paypal_order(
                     keys=all_keys
                 )
             except Exception as e:
-                print(f"Failed to send CD key email for order {order_id}: {e}")
+                logger.error("Failed to send CD key email for order %s: %s", order_id, e)
 
     return {"message": f"Order {current_order_status.value.lower()}"}
 
@@ -850,6 +856,6 @@ async def cancel_paypal_order(order_id: str):
     if coupon_code:
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        print(f"PayPal Order {order_id}: Recalculated analytics for coupon {coupon_code} on cancellation.")
+        logger.info("PayPal Order %s: Recalculated analytics for coupon %s on cancellation", order_id, coupon_code)
 
     return {"message": "Order cancelled"}

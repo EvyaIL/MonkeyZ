@@ -72,9 +72,8 @@ async def admin_add_keys_to_product(
     product_id: PydanticObjectId, 
     bulk_create_request: BulkKeyCreateRequest, 
     key_controller: KeyController = Depends(get_keys_controller_dependency), 
-    current_admin_user: User = Depends(get_current_admin_user) # Use the new admin auth dependency
+    current_admin_user: User = Depends(get_current_admin_user)
 ):
-    # TODO: Add proper admin role validation dependency for current_admin_user
     # Ensure bulk_create_request.product_id matches product_id from path or handle appropriately
     if bulk_create_request.product_id != product_id:
         raise HTTPException(status_code=400, detail="Product ID in path and body do not match")
@@ -88,9 +87,8 @@ async def admin_get_keys_for_product(
     skip: int = 0, 
     limit: int = 100,
     key_controller: KeyController = Depends(get_keys_controller_dependency),
-    current_admin_user: User = Depends(get_current_admin_user) # Use the new admin auth dependency
+    current_admin_user: User = Depends(get_current_admin_user)
 ):
-    # TODO: Add proper admin role validation dependency
     keys = await key_controller.keys_collection.get_keys_for_product(product_id, skip=skip, limit=limit)
     return keys
 

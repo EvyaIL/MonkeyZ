@@ -129,7 +129,7 @@ function AdminCoupons() {
         maxUses,
         maxUsagePerUser: maxUsagePerUser,
       };
-      console.log('[DEBUG] Sending coupon payload:', backendCoupon);
+      // Debug logging removed for production
 
       const result = newCoupon.id
         ? await api.patch(`/admin/coupons/${newCoupon.id}`, backendCoupon)

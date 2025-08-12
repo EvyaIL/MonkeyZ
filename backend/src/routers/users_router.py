@@ -1,4 +1,5 @@
 import contextlib
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from src.models.token.token import LoginResponse, Token, TokenData
 from src.deps.deps import UserCollection,KeysCollection , get_user_controller_dependency, UserController
@@ -8,6 +9,8 @@ from src.lib.token_handler import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from src.lib.token_handler import ACCESS_TOKEN_EXPIRE_MINUTES
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 import requests
 import logging
 from datetime import datetime, timedelta
@@ -235,7 +238,7 @@ async def get_user_orders(
         raise http_exc
     except Exception as e:
         # Log the exception for debugging
-        print(f"Error in get_user_orders: {e}")
+        logger.error("Error in get_user_orders: %s", e)
         # Consider what to return or raise. For now, re-raising a generic 500.
         raise HTTPException(status_code=500, detail="An unexpected error occurred while fetching user orders.")
 
