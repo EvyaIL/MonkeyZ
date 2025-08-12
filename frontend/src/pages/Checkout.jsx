@@ -4,6 +4,7 @@ import axios from "axios";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
 import { PAYPAL_CONFIG, debugPayPalConfig, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
+import PayPalDebug from "../components/PayPalDebug";
 
 export default function Checkout() {
   const { cartItems } = useGlobalProvider();
@@ -177,8 +178,18 @@ export default function Checkout() {
     "data-uid": `paypal-${componentKey}`,
   };
 
+  // Debug logging to identify client ID issues
+  console.log('🔧 PayPal Configuration Debug:', {
+    clientId: PAYPAL_CONFIG.clientId ? `${PAYPAL_CONFIG.clientId.substring(0, 10)}...` : 'NOT_SET',
+    envClientId: process.env.REACT_APP_PAYPAL_CLIENT_ID ? `${process.env.REACT_APP_PAYPAL_CLIENT_ID.substring(0, 10)}...` : 'NOT_SET',
+    isDevelopment: PAYPAL_CONFIG.isDevelopment,
+    currency: PAYPAL_CONFIG.currency,
+    environment: process.env.NODE_ENV
+  });
+
   return (
     <div className="container mx-auto py-10 px-4">
+      <PayPalDebug />
       <h1 className="text-3xl font-bold mb-6 text-center">Checkout</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Order Summary */}

@@ -1,12 +1,12 @@
 // PayPal Environment Configuration and Performance Optimization
 
 export const PAYPAL_CONFIG = {
+  // PayPal Client ID validation
+  clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID,
+  
   // Environment detection
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
-  
-  // PayPal Client ID validation
-  clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID,
   
   // Currency and locale settings
   currency: 'ILS',
@@ -69,14 +69,15 @@ export const buildPayPalScriptURL = () => {
     commit: PAYPAL_CONFIG.scriptConfig.commit
   });
   
-  // Only add buyer-country in development/sandbox mode
+  // Only add buyer-country in development/sandbox mode  
   // This parameter is NOT allowed in PayPal live/production environment
-  if (PAYPAL_CONFIG.isDevelopment) {
+  const isUsingLiveClient = PAYPAL_CONFIG.clientId && !PAYPAL_CONFIG.clientId.startsWith('sb-') && !PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq');
+  if (PAYPAL_CONFIG.isDevelopment && !isUsingLiveClient) {
     params.append('buyer-country', PAYPAL_CONFIG.scriptConfig['buyer-country']);
   }
   
-  // Add debug parameter in development
-  if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
+  // Add debug parameter in development only with sandbox
+  if (PAYPAL_CONFIG.isDevelopment && !isUsingLiveClient && PAYPAL_CONFIG.scriptConfig.debug) {
     params.append('debug', 'true');
   }
   
