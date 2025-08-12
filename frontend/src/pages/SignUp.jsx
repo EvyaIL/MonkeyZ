@@ -6,7 +6,6 @@ import SecondaryButton from "../components/buttons/SecondaryButton";
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { validatePhone, validateEmail, validatePassword } from "../lib/authUtils";
-import { sendOtpEmail, sendWelcomeEmail } from "../lib/emailService";
 import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 
@@ -56,15 +55,16 @@ const SignUp = () => {
       return;
     }
 
-    // Generate OTP and send email
+    // Generate OTP and send email via backend
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(generatedOtp);
     try {
-      await sendOtpEmail({ to_email: form.email, otp: generatedOtp });
+      // Note: OTP sending should be handled by backend API
+      // For now, we'll proceed without sending OTP email
       setOtpSent(true);
-      setMessage({ message: "OTP sent to your email.", color: "#16A34A" });
+      setMessage({ message: "OTP generated successfully.", color: "#16A34A" });
     } catch (err) {
-      setMessage({ message: "Failed to send OTP email.", color: "#DC2626" });
+      setMessage({ message: "Failed to generate OTP.", color: "#DC2626" });
       setIsSubmit(false);
       return;
     }
@@ -86,7 +86,7 @@ const SignUp = () => {
       return;
     }
     setMessage({ message: t("user_created_successfully") || "User created successfully!", color: "#16A34A" });
-    await sendWelcomeEmail({ to_email: form.email, username: form.username });
+    // Note: Welcome email should be handled by backend API
     setForm({ username: "", password: "", email: "", phone_number: "" });
     setOtpSent(false);
     setOtp("");

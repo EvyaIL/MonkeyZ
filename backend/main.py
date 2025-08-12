@@ -59,7 +59,6 @@ app = FastAPI(
         {"name": "users", "description": "Operations with users"},
         {"name": "products", "description": "Manage products"},
         {"name": "keys", "description": "Key management"},
-        {"name": "grow", "description": "Grow related endpoints"},
         {"name": "orders", "description": "Manage orders"},
     ]
 )
@@ -73,9 +72,6 @@ app.add_middleware(
     expose_headers=["Content-Type", "Authorization"],
     max_age=600  # Cache preflight requests for 10 minutes (600 seconds)
 )
-
-from src.routers import grow_router # Changed from 'from routers import grow_router'
-app.include_router(grow_router.router)
 
 # Health check endpoint for DigitalOcean App Platform
 @app.get("/health", tags=["health"])

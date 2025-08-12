@@ -22,30 +22,12 @@ envs:
 - key: REACT_APP_GOOGLE_CLIENT_ID
   scope: RUN_AND_BUILD_TIME
   value: 946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com
-- key: REACT_APP_EMAILJS_RESET_TEMPLATE
-  scope: RUN_AND_BUILD_TIME
-  value: template_9f1h1dn
-- key: REACT_APP_EMAILJS_PUBLIC_KEY
-  scope: RUN_AND_BUILD_TIME
-  value: OZANGbTigZyYpNfAT
-- key: REACT_APP_EMAILJS_SERVICE_ID
-  scope: RUN_AND_BUILD_TIME
-  value: service_xheer8t
-- key: REACT_APP_EMAILJS_OTP_TEMPLATE
-  scope: RUN_AND_BUILD_TIME
-  value: template_fi5fm2c
-- key: REACT_APP_EMAILJS_WELCOME_TEMP
-  scope: RUN_AND_BUILD_TIME
-  value: template_iwzazla
 - key: REACT_APP_PAYMENT_FAIL_URL
   scope: RUN_AND_BUILD_TIME
   value: https://monkeyz.co.il/fail
 - key: REACT_APP_PAYMENT_SUCCESS_URL
   scope: RUN_AND_BUILD_TIME
   value: https://monkeyz.co.il/success
-- key: REACT_APP_GROW_API_KEY
-  scope: RUN_AND_BUILD_TIME
-  value: your_real_grow_api_key_here
 features:
 - buildpack-stack=ubuntu-22
 ingress:
@@ -76,29 +58,9 @@ services:
     scope: BUILD_TIME
     value: \
     type: SECRET
-  - key: REACT_APP_EMAILJS_PUBLIC_KEY
-    scope: BUILD_TIME
-    value: \
-    type: SECRET
-  - key: REACT_APP_EMAILJS_SERVICE_ID
-    scope: BUILD_TIME
-    value: \
-  - key: REACT_APP_EMAILJS_RESET_TEMPLATE
-    scope: BUILD_TIME
-    value: \
-  - key: REACT_APP_EMAILJS_OTP_TEMPLATE
-    scope: BUILD_TIME
-    value: \
-  - key: REACT_APP_EMAILJS_WELCOME_TEMP
-    scope: BUILD_TIME
-    value: \
   - key: REACT_APP_PAYMENT_FAIL_URL
     scope: BUILD_TIME
     value: \/fail
   - key: REACT_APP_PAYMENT_SUCCESS_URL
     scope: BUILD_TIME
     value: \/success
-  - key: REACT_APP_GROW_API_KEY
-    scope: BUILD_TIME
-    value: \
-    type: SECRET

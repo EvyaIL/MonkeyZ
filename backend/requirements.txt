@@ -10,7 +10,6 @@ email-validator # Added for Pydantic EmailStr validation
 fastapi==0.115.0
 fastapi-mail
 h11==0.14.0
-httpx # Added for grow_router
 idna==3.10
 jose==1.0.0
 lazy-model==0.2.0

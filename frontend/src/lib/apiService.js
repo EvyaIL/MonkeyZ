@@ -16,7 +16,6 @@ class ApiService {  constructor() {
       this.endpoint = '';
     }
     
-    console.log('API Endpoint:', this.endpoint || 'Using proxy');
     // Try to load token from localStorage/sessionStorage on init
     this.token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || null;
 

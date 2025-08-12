@@ -37,9 +37,6 @@ const SignIn = () => {
     // Determine if input is email or username
     const isEmail = form.usernameOrEmail.includes("@") && validateEmail(form.usernameOrEmail);
     
-    // Log the input type for debugging
-    console.log("Login attempt with:", isEmail ? "Email" : "Username", form.usernameOrEmail);
-    
     // Validate input
     if (!form.usernameOrEmail) {
       setMessage({ message: t("signin_error_empty_field", "Email or username is required"), color: "#DC2626" });

@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { addStructuredData, generateBreadcrumbSchema } from "../lib/seo-helper";
 
-const SERVICE_ID = "service_xheer8t"; 
 // EmailJS config removed
 
 const Contact = () => {
