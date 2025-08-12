@@ -10,7 +10,8 @@ if (process.env.NODE_ENV === 'development') {
     // Suppress known deprecation warnings that we can't control
     if (message.includes('-ms-high-contrast') || 
         message.includes('Deprecation') ||
-        message.includes('Images loaded lazily')) {
+        message.includes('Images loaded lazily') ||
+        message.includes('Each child in a list should have a unique "key" prop')) {
       return; // Skip these warnings
     }
     

@@ -364,7 +364,7 @@ const ProductPage = () => {
                   </div>
                 ) : relatedProducts.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {relatedProducts.map(relatedProduct => {
+                    {relatedProducts.map((relatedProduct, index) => {
                       const relName = typeof relatedProduct.name === "object" 
                         ? (relatedProduct.name[lang] || relatedProduct.name.en) 
                         : relatedProduct.name;
@@ -377,7 +377,7 @@ const ProductPage = () => {
                       
                       return (
                         <Link 
-                          key={relatedProduct.id} 
+                          key={`related-${relatedProduct.id || index}-${relatedProduct.name || 'unknown'}`} 
                           to={`/product/${encodedName}`} // Changed from /product/name/ to /product/
                           className="group"
                         >
