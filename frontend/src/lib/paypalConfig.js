@@ -1,4 +1,4 @@
-// PayPal Environment Configuration and Performance Optimization
+﻿// PayPal Environment Configuration and Performance Optimization
 
 export const PAYPAL_CONFIG = {
   // PayPal Client ID validation
@@ -43,11 +43,10 @@ export const PAYPAL_CONFIG = {
   scriptConfig: {
     // Only load required components
     components: 'buttons',
-    // Disable debug mode to reduce console spam (enable only when troubleshooting)
-    debug: false, // Set to true only when debugging PayPal issues
+    // Disable debug mode in production
+    debug: false,
     // Disable unwanted funding sources but keep credit cards enabled
-    // Available funding: paypal, venmo, credit, card, sepa, bancontact, giropay, ideal, eps, sofort, mybank, p24, zimpler, maxima, oxxo, boleto, boletobancario, multibanco, satispay, payu, blik, trustly, paylater
-    'disable-funding': 'venmo,sepa,bancontact,giropay,ideal,eps,sofort,mybank,p24', // Keep PayPal, credit cards, and local Israeli payment methods
+    'disable-funding': 'venmo,sepa,bancontact,giropay,ideal,eps,sofort,mybank,p24',
     // Intent for immediate capture
     intent: 'capture',
     // Commit for Pay Now button
@@ -114,7 +113,6 @@ export const preloadPayPalScript = () => {
     script.crossOrigin = 'anonymous';
     
     script.onload = () => {
-      console.log('PayPal script preloaded successfully');
       resolve(true);
     };
     
@@ -155,41 +153,17 @@ export const measurePayPalPerformance = () => {
           total: scriptTime.duration + renderTime.duration
         };
       } catch (error) {
-        console.warn('Performance measurement failed:', error);
         return null;
       }
     }
   };
 };
 
-// Debug helper for PayPal configuration (minimal logging)
+// Debug helper for PayPal configuration (production-ready, minimal logging)
 export const debugPayPalConfig = () => {
-  const issues = [];
-  
-  // Only log critical issues and basic status
+  // Only check for critical configuration issues
   if (!PAYPAL_CONFIG.clientId) {
-    issues.push('❌ REACT_APP_PAYPAL_CLIENT_ID environment variable is missing');
     console.error('PayPal configuration error: Missing client ID');
-    return false;
-  }
-  
-  // Single summary log instead of multiple logs
-  const environment = PAYPAL_CONFIG.clientId.startsWith('sb-') ? 'Sandbox' : 'Production';
-  const paymentMethods = 'PayPal + Credit/Debit Cards';
-  
-  console.log(`� PayPal ${environment} | Methods: ${paymentMethods} | Performance: Optimized`);
-  
-  // Check for major CSP issues only
-  const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
-  if (!cspMeta) {
-    issues.push('❌ Content-Security-Policy meta tag is missing');
-  }
-  
-  // Report only if there are issues
-  if (issues.length > 0) {
-    console.group('🔧 PayPal Configuration Issues:');
-    issues.forEach(issue => console.log(issue));
-    console.groupEnd();
     return false;
   }
   

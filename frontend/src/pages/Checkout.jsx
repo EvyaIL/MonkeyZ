@@ -3,8 +3,7 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from "axios";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
-import { PAYPAL_CONFIG, debugPayPalConfig, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
-import PayPalDebug from "../components/PayPalDebug";
+import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
 
 export default function Checkout() {
   const { cartItems } = useGlobalProvider();
@@ -37,29 +36,14 @@ export default function Checkout() {
   useEffect(() => {
     isComponentMountedRef.current = true;
     
-    // Start performance monitoring
-    paypalPerformance.markScriptStart();
-    
-    // Fix development CSP issues first
-    if (PAYPAL_CONFIG.isDevelopment) {
-      fixDevelopmentCSP();
-    }
-    
+    // Initialize CSP nonce and PayPal performance optimization with cleanup
     const nonce = getCurrentNonce();
     setCspNonce(nonce);
     
-    // Debug PayPal configuration in development (only when debug is enabled)
-    if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
-      debugPayPalConfig();
-    }
-    
     // Verify PayPal CSP configuration
     const cspValid = verifyPayPalCSP();
-    if (!cspValid) {
-      console.warn('PayPal CSP configuration may need attention');
-      if (!PAYPAL_CONFIG.isDevelopment) {
-        setError('Payment security configuration needs attention. Please reload the page.');
-      }
+    if (!cspValid && !PAYPAL_CONFIG.isDevelopment) {
+      setError('Payment security configuration needs attention. Please reload the page.');
     }
 
     // Create a unique component key to prevent zoid conflicts
@@ -70,12 +54,6 @@ export default function Checkout() {
       preloadPayPalScript()
         .then(() => {
           if (!isComponentMountedRef.current) return;
-          
-          paypalPerformance.markScriptEnd();
-          // Reduced logging - only log in debug mode
-          if (PAYPAL_CONFIG.scriptConfig.debug) {
-            console.log('PayPal script preloaded for optimal performance');
-          }
           
           // Instant render strategy (PayPal Best Practice) with delay to prevent zoid conflicts
           if (PAYPAL_CONFIG.performance.renderStrategy === 'instant') {
@@ -104,7 +82,6 @@ export default function Checkout() {
       cleanupTimeoutRef.current = setTimeout(() => {
         if (!isComponentMountedRef.current) return;
         
-        paypalPerformance.markScriptEnd();
         setPaypalLoaded(true);
       }, 500);
     }
@@ -120,11 +97,6 @@ export default function Checkout() {
       
       // Reset PayPal loaded state to prevent stale renders
       setPaypalLoaded(false);
-      
-      // Log cleanup in development
-      if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
-        console.log('PayPal Checkout component cleanup completed');
-      }
     };
   }, []);
 
@@ -171,25 +143,22 @@ export default function Checkout() {
     // Performance optimization: disable unused funding
     "disable-funding": PAYPAL_CONFIG.scriptConfig['disable-funding'],
     // Buyer country for optimization (only in development/sandbox - not allowed in production)
-    ...(PAYPAL_CONFIG.isDevelopment && { "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'] }),
-    // Debug mode in development
-    ...(PAYPAL_CONFIG.isDevelopment && { debug: PAYPAL_CONFIG.scriptConfig.debug }),
+    // Only add buyer-country when using sandbox client ID, NOT with live client ID
+    ...(PAYPAL_CONFIG.isDevelopment && 
+        PAYPAL_CONFIG.clientId && 
+        (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
+        { "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'] }),
+    // Debug mode in development (only with sandbox)
+    ...(PAYPAL_CONFIG.isDevelopment && 
+        PAYPAL_CONFIG.clientId && 
+        (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
+        { debug: PAYPAL_CONFIG.scriptConfig.debug }),
     // Add unique identifier to prevent zoid conflicts
     "data-uid": `paypal-${componentKey}`,
   };
 
-  // Debug logging to identify client ID issues
-  console.log('🔧 PayPal Configuration Debug:', {
-    clientId: PAYPAL_CONFIG.clientId ? `${PAYPAL_CONFIG.clientId.substring(0, 10)}...` : 'NOT_SET',
-    envClientId: process.env.REACT_APP_PAYPAL_CLIENT_ID ? `${process.env.REACT_APP_PAYPAL_CLIENT_ID.substring(0, 10)}...` : 'NOT_SET',
-    isDevelopment: PAYPAL_CONFIG.isDevelopment,
-    currency: PAYPAL_CONFIG.currency,
-    environment: process.env.NODE_ENV
-  });
-
   return (
     <div className="container mx-auto py-10 px-4">
-      <PayPalDebug />
       <h1 className="text-3xl font-bold mb-6 text-center">Checkout</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Order Summary */}
@@ -291,21 +260,6 @@ export default function Checkout() {
               options={initialOptions}
               onLoadScript={() => {
                 if (!isComponentMountedRef.current) return;
-                
-                paypalPerformance.markRenderStart();
-                // Reduced logging - only log when debug is enabled
-                if (PAYPAL_CONFIG.scriptConfig.debug) {
-                  console.log("PayPal script loaded successfully with optimized configuration");
-                }
-                
-                // Log performance metrics in development
-                if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
-                  const metrics = paypalPerformance.getMetrics();
-                  if (metrics) {
-                    console.log('PayPal Performance Metrics:', metrics);
-                    setPerformanceMetrics(metrics);
-                  }
-                }
               }}
               onError={(err) => {
                 if (!isComponentMountedRef.current) return;
@@ -313,15 +267,6 @@ export default function Checkout() {
                 console.error("PayPal script load error:", err);
                 const errorInfo = getPayPalErrorMessage(err);
                 setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
-                
-                if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
-                  console.group('PayPal Debug Info:');
-                  console.log('Error details:', errorInfo);
-                  console.log('CSP nonce:', cspNonce);
-                  console.log('Component key:', componentKey);
-                  debugPayPalConfig();
-                  console.groupEnd();
-                }
               }}
             >
             <PayPalButtons
@@ -335,13 +280,6 @@ export default function Checkout() {
               disabled={processing || !email || !name || !phone || cartArray.length === 0}
               onInit={() => {
                 if (!isComponentMountedRef.current) return;
-                
-                // Performance optimization: mark render completion
-                paypalPerformance.markRenderEnd();
-                // Reduced logging - only when debug is enabled
-                if (PAYPAL_CONFIG.scriptConfig.debug) {
-                  console.log("PayPal buttons initialized with optimized rendering");
-                }
               }}
               createOrder={async () => {
                 if (!isComponentMountedRef.current) return;
@@ -421,13 +359,6 @@ export default function Checkout() {
                 const errorInfo = getPayPalErrorMessage(err);
                 setError(`Payment failed: ${errorInfo.message}`);
                 
-                if (PAYPAL_CONFIG.isDevelopment && PAYPAL_CONFIG.scriptConfig.debug) {
-                  console.group('PayPal Payment Error:');
-                  console.log('Error details:', errorInfo);
-                  console.log('Component key:', componentKey);
-                  console.groupEnd();
-                }
-                
                 // Cancel order if one exists
                 if (orderID) {
                   try {
@@ -447,18 +378,6 @@ export default function Checkout() {
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-gray-600">Loading secure payment options...</p>
-              <p className="text-sm text-gray-500">
-                {PAYPAL_CONFIG.isDevelopment 
-                  ? "Development mode: Optimizing PayPal performance..." 
-                  : "Ensuring PayPal security compliance..."
-                }
-              </p>
-              {PAYPAL_CONFIG.isDevelopment && performanceMetrics && (
-                <div className="mt-2 text-xs text-blue-600">
-                  Script Load: {Math.round(performanceMetrics.scriptLoadTime)}ms | 
-                  Render: {Math.round(performanceMetrics.renderTime)}ms
-                </div>
-              )}
             </div>
           ) : null}
           {processing && (
