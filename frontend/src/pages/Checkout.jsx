@@ -158,22 +158,38 @@ export default function Checkout() {
               disabled={processing || !email || !name || !phone || cartArray.length === 0}
               createOrder={async () => {
                 setProcessing(true);
-                const { data } = await axios.post("/api/paypal/orders", {
-                  cart: cartArray.map((i) => ({
-                    productId: i.id || i.productId, // Always send productId for backend compatibility
-                    id: i.id, // Also send id for redundancy
-                    name: typeof i.name === "object" ? i.name.en : i.name,
-                    quantity: i.count,
-                    price: i.price
-                  })),
-                  couponCode: coupon,
-                  customerEmail: email,
-                  customerName: name,
-                  phone: phone,
-                });
-                setError("");
-                setOrderID(data.id);
-                return data.id;
+                try {
+                  // Validate cart items before sending
+                  const validatedCart = cartArray.map((i, index) => {
+                    const productId = i.id || i.productId;
+                    if (!productId) {
+                      throw new Error(`Cart item at position ${index + 1} is missing a product ID. Please refresh the page and try again.`);
+                    }
+                    
+                    return {
+                      productId: productId, // Always send productId for backend compatibility
+                      id: productId, // Also send id for redundancy
+                      name: typeof i.name === "object" ? i.name.en : i.name,
+                      quantity: i.count || i.quantity || 1,
+                      price: i.price
+                    };
+                  });
+
+                  const { data } = await axios.post("/api/paypal/orders", {
+                    cart: validatedCart,
+                    couponCode: coupon,
+                    customerEmail: email,
+                    customerName: name,
+                    phone: phone,
+                  });
+                  setError("");
+                  setOrderID(data.id);
+                  return data.id;
+                } catch (err) {
+                  setProcessing(false);
+                  setError(err.message || err.response?.data?.detail || "Failed to create order");
+                  throw err;
+                }
               }}
               onApprove={async (data) => {
                 try {

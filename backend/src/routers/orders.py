@@ -588,13 +588,16 @@ async def create_paypal_order(
     for idx, c in enumerate(cart):
         product_id = c.get("productId") or c.get("id")
         if not product_id:
-            print(f"[PayPal Order] ERROR: Cart item at index {idx} is missing a productId or id: {c}")
-            raise HTTPException(status_code=400, detail=f"Cart item at index {idx} is missing a productId or id. Please contact support.")
+            error_msg = f"Cart item at position {idx + 1} is missing a product ID. Please refresh the page and try again."
+            print(f"[PayPal Order] ERROR: {error_msg}")
+            print(f"[PayPal Order] Problematic item: {c}")
+            raise HTTPException(status_code=400, detail=error_msg)
 
         prod = await product_collection.get_product_by_id(product_id)
         if not prod:
-            print(f"[PayPal Order] ERROR: Product with ID {product_id} not found for cart item at index {idx}.")
-            raise HTTPException(status_code=400, detail=f"Product with ID {product_id} not found in the shop. Please refresh and try again.")
+            error_msg = f"Product with ID {product_id} not found. Please refresh the page and try again."
+            print(f"[PayPal Order] ERROR: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
 
         # Sanitize product name to string
         raw_name = prod.name if hasattr(prod, 'name') else ""
@@ -605,6 +608,11 @@ async def create_paypal_order(
 
         # Use price from DB to prevent tampering, quantity from cart
         quantity = c.get("quantity", 0)
+        if quantity <= 0:
+            error_msg = f"Invalid quantity ({quantity}) for product '{name_str}'. Quantity must be greater than 0."
+            print(f"[PayPal Order] ERROR: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+            
         if quantity > 0:
             valid_items_for_db.append({
                 "productId": str(prod.id),

@@ -44,11 +44,13 @@ class ProductsCollection(MongoDb, metaclass=Singleton):
                         # Validate that the orderId is a proper ObjectId
                         PydanticObjectId(key_data["orderId"])
                     except (ValidationError, TypeError, ValueError, InvalidId):
-                        # If validation fails, it's a legacy/invalid ID. Log it and set to None.
-                        logging.warning(
-                            f"Invalid orderId '{key_data['orderId']}' found in product "
-                            f"'{p_data.get('id', 'N/A')}'. Sanitizing to None."
-                        )
+                        # If validation fails, it's a legacy/invalid ID. Set to None silently.
+                        # Only log if we're in debug mode to reduce noise
+                        if logging.getLogger().level <= logging.DEBUG:
+                            logging.debug(
+                                f"Invalid orderId '{key_data['orderId']}' found in product "
+                                f"'{p_data.get('id', 'N/A')}'. Sanitizing to None."
+                            )
                         key_data["orderId"] = None
                 sanitized_keys.append(key_data)
             p_data["cdKeys"] = sanitized_keys
