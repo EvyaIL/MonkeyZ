@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from "axios";
 import { useGlobalProvider } from "../context/GlobalProvider";
+import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
+import { PAYPAL_CONFIG, debugPayPalConfig, getPayPalErrorMessage } from "../lib/paypalConfig";
 
 export default function Checkout() {
   const { cartItems } = useGlobalProvider();
@@ -14,6 +16,40 @@ export default function Checkout() {
   const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
   const [orderID, setOrderID] = useState(null);
+  const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [cspNonce, setCspNonce] = useState(null);
+
+  // Initialize CSP nonce for PayPal security
+  useEffect(() => {
+    // Fix development CSP issues first
+    if (PAYPAL_CONFIG.isDevelopment) {
+      fixDevelopmentCSP();
+    }
+    
+    const nonce = getCurrentNonce();
+    setCspNonce(nonce);
+    
+    // Debug PayPal configuration in development
+    if (PAYPAL_CONFIG.isDevelopment) {
+      debugPayPalConfig();
+    }
+    
+    // Verify PayPal CSP configuration
+    const cspValid = verifyPayPalCSP();
+    if (!cspValid) {
+      console.warn('PayPal CSP configuration may need attention');
+      if (!PAYPAL_CONFIG.isDevelopment) {
+        setError('Payment security configuration needs attention. Please reload the page.');
+      }
+    }
+    
+    // Delay PayPal loading to ensure DOM is ready
+    const timer = setTimeout(() => {
+      setPaypalLoaded(true);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const cartArray = Object.values(cartItems);
   const subtotal = cartArray.reduce(
@@ -44,11 +80,17 @@ export default function Checkout() {
   };
 
   const initialOptions = {
-    "client-id": process.env.REACT_APP_PAYPAL_CLIENT_ID,
-    currency: "ILS", // use Israeli Shekel
-    intent: "capture", // ensure immediate capture intent
-    components: "buttons", // load only buttons component
-    commit: true, // show Pay Now button
+    "client-id": PAYPAL_CONFIG.clientId,
+    currency: PAYPAL_CONFIG.currency,
+    intent: "capture",
+    components: "buttons",
+    commit: true,
+    // CSP nonce for enhanced security (only in production)
+    ...(cspNonce && !PAYPAL_CONFIG.isDevelopment && { "data-csp-nonce": cspNonce }),
+    // Localization for Israeli users
+    locale: PAYPAL_CONFIG.locale,
+    // Performance optimization
+    ...(PAYPAL_CONFIG.performance.enableLazyLoading && { "data-lazy-load": "true" }),
   };
 
   return (
@@ -148,7 +190,27 @@ export default function Checkout() {
         {/* Payment Section */}
         <div className="bg-white p-6 rounded shadow flex flex-col justify-between">
           {error && <div className="text-red-600 mb-4">{error}</div>}
-          <PayPalScriptProvider options={initialOptions}>
+          {(cspNonce || PAYPAL_CONFIG.isDevelopment) && paypalLoaded && (
+            <PayPalScriptProvider 
+              options={initialOptions}
+              onLoadScript={() => {
+                console.log("PayPal script loaded successfully");
+                setPaypalLoaded(true);
+              }}
+              onError={(err) => {
+                console.error("PayPal script load error:", err);
+                const errorInfo = getPayPalErrorMessage(err);
+                setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
+                
+                if (PAYPAL_CONFIG.isDevelopment) {
+                  console.group('PayPal Debug Info:');
+                  console.log('Error details:', errorInfo);
+                  console.log('CSP nonce:', cspNonce);
+                  debugPayPalConfig();
+                  console.groupEnd();
+                }
+              }}
+            >
             <PayPalButtons
               style={{
                 layout: "vertical",
@@ -212,14 +274,39 @@ export default function Checkout() {
                 window.location.href = "/fail";
               }}
               onError={async (err) => {
-                setError("Payment error");
-                console.error(err);
+                console.error("PayPal payment error:", err);
+                const errorInfo = getPayPalErrorMessage(err);
+                setError(`Payment failed: ${errorInfo.message}`);
+                
+                if (PAYPAL_CONFIG.isDevelopment) {
+                  console.group('PayPal Payment Error:');
+                  console.log('Error details:', errorInfo);
+                  console.groupEnd();
+                }
+                
                 if (orderID) {
-                  await axios.post(`/api/paypal/orders/${orderID}/cancel`);
+                  try {
+                    await axios.post(`/api/paypal/orders/${orderID}/cancel`);
+                  } catch (cancelErr) {
+                    console.error("Failed to cancel order:", cancelErr);
+                  }
                 }
               }}
             />
           </PayPalScriptProvider>
+          )}
+          {!(cspNonce || PAYPAL_CONFIG.isDevelopment) || !paypalLoaded ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-2 text-gray-600">Loading secure payment options...</p>
+              <p className="text-sm text-gray-500">
+                {PAYPAL_CONFIG.isDevelopment 
+                  ? "Development mode: Configuring security..." 
+                  : "Ensuring PayPal security compliance..."
+                }
+              </p>
+            </div>
+          ) : null}
           {processing && <p className="text-center mt-4">Processing payment…</p>}
         </div>
       </div>
