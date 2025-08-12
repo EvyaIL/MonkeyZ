@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import ProductCard from "../components/product/ProductCard";
 import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
@@ -9,10 +9,13 @@ import { addStructuredData } from "../lib/seo-helper";
 import imagePreloadService from "../lib/imagePreloadService";
 import { usePerformanceMonitoring, trackRoutePerformance } from "../hooks/usePerformanceMonitoring";
 import { ProductGridSkeleton } from "../components/SkeletonLoaders";
+import LazyImage from "../components/LazyImage";
 
 const Home = () => {
-  // Add performance monitoring
-  usePerformanceMonitoring('HomePage');
+  // Only use performance monitoring in development for debugging
+  if (process.env.NODE_ENV === 'development' && false) { // Disabled to reduce console spam
+    usePerformanceMonitoring('HomePage');
+  }
   const [bestSellers, setBestSellers] = useState([]);
   const [homeProducts, setHomeProducts] = useState([]);
   const [loadingBest, setLoadingBest] = useState(true);  const [loadingHome, setLoadingHome] = useState(true);

@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo } from "react"; // Added useMemo
 import AppRouter from "./AppRouter";
-import GlobalProvider, { useGlobalProvider } from "./context/GlobalProvider"; // Added useGlobalProvider
+import GlobalProvider, { useGlobalProvider } from "./context/GlobalProvider.jsx";
 import Footer from "./components/Footer";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 import { initAnalytics } from "./lib/analytics";
 import ErrorBoundary from './components/ErrorBoundary';
-import { ThemeProvider, createTheme } from '@mui/material/styles'; // MUI imports
-import CssBaseline from '@mui/material/CssBaseline'; // MUI imports
-import { HelmetProvider } from 'react-helmet-async'; // Add HelmetProvider
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { HelmetProvider } from 'react-helmet-async';
+import { initPerformanceOptimizations } from './lib/performanceOptimizer';
 
-// Import ThemeToggle with require to troubleshoot potential import issues
+// Lazy load ThemeToggle to improve initial bundle size
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
@@ -18,9 +19,10 @@ const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const AppContent = () => {
   const { i18n } = useTranslation();
   
-  // Initialize analytics service
+  // Initialize analytics service only once
   useEffect(() => {
     initAnalytics();
+    initPerformanceOptimizations(); // Initialize performance optimizations
     
     // Track visit count for segmentation
     const visitCount = parseInt(localStorage.getItem('visit_count') || '0');

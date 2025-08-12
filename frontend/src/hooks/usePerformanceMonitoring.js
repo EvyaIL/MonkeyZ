@@ -50,7 +50,10 @@ export const usePerformanceMonitoring = (componentName = 'Component') => {
     // Component render time tracking
     const renderTime = performance.now() - startTimeRef.current;
     if (renderTime > 16) { // 16ms for 60fps
-      console.log(`🐌 Slow render in ${componentName}: ${renderTime.toFixed(2)}ms`);
+      // Only log extremely slow renders in development (increased threshold to reduce spam)
+      if (process.env.NODE_ENV === 'development' && renderTime > 100) {
+        console.warn(`🐌 Very slow render in ${componentName}: ${renderTime.toFixed(2)}ms`);
+      }
     }
 
     return () => {
@@ -65,15 +68,13 @@ export const usePerformanceMonitoring = (componentName = 'Component') => {
   useEffect(() => {
     const mountTime = performance.now() - startTimeRef.current;
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`⏱️ ${componentName} mounted in ${mountTime.toFixed(2)}ms`);
+    // Only log very slow mounts in development (increased threshold to reduce spam)
+    if (process.env.NODE_ENV === 'development' && mountTime > 200) {
+      console.warn(`⏱️ Very slow mount - ${componentName}: ${mountTime.toFixed(2)}ms`);
     }
 
     return () => {
-      const unmountTime = performance.now();
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🔄 ${componentName} unmounted after ${(unmountTime - startTimeRef.current).toFixed(0)}ms`);
-      }
+      // Remove unmount logging to reduce console spam
     };
   }, [componentName]);
 };

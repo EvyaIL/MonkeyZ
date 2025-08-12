@@ -1,19 +1,31 @@
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
-import OptimizedImage from '../OptimizedImage';
+import LazyImage from '../LazyImage';
+import { memo, useCallback, useMemo } from 'react';
 
-const ProductCard = ({ product, otherStyle }) => {
+const ProductCard = memo(({ product, otherStyle }) => {
   const navigate = useNavigate();
   const { addItemToCart, notify } = useGlobalProvider();
   const { t, i18n } = useTranslation();
-  const lang = i18n.language || "he";  // Prioritize product.imageUrl, then product.image
-  const imageSourceFromProduct = product.imageUrl || product.image;
-  const displayName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
-  const displayDesc = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
   
-  // Handle adding to cart
-  const handleAddToCart = (e) => {
+  // Memoize language and display values to prevent unnecessary recalculations
+  const lang = useMemo(() => i18n.language || "he", [i18n.language]);
+  
+  const displayData = useMemo(() => {
+    const imageSource = product.imageUrl || product.image;
+    const displayName = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
+    const displayDesc = typeof product.description === "object" ? (product.description[lang] || product.description.en) : product.description;
+    
+    return {
+      imageSource,
+      displayName,
+      displayDesc: displayDesc?.length > 100 ? displayDesc.substring(0, 97) + "..." : displayDesc
+    };
+  }, [product, lang]);
+  
+  // Handle adding to cart with useCallback to prevent re-renders
+  const handleAddToCart = useCallback((e) => {
     e.stopPropagation();
     addItemToCart(product.id, 1, product);
     
@@ -25,19 +37,14 @@ const ProductCard = ({ product, otherStyle }) => {
     }, 200);
 
     notify({
-      message: `${displayName} ${t("added_to_cart_suffix", "added to cart")}`,
+      message: `${displayData.displayName} ${t("added_to_cart_suffix", "added to cart")}`,
       type: "success"
     });
-  };
+  }, [product, displayData.displayName, addItemToCart, notify, t]);
 
-  // Navigate to product details
-  const goToProductDetails = () => {
-    // Ensure we're using a string version of the name
-    const nameToUse = typeof product.name === "object" 
-      ? (product.name[lang] || product.name.en || "") 
-      : product.name || "";
-
-    if (!nameToUse) {
+  // Navigate to product details with useCallback
+  const goToProductDetails = useCallback(() => {
+    if (!displayData.displayName) {
       console.error("Product name is missing, cannot navigate:", product);
       notify({
         message: t("errors.productLinkError", "Cannot open product page, product name is missing."),
@@ -45,22 +52,22 @@ const ProductCard = ({ product, otherStyle }) => {
       });
       return;
     }
-    navigate(`/product/${encodeURIComponent(nameToUse)}`);
-  };
+    navigate(`/product/${encodeURIComponent(displayData.displayName)}`);
+  }, [displayData.displayName, product, navigate, notify, t]);
 
   return (
     <div
       className={`bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 w-full flex flex-col transition-all duration-300 hover:shadow-xl backdrop-blur-sm group ${otherStyle}`}
       tabIndex={0}
       role="region"
-      aria-label={`Product card for ${displayName}`}
+      aria-label={`Product card for ${displayData.displayName}`}
     >
       <div
         className="w-full cursor-pointer flex flex-col flex-grow"
         onClick={goToProductDetails}
         tabIndex={0}
         role="button"
-        aria-label={`View details for ${displayName}`}
+        aria-label={`View details for ${displayData.displayName}`}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -68,12 +75,12 @@ const ProductCard = ({ product, otherStyle }) => {
           }
         }}
       >        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-accent/5 dark:bg-gray-900 border border-accent/10 dark:border-accent/10 group-hover:border-accent/30 transition-colors duration-300">
-          <OptimizedImage
-            src={imageSourceFromProduct}
-            alt={displayName}
+          <LazyImage
+            src={displayData.imageSource}
+            alt={displayData.displayName}
             className="group-hover:scale-105 transition-transform duration-300"
-            lazy={true}
-            preload={false}
+            loading="lazy"
+            threshold={0.1}
           />
           
           {/* Tags Container - Top Right */}
@@ -96,8 +103,9 @@ const ProductCard = ({ product, otherStyle }) => {
           </div>
         </div>
 
-        <h3 className={`font-semibold text-lg text-gray-900 dark:text-white text-${lang === "he" ? "right" : "left"} group-hover:text-accent transition-colors duration-300`}>{displayName}</h3>        <p className={`text-accent/70 dark:text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
-          {displayDesc?.length > 100 ? displayDesc.substring(0, 97) + "..." : displayDesc}
+        <h3 className={`font-semibold text-lg text-gray-900 dark:text-white text-${lang === "he" ? "right" : "left"} group-hover:text-accent transition-colors duration-300`}>{displayData.displayName}</h3>
+        <p className={`text-accent/70 dark:text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
+          {displayData.displayDesc}
         </p>
       </div>
 
@@ -105,20 +113,22 @@ const ProductCard = ({ product, otherStyle }) => {
         <button
           className="flex-1 bg-accent/5 dark:bg-gray-700 text-accent dark:text-white border border-accent/30 py-2 px-3 rounded-md hover:bg-accent/10 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
           onClick={goToProductDetails}
-          aria-label={`View details for ${displayName}`}
+          aria-label={`View details for ${displayData.displayName}`}
         >
           {t("details")}
         </button>
         <button
           className="flex-1 bg-accent text-white py-2 px-3 rounded-md hover:bg-accent/80 transition-all duration-200 font-medium shadow-sm"
           onClick={handleAddToCart}
-          aria-label={`Add ${displayName} to cart`}
+          aria-label={`Add ${displayData.displayName} to cart`}
         >
           {t("add_to_cart")}
         </button>
       </div>
     </div>
   );
-};
+});
+
+ProductCard.displayName = 'ProductCard';
 
 export default ProductCard;

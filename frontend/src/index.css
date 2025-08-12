@@ -47,7 +47,39 @@ code {
     monospace;
 }
 
-/* Accessibility: focus outlines */
+/* Accessibility: focus outlines and forced colors support */
+*:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Modern forced colors support (replaces deprecated -ms-high-contrast) */
+@media (forced-colors: active) {
+  .bg-accent {
+    background-color: Highlight !important;
+    color: HighlightText !important;
+  }
+  
+  .text-accent {
+    color: Highlight !important;
+  }
+  
+  .border-accent {
+    border-color: Highlight !important;
+  }
+  
+  /* Ensure buttons are visible in forced colors mode */
+  button, .btn {
+    border: 1px solid ButtonText !important;
+  }
+  
+  /* Ensure form controls are visible */
+  input, select, textarea {
+    border: 1px solid ButtonText !important;
+    background-color: Field !important;
+    color: FieldText !important;
+  }
+}
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
