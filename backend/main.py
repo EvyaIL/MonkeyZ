@@ -13,14 +13,22 @@ from src.routers.admin_router import admin_router
 from src.base_exception.base_exception import BaseException
 from src.routers.keys_router import key_router, admin_key_router # Modified import
 from src.routers.orders import router as orders_router
+from src.routers.health_router import health_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
 from motor.motor_asyncio import AsyncIOMotorClient
 from src.lib.mongo_json_encoder import MongoJSONEncoder
 from bson.objectid import ObjectId
+from src.middleware.rate_limiter import rate_limit_middleware
+from src.lib.logging_config import setup_logging, get_logger, error_tracker
 
 load_dotenv()
+
+# Initialize logging
+setup_logging()
+logger = get_logger(__name__)
+logger.info("Starting MonkeyZ API application...")
 
 # In development mode, allow all origins for easier testing
 IS_DEV = os.getenv("ENVIRONMENT", "development").lower() == "development"
@@ -73,6 +81,9 @@ app.add_middleware(
     max_age=600  # Cache preflight requests for 10 minutes (600 seconds)
 )
 
+# Add rate limiting middleware
+app.middleware("http")(rate_limit_middleware)
+
 # Health check endpoint for DigitalOcean App Platform
 @app.get("/health", tags=["health"])
 def health_check():
@@ -88,6 +99,7 @@ app.include_router(key_router)
 app.include_router(admin_router)  # Add admin router
 app.include_router(admin_key_router) # Add admin_key_router
 app.include_router(orders_router, prefix="/api", tags=["orders"])  # Add orders router
+app.include_router(health_router, prefix="/api", tags=["health"])  # Add health router
 
 # Add coupon validation endpoint
 @app.post("/api/coupons/validate")
@@ -117,6 +129,17 @@ def get_cors_origin(request: StarletteRequest):
 
 @app.exception_handler(BaseException)
 async def custom_exception_handler(request: Request, exc: BaseException):
+    # Log the custom exception
+    logger.error(
+        f"Custom exception occurred: {exc.msg}",
+        extra={
+            "path": exc.path,
+            "status_code": exc.status_code,
+            "endpoint": str(request.url.path),
+            "method": request.method
+        }
+    )
+    
     origin = get_cors_origin(request)
     return JSONResponse(
         status_code=exc.status_code,
@@ -131,10 +154,21 @@ async def custom_exception_handler(request: Request, exc: BaseException):
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    # Log the exception with error tracker
+    error_tracker.capture_exception(
+        exc,
+        extra_data={
+            "endpoint": str(request.url.path),
+            "method": request.method,
+            "user_agent": request.headers.get("user-agent"),
+            "ip_address": request.client.host if request.client else "unknown"
+        }
+    )
+    
     origin = get_cors_origin(request)
     return JSONResponse(
         status_code=500,
-        content={"message": str(exc)},
+        content={"message": "An internal server error occurred"},
         headers={
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",

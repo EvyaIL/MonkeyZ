@@ -1,0 +1,23 @@
+{"timestamp": "2025-08-12T14:28:07.577497Z", "level": "INFO", "logger": "root", "message": "Logging configured successfully", "module": "logging_config", "function": "setup_logging", "line": 162}
+{"timestamp": "2025-08-12T14:28:07.577832Z", "level": "INFO", "logger": "main", "message": "Starting MonkeyZ API application...", "module": "main", "function": "<module>", "line": 31}
+{"timestamp": "2025-08-12T14:28:07.656405Z", "level": "INFO", "logger": "root", "message": "Connecting to MongoDB at: mongodb+srv://doadmin:MOpg1x78...", "module": "mongodb", "function": "connection", "line": 42}
+{"timestamp": "2025-08-12T14:28:10.213384Z", "level": "INFO", "logger": "root", "message": "Successfully connected to MongoDB", "module": "mongodb", "function": "connection", "line": 78}
+{"timestamp": "2025-08-12T14:28:10.213898Z", "level": "INFO", "logger": "root", "message": "Using database: admin", "module": "mongodb", "function": "connection", "line": 87}
+{"timestamp": "2025-08-12T14:28:10.214129Z", "level": "INFO", "logger": "root", "message": "Connecting to MongoDB at: mongodb+srv://doadmin:MOpg1x78...", "module": "mongodb", "function": "connection", "line": 42}
+{"timestamp": "2025-08-12T14:28:10.766980Z", "level": "INFO", "logger": "root", "message": "Successfully connected to MongoDB", "module": "mongodb", "function": "connection", "line": 78}
+{"timestamp": "2025-08-12T14:28:10.767257Z", "level": "INFO", "logger": "root", "message": "Using database: admin", "module": "mongodb", "function": "connection", "line": 87}
+{"timestamp": "2025-08-12T14:28:10.767454Z", "level": "INFO", "logger": "root", "message": "Connecting to MongoDB at: mongodb+srv://doadmin:MOpg1x78...", "module": "mongodb", "function": "connection", "line": 42}
+{"timestamp": "2025-08-12T14:28:11.325976Z", "level": "INFO", "logger": "root", "message": "Successfully connected to MongoDB", "module": "mongodb", "function": "connection", "line": 78}
+{"timestamp": "2025-08-12T14:28:11.327034Z", "level": "INFO", "logger": "root", "message": "Using database: admin", "module": "mongodb", "function": "connection", "line": 87}
+{"timestamp": "2025-08-12T14:28:11.328042Z", "level": "INFO", "logger": "root", "message": "Connecting to MongoDB at: mongodb+srv://doadmin:MOpg1x78...", "module": "mongodb", "function": "connection", "line": 42}
+{"timestamp": "2025-08-12T14:28:11.914685Z", "level": "INFO", "logger": "root", "message": "Successfully connected to MongoDB", "module": "mongodb", "function": "connection", "line": 78}
+{"timestamp": "2025-08-12T14:28:11.914991Z", "level": "INFO", "logger": "root", "message": "Using database: admin", "module": "mongodb", "function": "connection", "line": 87}
+{"timestamp": "2025-08-12T14:28:13.401380Z", "level": "INFO", "logger": "root", "message": "Connecting to MongoDB at: mongodb+srv://doadmin:MOpg1x78...", "module": "mongodb", "function": "connection", "line": 42}
+{"timestamp": "2025-08-12T14:28:13.965846Z", "level": "INFO", "logger": "root", "message": "Successfully connected to MongoDB", "module": "mongodb", "function": "connection", "line": 78}
+{"timestamp": "2025-08-12T14:28:13.966184Z", "level": "INFO", "logger": "root", "message": "Using database: admin", "module": "mongodb", "function": "connection", "line": 87}
+{"timestamp": "2025-08-12T14:28:46.952791Z", "level": "INFO", "logger": "src.controller.key_metrics_controller", "message": "Key metrics calculated: 2 total, 0 available, 2 used, 2 low stock products", "module": "key_metrics_controller", "function": "get_key_metrics_diagnostic", "line": 325}
+{"timestamp": "2025-08-12T14:28:47.196822Z", "level": "INFO", "logger": "root", "message": "Not connected or self.db not set, attempting connection...", "module": "mongodb", "function": "get_db", "line": 124}
+{"timestamp": "2025-08-12T14:28:47.197010Z", "level": "INFO", "logger": "root", "message": "Connecting to MongoDB at: mongodb+srv://doadmin:MOpg1x78...", "module": "mongodb", "function": "connection", "line": 42}
+{"timestamp": "2025-08-12T14:28:48.273892Z", "level": "INFO", "logger": "src.controller.key_metrics_controller", "message": "Key metrics calculated: 2 total, 0 available, 2 used, 2 low stock products", "module": "key_metrics_controller", "function": "get_key_metrics_diagnostic", "line": 325}
+{"timestamp": "2025-08-12T14:28:48.698406Z", "level": "INFO", "logger": "root", "message": "Successfully connected to MongoDB", "module": "mongodb", "function": "connection", "line": 78}
+{"timestamp": "2025-08-12T14:28:48.698657Z", "level": "INFO", "logger": "root", "message": "Using database: admin", "module": "mongodb", "function": "connection", "line": 87}

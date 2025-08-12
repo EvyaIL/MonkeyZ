@@ -20,6 +20,7 @@ from src.models.token.token import TokenData
 from src.mongodb.mongodb import MongoDb
 from src.deps.deps import get_order_collection_dependency, OrdersCollection # Adjusted import
 from typing import List, Optional # Add List to imports
+from src.middleware.rate_limiter import rate_limiter
 
 # Load from environment variables with defaults
 SECRET_KEY = os.getenv("RESET_TOKEN_SECRET_KEY", "your-secret-key-please-change") 
@@ -52,9 +53,28 @@ async def lifespan(router: APIRouter):
 users_router = APIRouter(prefix=f"/user",tags=["users"], lifespan = lifespan)
 
 @users_router.post("/login", response_model=LoginResponse)
-async def login(body:OAuth2PasswordRequestForm = Depends(), user_controller:UserController = Depends(get_user_controller_dependency)):
-   login_response:LoginResponse = await user_controller.login(body) 
-   return login_response
+async def login(
+    request: Request,
+    body: OAuth2PasswordRequestForm = Depends(), 
+    user_controller: UserController = Depends(get_user_controller_dependency)
+):
+    client_ip = rate_limiter._get_client_ip(request)
+    
+    try:
+        login_response: LoginResponse = await user_controller.login(body)
+        # Record successful login to clear failed attempts
+        rate_limiter.record_successful_login(client_ip)
+        return login_response
+    except HTTPException as e:
+        # Record failed login attempt
+        if e.status_code == 401:  # Unauthorized - failed credentials
+            is_banned = rate_limiter.record_failed_login(client_ip)
+            if is_banned:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many failed login attempts. Your IP has been temporarily banned."
+                )
+        raise e
 
 @users_router.post("")
 async def create_user(body:UserRequest,user_controller:UserController = Depends(get_user_controller_dependency)):
