@@ -44,7 +44,7 @@ services:
   github:
     branch: main
     deploy_on_push: true
-    repo: YOURUSERNAME/YOURREPO
+    repo: EvyaIL/MonkeyZ
   name: front-end
   source_dir: frontend/
   output_dir: build
