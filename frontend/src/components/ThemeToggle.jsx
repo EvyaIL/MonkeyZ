@@ -1,7 +1,7 @@
 import React from 'react';
 import { useGlobalProvider } from '../context/GlobalProvider';
 
-const ThemeToggle = () => {
+const ThemeToggle = React.memo(() => {
   const { theme, toggleTheme } = useGlobalProvider();
 
   return (
@@ -21,6 +21,9 @@ const ThemeToggle = () => {
       )}
     </button>
   );
-};
+});
+
+// Set display name for debugging
+ThemeToggle.displayName = 'ThemeToggle';
 
 export default ThemeToggle;

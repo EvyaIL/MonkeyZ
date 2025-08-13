@@ -1,4 +1,6 @@
-const PrimaryInput = ({
+import React from "react";
+
+const PrimaryInput = React.memo(({
   title,
   value,
   placeholder,
@@ -34,6 +36,9 @@ const PrimaryInput = ({
       />
     </div>
   );
-};
+});
+
+// Set display name for debugging
+PrimaryInput.displayName = 'PrimaryInput';
 
 export default PrimaryInput;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useGlobalProvider } from '../context/GlobalProvider';
 import { apiService } from '../lib/apiService';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +25,7 @@ ChartJS.register(
   Legend
 );
 
-const AdminDashboard = () => {
+const AdminDashboard = React.memo(() => {
   const { user } = useGlobalProvider();
   const { t } = useTranslation();
   const [products, setProducts] = useState([]);
@@ -1019,7 +1019,10 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
-};
+});
+
+// Set display name for debugging
+AdminDashboard.displayName = 'AdminDashboard';
 
 export default AdminDashboard;
 

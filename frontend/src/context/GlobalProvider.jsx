@@ -1,11 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { apiService } from "../lib/apiService";
 import { trackAddToCart, trackEvent } from "../lib/analytics";
 
 const GlobalContext = createContext();
 export const useGlobalProvider = () => useContext(GlobalContext);
 
-const GlobalProvider = ({ children }) => {
+const GlobalProvider = React.memo(({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -156,18 +156,15 @@ const GlobalProvider = ({ children }) => {
   };
 
   /**
-   * Display a notification
-   * @param {Object} notificationData - The notification data
-   * @param {string} notificationData.message - The message to display
-   * @param {string} notificationData.type - The type of notification ('error', 'success', 'info', 'warning')
+   * Display a notification - optimized with useCallback
    */
-  const notify = (notificationData) => {
+  const notify = useCallback((notificationData) => {
     setNotification({
       id: Date.now(), // Unique identifier for notifications
       ...notificationData,
       type: notificationData.type || 'info'
     });
-  };
+  }, []);
 
   const showError = (message) => {
     notify({ message, type: 'error' });
@@ -194,7 +191,9 @@ const GlobalProvider = ({ children }) => {
           productId: item.productId || id,
           id: id,
           // Prioritize imageUrl, then image for cart display
-          image: item.imageUrl || item.image || item.images?.[0] || null
+          image: item.imageUrl || item.image || item.images?.[0] || null,
+          // Add validation timestamp to prevent aggressive removal
+          lastValidated: Date.now()
         };
         newCart[id] = cartItem;
       }
@@ -291,11 +290,20 @@ const GlobalProvider = ({ children }) => {
       // Check each cart item
       cartItemIds.forEach(cartItemId => {
         if (!validProductIds.has(cartItemId)) {
-          itemsToRemove.push(cartItemId);
+          const cartItem = cartItems[cartItemId];
+          // Only remove if product is definitely deleted (not just a temporary API issue)
+          if (cartItem && cartItem.lastValidated && (Date.now() - cartItem.lastValidated > 24 * 60 * 60 * 1000)) {
+            itemsToRemove.push(cartItemId);
+          }
+        } else {
+          // Mark as validated if product exists
+          if (cartItems[cartItemId]) {
+            cartItems[cartItemId].lastValidated = Date.now();
+          }
         }
       });
 
-      // Remove invalid items
+      // Remove invalid items only after 24 hours of being invalid
       if (itemsToRemove.length > 0) {
         setCartItems((prev) => {
           const newCart = { ...prev };
@@ -316,18 +324,19 @@ const GlobalProvider = ({ children }) => {
         // Notify user about removed items
         if (itemsToRemove.length === 1) {
           notify({
-            message: "An item in your cart is no longer available and has been removed.",
+            message: "An item in your cart was no longer available and has been removed.",
             type: "warning"
           });
         } else {
           notify({
-            message: `${itemsToRemove.length} items in your cart are no longer available and have been removed.`,
+            message: `${itemsToRemove.length} items in your cart were no longer available and have been removed.`,
             type: "warning"
           });
         }
       }
     } catch (error) {
       console.error('Error validating cart items:', error);
+      // Don't remove items if validation fails due to network issues
     }
   }, [cartItems, notify]);
 
@@ -339,10 +348,10 @@ const GlobalProvider = ({ children }) => {
         const parsedCart = JSON.parse(savedCart);
         setCartItems(parsedCart);
         
-        // Validate cart items after a short delay to allow API to be ready
+        // Validate cart items after a longer delay to allow API to be ready and avoid aggressive validation
         const validateTimer = setTimeout(() => {
           validateCartItems();
-        }, 2000);
+        }, 10000); // Increased from 2 seconds to 10 seconds
         
         return () => clearTimeout(validateTimer);
       }
@@ -358,10 +367,10 @@ const GlobalProvider = ({ children }) => {
     const cartItemCount = Object.keys(cartItems).length;
     if (cartItemCount === 0) return;
 
-    // Validate cart items every 5 minutes when user is active
+    // Validate cart items less frequently when cart is not empty
     const validationInterval = setInterval(() => {
       validateCartItems();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 15 * 60 * 1000); // Increased from 5 minutes to 15 minutes
 
     return () => clearInterval(validationInterval);
   }, [Object.keys(cartItems).length]); // Only re-run when cart item count changes
@@ -468,6 +477,9 @@ const GlobalProvider = ({ children }) => {
       )}
     </GlobalContext.Provider>
   );
-};
+});
+
+// Set display name for debugging
+GlobalProvider.displayName = 'GlobalProvider';
 
 export default GlobalProvider;

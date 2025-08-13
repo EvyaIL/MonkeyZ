@@ -333,7 +333,14 @@ const SignUp = () => {
           <div className="flex justify-center mb-4">
             <GoogleLogin
               onSuccess={onGoogleAuth}
-              onError={() => { setMessage({ message: t('google_signin_failed') || 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
+              onError={(error) => { 
+                console.error('Google OAuth Error:', error);
+                setMessage({ 
+                  message: t('google_signin_failed') || 'Google sign in failed. Please check your internet connection and try again.', 
+                  color: '#DC2626' 
+                }); 
+                setGoogleLoading(false); 
+              }}
               locale={document.documentElement.lang || 'en'}
               theme="filled_blue"
               text="signup_with"

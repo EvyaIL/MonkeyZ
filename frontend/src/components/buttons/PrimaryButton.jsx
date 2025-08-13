@@ -1,4 +1,6 @@
-const PrimaryButton = ({
+import React from "react";
+
+const PrimaryButton = React.memo(({
   title,
   onClick,
   otherStyle = "",
@@ -16,6 +18,9 @@ const PrimaryButton = ({
       {title}
     </button>
   );
-};
+});
+
+// Set display name for debugging
+PrimaryButton.displayName = 'PrimaryButton';
 
 export default PrimaryButton;

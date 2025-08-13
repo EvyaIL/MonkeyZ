@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import SecondaryButton from "../buttons/SecondaryButton";
 import PrimaryButton from "../buttons/PrimaryButton";
 import PointButton from "../buttons/PointButton"; // Corrected import
@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import Spinner from "../Spinner";
 import placeholderImage from '../../assets/placeholder-product.svg';
 
-const ProductShowcase = ({ products, title }) => {
+const ProductShowcase = React.memo(({ products, title }) => {
   // Filter out invalid products
   const validProducts = useMemo(() => {
     if (!products) return [];
@@ -418,6 +418,9 @@ const ProductShowcase = ({ products, title }) => {
       </>
     </div>
   );
-};
+});
+
+// Set display name for debugging
+ProductShowcase.displayName = 'ProductShowcase';
 
 export default ProductShowcase;

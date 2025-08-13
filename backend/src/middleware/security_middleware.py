@@ -42,13 +42,17 @@ class SecurityHeaders:
         "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
         "http://localhost:3000 https://www.googletagmanager.com "
-        "https://js.paypal.com https://www.paypal.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "https://js.paypal.com https://www.paypal.com "
+        "https://accounts.google.com https://apis.google.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com "
+        "https://accounts.google.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https: blob: http:; "
         "connect-src 'self' ws://localhost:3000 http://localhost:8000 "
-        "https://api.paypal.com https://www.paypal.com; "
-        "frame-src 'self' https://js.paypal.com https://www.paypal.com"
+        "https://api.paypal.com https://www.paypal.com "
+        "https://accounts.google.com https://www.googleapis.com; "
+        "frame-src 'self' https://js.paypal.com https://www.paypal.com "
+        "https://accounts.google.com"
     )
 
 class CSRFProtection:
@@ -116,8 +120,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if any(auth_path in path for auth_path in ["/login", "/auth/", "/health"]):
             return False
         
-        # Skip CSRF protection in development mode for coupon validation, PayPal, and admin operations
-        if self.is_development and ("/api/coupons/validate" in path or "/api/paypal/orders" in path or "/admin/" in path or "/api/orders/" in path):
+        # Skip CSRF protection in development mode for more endpoints
+        if self.is_development and any(dev_path in path for dev_path in [
+            "/api/coupons/", "/api/paypal/", "/admin/", "/api/orders/", 
+            "/api/product/", "/api/user/", "/health", "/docs", "/openapi.json"
+        ]):
             return False
         
         # Check if any protected endpoint matches

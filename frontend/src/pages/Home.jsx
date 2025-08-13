@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import ProductCard from "../components/product/ProductCard";
 import ProductShowcase from "../components/product/ProductShowcase";
 import { apiService } from "../lib/apiService";
@@ -11,7 +11,7 @@ import { usePerformanceMonitoring, trackRoutePerformance } from "../hooks/usePer
 import { ProductGridSkeleton } from "../components/SkeletonLoaders";
 import LazyImage from "../components/LazyImage";
 
-const Home = () => {
+const Home = React.memo(() => {
   // Only use performance monitoring in development for debugging
   if (process.env.NODE_ENV === 'development' && false) { // Disabled to reduce console spam
     usePerformanceMonitoring('HomePage');
@@ -173,6 +173,9 @@ const Home = () => {
       </div>
     </>
   );
-};
+});
+
+// Set display name for debugging  
+Home.displayName = 'Home';
 
 export default Home;

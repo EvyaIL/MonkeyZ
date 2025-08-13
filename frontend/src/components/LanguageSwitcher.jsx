@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-const LanguageSwitcher = () => {
+const LanguageSwitcher = React.memo(() => {
   const { i18n } = useTranslation();
   
   return (
@@ -30,6 +30,9 @@ const LanguageSwitcher = () => {
       </button>
     </div>
   );
-};
+});
+
+// Set display name for debugging
+LanguageSwitcher.displayName = 'LanguageSwitcher';
 
 export default LanguageSwitcher;

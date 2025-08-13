@@ -1,0 +1,95 @@
+/* Modern accessibility styles to replace deprecated -ms-high-contrast */
+
+/* Forced Colors Mode (modern replacement for high contrast) */
+@media (forced-colors: active) {
+  /* Button elements */
+  button, 
+  input[type="button"], 
+  input[type="submit"], 
+  input[type="reset"] {
+    border: 2px solid ButtonText !important;
+    background: ButtonFace !important;
+    color: ButtonText !important;
+  }
+
+  /* Links */
+  a {
+    color: LinkText !important;
+  }
+
+  a:visited {
+    color: VisitedText !important;
+  }
+
+  /* Form elements */
+  input, 
+  textarea, 
+  select {
+    border: 2px solid ButtonText !important;
+    background: Field !important;
+    color: FieldText !important;
+  }
+
+  /* Focus indicators */
+  *:focus {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Cards and containers */
+  .card,
+  .container,
+  .modal {
+    border: 2px solid ButtonText !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+  }
+
+  /* Icons and images */
+  svg,
+  img {
+    filter: none !important;
+  }
+
+  /* Remove shadows and gradients in forced colors */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    background-image: none !important;
+  }
+}
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Prefers contrast */
+@media (prefers-contrast: high) {
+  /* Increase contrast for better visibility */
+  button,
+  input[type="button"],
+  input[type="submit"] {
+    border: 3px solid currentColor !important;
+  }
+
+  /* Ensure sufficient contrast ratios */
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600 {
+    color: #000000 !important;
+  }
+
+  .bg-gray-100,
+  .bg-gray-200 {
+    background-color: #ffffff !important;
+    border: 2px solid #000000 !important;
+  }
+}

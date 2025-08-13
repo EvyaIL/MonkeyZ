@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 
-const LazyImage = ({ 
+const LazyImage = memo(({ 
   src, 
   alt, 
   className = '', 
@@ -74,6 +74,9 @@ const LazyImage = ({
       )}
     </div>
   );
-};
+});
+
+// Set display name for debugging
+LazyImage.displayName = 'LazyImage';
 
 export default LazyImage;

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import ProductCard from "../components/product/ProductCard";
 import { apiService } from "../lib/apiService";
@@ -9,7 +9,7 @@ import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 
-const AllProducts = () => {
+const AllProducts = React.memo(() => {
   const { search } = useLocation();
   const navigate = useNavigate();
   const queryParams = new URLSearchParams(search);
@@ -39,6 +39,20 @@ const AllProducts = () => {
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
 
+  // Memoized sort options to prevent recreation on every render
+  const sortOptions = useMemo(() => [
+    { value: "featured", label: t("sort_featured", "Featured") },
+    { value: "price-asc", label: t("sort_price_low_to_high", "Price: Low to High") },
+    { value: "price-desc", label: t("sort_price_high_to_low", "Price: High to Low") },
+    { value: "name-asc", label: t("sort_name_a_to_z", "Name: A to Z") },
+    { value: "name-desc", label: t("sort_name_z_to_a", "Name: Z to A") },
+  ], [t]);
+
+  // Memoized system categories for performance
+  const systemCategories = useMemo(() => [
+    'Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'
+  ], []);
+
   // Update URL when filters change
   const updateUrlParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -66,12 +80,6 @@ const AllProducts = () => {
     
     return () => clearTimeout(timeoutId);
   }, [filterPriceRange, searchQuery, selectedCategories, sortOrder, updateUrlParams]);
-
-  // Filter products when dependencies change 
-  useEffect(() => {
-    filterProducts();
-    // eslint-disable-next-line
-  }, [filterPriceRange, searchQuery, allProducts, lang, selectedCategories, sortOrder]);
 
   // Update document title
   useEffect(() => {
@@ -101,9 +109,8 @@ const AllProducts = () => {
     setLoading(false);
   };
 
-  const processProductData = (productData) => {
+  const processProductData = useCallback((productData) => {
     const uniqueCategories = [...new Set(productData.map(p => p.category).filter(Boolean))];
-    const systemCategories = ['Microsoft', 'VPN', 'Security', 'Office', 'Cloud', 'Utility', 'Multimedia'];
     
     // Combine existing categories with system categories without duplicates
     const allCategories = [...new Set([...uniqueCategories, ...systemCategories])];
@@ -114,10 +121,11 @@ const AllProducts = () => {
     // Initialize filtered products
     setFilteredProducts(productData);
     setLoading(false);
-  };
+  }, [systemCategories]);
 
-  const filterProducts = () => {
-    if (!allProducts || !Array.isArray(allProducts)) return;
+  // Memoized filtering logic for better performance
+  const filteredAndSortedProducts = useMemo(() => {
+    if (!allProducts || !Array.isArray(allProducts)) return [];
     
     const filtered = allProducts.filter((product) => {
       const name = typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
@@ -142,7 +150,7 @@ const AllProducts = () => {
     });
 
     // Sort filtered products
-    const sortedFiltered = [...filtered].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const nameA = typeof a.name === "object" ? (a.name[lang] || a.name.en) : a.name;
       const nameB = typeof b.name === "object" ? (b.name[lang] || b.name.en) : b.name;
       
@@ -160,35 +168,91 @@ const AllProducts = () => {
           return 0; // Keep original order for featured
       }
     });
-    
-    setFilteredProducts(sortedFiltered);
-  };
+  }, [allProducts, lang, selectedCategories, filterPriceRange, searchQuery, sortOrder]);
 
-  const handleCategoryChange = (category) => {
+  // Update filtered products when memoized value changes
+  useEffect(() => {
+    setFilteredProducts(filteredAndSortedProducts);
+  }, [filteredAndSortedProducts]);
+
+  const handleCategoryChange = useCallback((category) => {
     setSelectedCategories(prev => 
       prev.includes(category) 
         ? prev.filter(c => c !== category) 
         : [...prev, category]
     );
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilterPriceRange({ min: 0, max: 200 });
     setSearchQuery("");
     setSelectedCategories([]);
     setSortOrder("featured");
-  };
+  }, []);
 
-  // Get translated sort options based on current language
-  const getSortOptions = () => {
-    return [
-      { value: "featured", label: t("sort_featured", "Featured") },
-      { value: "price-asc", label: t("sort_price_low_to_high", "Price: Low to High") },
-      { value: "price-desc", label: t("sort_price_high_to_low", "Price: High to Low") },
-      { value: "name-asc", label: t("sort_name_a_to_z", "Name: A to Z") },
-      { value: "name-desc", label: t("sort_name_z_to_a", "Name: Z to A") },
-    ];
-  };
+  // Render filters component
+  const renderFilters = useCallback(() => {
+    return (
+      <>
+        <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
+          <PrimaryInput
+          type="search"
+          title={t("search")}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t("search_products_placeholder")}
+          value={searchQuery}
+          otherStyle="mb-6"
+          aria-label={t("search_products")}
+        />
+        
+        <div className="mb-6">          <label
+            className="block text-gray-900 dark:text-white text-sm font-medium mb-2"
+            htmlFor="price-range"
+          >
+            {t("price_range")}: {lang === "he" ? `₪${filterPriceRange.max} - ₪${filterPriceRange.min}` : `₪${filterPriceRange.min} - ₪${filterPriceRange.max}`}
+          </label>
+          {priceRange.max > 0 && (
+            <RangeInput
+              id="price-range"
+              min={priceRange.min}
+              max={priceRange.max}
+              value={filterPriceRange}
+              onChange={setFilterPriceRange}
+            />
+          )}
+        </div>
+        
+        <div className="mb-6">
+          <h3 className="text-accent text-lg font-semibold mb-4">{t("categories")}</h3>
+          <div className="flex flex-wrap gap-3">
+            {categories.map((category) => (
+              <label 
+                key={category} 
+                className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-200 dark:hover:bg-gray-700/50'}`}
+                style={{ minWidth: '100px' }}
+              >
+                <input 
+                  type="checkbox"
+                  className="sr-only"
+                  checked={selectedCategories.includes(category)}
+                  onChange={() => handleCategoryChange(category)}
+                  aria-labelledby={`category-label-${category}`}
+                />
+                <span id={`category-label-${category}`} className="font-medium text-sm select-none">{category}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+          <div className="pt-4 border-t border-gray-300 dark:border-gray-700">          <PrimaryButton
+            title={t("clear_filters", "Clear Filters")}
+          onClick={clearFilters}
+          otherStyle="w-full bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
+          ariaLabel={t("clear_all_filters", "Clear all filters")}
+        />
+      </div>
+    </>
+  );
+  }, [t, searchQuery, setSearchQuery, filterPriceRange, setFilterPriceRange, categories, selectedCategories, handleCategoryChange, clearFilters]);
 
   // Removed unused getDemoCategories function
 
@@ -247,7 +311,8 @@ const AllProducts = () => {
                   className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-gray-700 text-accent dark:text-white rounded-lg px-3 py-2 focus:ring-accent focus:border-accent text-sm"
                   aria-label={t("sort_products", "Sort products")}
                 >
-                  {getSortOptions().map(option => (              <option key={option.value} value={option.value} className="text-gray-900 dark:text-white">
+                  {sortOptions.map(option => (
+                    <option key={option.value} value={option.value} className="text-gray-900 dark:text-white">
                       {option.label}
                     </option>
                   ))}
@@ -302,69 +367,9 @@ const AllProducts = () => {
       </div>
     </>
   );
-  
-  function renderFilters() {
-    return (
-      <>
-        <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
-          <PrimaryInput
-          type="search"
-          title={t("search")}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t("search_products_placeholder")}
-          value={searchQuery}
-          otherStyle="mb-6"
-          aria-label={t("search_products")}
-        />
-        
-        <div className="mb-6">          <label
-            className="block text-gray-900 dark:text-white text-sm font-medium mb-2"
-            htmlFor="price-range"
-          >
-            {t("price_range")}: {lang === "he" ? `₪${filterPriceRange.max} - ₪${filterPriceRange.min}` : `₪${filterPriceRange.min} - ₪${filterPriceRange.max}`}
-          </label>
-          {priceRange.max > 0 && (
-            <RangeInput
-              id="price-range"
-              min={priceRange.min}
-              max={priceRange.max}
-              value={filterPriceRange}
-              onChange={setFilterPriceRange}
-            />
-          )}
-        </div>
-        
-        <div className="mb-6">
-          <h3 className="text-accent text-lg font-semibold mb-4">{t("categories")}</h3>
-          <div className="flex flex-wrap gap-3">
-            {categories.map((category) => (
-              <label 
-                key={category} 
-                className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-200 dark:hover:bg-gray-700/50'}`}
-                style={{ minWidth: '100px' }}
-              >
-                <input 
-                  type="checkbox"
-                  className="sr-only"
-                  checked={selectedCategories.includes(category)}
-                  onChange={() => handleCategoryChange(category)}
-                  aria-labelledby={`category-label-${category}`}
-                />
-                <span id={`category-label-${category}`} className="font-medium text-sm select-none">{category}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-          <div className="pt-4 border-t border-gray-300 dark:border-gray-700">          <PrimaryButton
-            title={t("clear_filters", "Clear Filters")}
-            onClick={clearFilters}
-            otherStyle="w-full bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
-            ariaLabel={t("clear_all_filters", "Clear all filters")}
-          />
-        </div>
-      </>
-    );
-  }
-};
+});
+
+// Set display name for debugging
+AllProducts.displayName = 'AllProducts';
 
 export default AllProducts;

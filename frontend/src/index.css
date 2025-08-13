@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import modern accessibility styles */
+@import './styles/modernAccessibility.css';
+
 /* Base styles */
 body {
   margin: 0;

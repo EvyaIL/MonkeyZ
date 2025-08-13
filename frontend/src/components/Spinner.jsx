@@ -1,6 +1,6 @@
 import React from "react";
 
-const Spinner = ({ size = 48, color = "#3182CE" }) => (
+const Spinner = React.memo(({ size = 48, color = "#3182CE" }) => (
   <div className="flex items-center justify-center w-full py-8">
     <svg
       className="animate-spin"
@@ -28,6 +28,9 @@ const Spinner = ({ size = 48, color = "#3182CE" }) => (
       />
     </svg>
   </div>
-);
+));
+
+// Set display name for debugging
+Spinner.displayName = 'Spinner';
 
 export default Spinner;
