@@ -17,7 +17,7 @@ class ApiService {  constructor() {
     }
     
     // Try to load token from localStorage/sessionStorage on init
-    this.token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || null;
+    this.token = localStorage.getItem('access_token') || localStorage.getItem('token') || localStorage.getItem('authToken') || sessionStorage.getItem('authToken') || null;
 
     this.httpClient = axios.create({
       baseURL: this.endpoint,
@@ -33,12 +33,35 @@ class ApiService {  constructor() {
     this.httpClient.interceptors.request.use(
       (config) => {
         // Always try to get the latest token before each request
-        const token = this.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        const token = this.token || localStorage.getItem('access_token') || localStorage.getItem('token') || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+        
+        // Debug logging for token issues
+        if (process.env.NODE_ENV === 'development') {
+          console.log('API Request Auth Debug:', {
+            url: config.url,
+            method: config.method,
+            hasToken: !!token,
+            tokenSource: token ? 
+              (localStorage.getItem('access_token') ? 'access_token' : 
+               localStorage.getItem('token') ? 'token' : 
+               localStorage.getItem('authToken') ? 'authToken' : 'sessionStorage') : 'none'
+          });
+        }
+        
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         } else {
           delete config.headers.Authorization;
         }
+        
+        // Add CSRF token for admin operations in production
+        if (config.url && config.url.includes('/admin/') && config.method !== 'get') {
+          const csrfToken = this.getCSRFToken();
+          if (csrfToken) {
+            config.headers['X-CSRF-Token'] = csrfToken;
+          }
+        }
+        
         return config;
       },
       (error) => Promise.reject(error),
@@ -51,6 +74,31 @@ class ApiService {  constructor() {
    */
   setToken(token) {
     this.token = token;
+  }
+  
+  /**
+   * Get CSRF token from localStorage or cookie
+   */
+  getCSRFToken() {
+    // Check localStorage first, then cookies
+    return localStorage.getItem('csrf_token') || this.getCookie('csrf_token');
+  }
+  
+  /**
+   * Set CSRF token
+   */
+  setCSRFToken(token) {
+    localStorage.setItem('csrf_token', token);
+  }
+  
+  /**
+   * Get cookie value by name
+   */
+  getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
   }
   /**
    * Generic request method.

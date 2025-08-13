@@ -116,8 +116,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         if any(auth_path in path for auth_path in ["/login", "/auth/", "/health"]):
             return False
         
-        # Skip CSRF protection in development mode for coupon validation, PayPal, and admin coupons
-        if self.is_development and ("/api/coupons/validate" in path or "/api/paypal/orders" in path or "/admin/coupons" in path):
+        # Skip CSRF protection in development mode for coupon validation, PayPal, and admin operations
+        if self.is_development and ("/api/coupons/validate" in path or "/api/paypal/orders" in path or "/admin/" in path or "/api/orders/" in path):
             return False
         
         # Check if any protected endpoint matches

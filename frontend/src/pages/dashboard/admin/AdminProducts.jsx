@@ -527,11 +527,6 @@ export default function AdminProducts() {  const { t } = useTranslation();
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
                 label={t('admin.category', 'Category')}
-                startAdornment={
-                  <InputAdornment position="start">
-                    <FilterListIcon />
-                  </InputAdornment>
-                }
               >
                 <MenuItem value="all">{t('admin.allCategories', 'All Categories')}</MenuItem>
                 {categories.map((category) => (
@@ -549,11 +544,6 @@ export default function AdminProducts() {  const { t } = useTranslation();
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
                 label={t('admin.sort', 'Sort By')}
-                 startAdornment={
-                  <InputAdornment position="start">
-                    <FilterListIcon />
-                  </InputAdornment>
-                }
               >
                 <MenuItem value="newest">{t('admin.newest', 'Newest First')}</MenuItem>
                 <MenuItem value="oldest">{t('admin.oldest', 'Oldest First')}</MenuItem>
