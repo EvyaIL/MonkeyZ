@@ -18,11 +18,11 @@ app.use((req, res, next) => {
   // PayPal and Google OAuth Best Practice: CSP Headers
   const cspPolicy = [
     "default-src 'self'",
-    `script-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://apis.google.com 'nonce-${nonce}' 'unsafe-eval'`,
-    "connect-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
+    `script-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://apis.google.com https://www.googletagmanager.com https://www.google-analytics.com 'nonce-${nonce}' 'unsafe-eval'`,
+    "connect-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://api.monkeyz.co.il https://www.google-analytics.com https://analytics.google.com",
     "child-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
     "frame-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
-    "img-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com data: https:",
+    "img-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://www.google-analytics.com data: https:",
     `style-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com 'nonce-${nonce}'`,
     "font-src 'self' data: https:",
     "object-src 'none'",

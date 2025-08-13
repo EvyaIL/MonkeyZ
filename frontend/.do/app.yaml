@@ -17,8 +17,7 @@ domains:
 envs:
 - key: REACT_APP_PATH_BACKEND
   scope: RUN_AND_BUILD_TIME
-  value: |
-    https://api.monkeyz.co.il
+  value: https://api.monkeyz.co.il
 - key: REACT_APP_GOOGLE_CLIENT_ID
   scope: RUN_AND_BUILD_TIME
   value: 946645411512-tn9qmppcsnp5oqqo88ivkuapou2cmg53.apps.googleusercontent.com
@@ -28,6 +27,24 @@ envs:
 - key: REACT_APP_PAYMENT_SUCCESS_URL
   scope: RUN_AND_BUILD_TIME
   value: https://monkeyz.co.il/success
+- key: REACT_APP_GA_MEASUREMENT_ID
+  scope: RUN_AND_BUILD_TIME
+  value: G-SYF721LFGB
+- key: REACT_APP_GTM_ID
+  scope: RUN_AND_BUILD_TIME
+  value: GTM-P4FNQL6X
+- key: REACT_APP_API_URL
+  scope: RUN_AND_BUILD_TIME
+  value: https://api.monkeyz.co.il
+- key: REACT_APP_PAYMENT_CANCEL_URL
+  scope: RUN_AND_BUILD_TIME
+  value: https://monkeyz.co.il/checkout
+- key: REACT_APP_PAYPAL_SUCCESS_URL
+  scope: RUN_AND_BUILD_TIME
+  value: https://monkeyz.co.il/success
+- key: REACT_APP_PAYPAL_CLIENT_ID
+  scope: RUN_AND_BUILD_TIME
+  value: AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF
 features:
 - buildpack-stack=ubuntu-22
 ingress:
@@ -39,28 +56,15 @@ ingress:
 name: monkeyz
 region: fra
 services:
-- build_command: npm ci && npm run build
-  environment_slug: static-site
+- build_command: npm install && npm run build
+  environment_slug: node-js
   github:
     branch: main
     deploy_on_push: true
     repo: EvyaIL/MonkeyZ
   name: front-end
   source_dir: frontend/
-  output_dir: build
+  run_command: npm run start:prod
+  http_port: 8080
   routes:
   - path: /
-  envs:
-  - key: REACT_APP_PATH_BACKEND
-    scope: BUILD_TIME
-    value: \
-  - key: REACT_APP_GOOGLE_CLIENT_ID
-    scope: BUILD_TIME
-    value: \
-    type: SECRET
-  - key: REACT_APP_PAYMENT_FAIL_URL
-    scope: BUILD_TIME
-    value: \/fail
-  - key: REACT_APP_PAYMENT_SUCCESS_URL
-    scope: BUILD_TIME
-    value: \/success
