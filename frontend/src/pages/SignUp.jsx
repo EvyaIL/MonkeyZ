@@ -5,7 +5,7 @@ import { apiService } from "../lib/apiService";
 import SecondaryButton from "../components/buttons/SecondaryButton";
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../context/GlobalProvider";
-import { validatePhone, validateEmail, validatePassword } from "../lib/authUtils";
+import { validatePhone, validateEmail, validateStrongPassword, getPasswordStrength } from "../lib/authUtils";
 import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 
@@ -26,6 +26,13 @@ const SignUp = () => {
   const [enteredOtp, setEnteredOtp] = useState("");
   const [otpError, setOtpError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Update password strength when password changes
+  useEffect(() => {
+    setPasswordStrength(getPasswordStrength(form.password));
+  }, [form.password]);
 
   useEffect(() => {
     if (token) navigate("/");
@@ -44,13 +51,25 @@ const SignUp = () => {
       setIsSubmit(false);
       return;
     }
-    if (!validatePhone(form.phone_number)) {
-      setMessage({ message: "Invalid phone number.", color: "#DC2626" });
+    
+    // Phone is now optional - only validate if provided
+    if (form.phone_number && !validatePhone(form.phone_number)) {
+      setMessage({ message: "Invalid phone number format. Use 05XXXXXXXX or +972XXXXXXXXX format, or leave empty.", color: "#DC2626" });
       setIsSubmit(false);
       return;
     }
-    if (!validatePassword(form.password)) {
-      setMessage({ message: "Password must be at least 8 characters.", color: "#DC2626" });
+    
+    // Strong password validation
+    const passwordValidation = validateStrongPassword(form.password);
+    if (!passwordValidation.isValid) {
+      setMessage({ message: passwordValidation.message, color: "#DC2626" });
+      setIsSubmit(false);
+      return;
+    }
+    
+    // Confirm password validation
+    if (form.password !== confirmPassword) {
+      setMessage({ message: "Passwords do not match.", color: "#DC2626" });
       setIsSubmit(false);
       return;
     }
@@ -64,8 +83,13 @@ const SignUp = () => {
       if (error) {
         // If user doesn't exist, create user first then request OTP
         if (error.includes("User not found")) {
-          // Create user account first
-          const createResult = await apiService.post("/user", form);
+          // Create user account first - convert empty phone to null
+          const userPayload = {
+            ...form,
+            phone_number: form.phone_number.trim() === "" ? null : parseInt(form.phone_number)
+          };
+          
+          const createResult = await apiService.post("/user", userPayload);
           if (createResult.error) {
             setMessage({ message: createResult.error, color: "#DC2626" });
             setIsSubmit(false);
@@ -237,6 +261,45 @@ const SignUp = () => {
               required
               minLength={8}
             />
+            
+            {/* Password Strength Indicator */}
+            {form.password && (
+              <div className="mt-2">
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        passwordStrength <= 2 ? 'bg-red-500' :
+                        passwordStrength <= 4 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${(passwordStrength / 5) * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className={`text-sm font-medium ${
+                    passwordStrength <= 2 ? 'text-red-500' :
+                    passwordStrength <= 4 ? 'text-yellow-500' : 'text-green-500'
+                  }`}>
+                    {passwordStrength <= 2 ? t('weak', 'Weak') :
+                     passwordStrength <= 4 ? t('medium', 'Medium') : t('strong', 'Strong')}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('password_requirements', 'Use 8+ characters with uppercase, lowercase, numbers & symbols')}
+                </p>
+              </div>
+            )}
+            
+            <PrimaryInput
+              type="password"
+              title={t("confirm_password", "Confirm Password")}
+              value={confirmPassword}
+              placeholder={t("confirm_your_password", "Confirm your password")}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+            
             <PrimaryInput
               type="email"
               title={t("email", "Email")}
@@ -247,13 +310,12 @@ const SignUp = () => {
               required
             />
             <PrimaryInput
-              title={t("phone_number", "Phone Number")}
+              title={t("phone_number", "Phone Number (Optional)")}
               type="tel"
               value={form.phone_number}
-              placeholder="05XXXXXXXX"
+              placeholder="Enter your phone number"
               onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
               autoComplete="tel"
-              required
               minLength={10}
               maxLength={15}
             />
