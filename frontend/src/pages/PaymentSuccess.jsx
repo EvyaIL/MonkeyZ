@@ -17,7 +17,8 @@ const PaymentSuccess = () => {
     if (!orderId) return;
     async function fetchOrder() {
       try {
-        const res = await fetch(`/api/orders/${orderId}`);
+        const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
+        const res = await fetch(`${apiUrl}/api/orders/${orderId}`);
         if (!res.ok) throw new Error('Failed to fetch order');
         const order = await res.json();
         // Map backend order to local shape

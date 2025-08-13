@@ -32,7 +32,8 @@ const sendToAnalytics = (metric) => {
     }
 
     // Or send to your custom analytics endpoint
-    fetch('/api/analytics/vitals', {
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
+    fetch(`${apiUrl}/api/analytics/vitals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

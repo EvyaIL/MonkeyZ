@@ -69,7 +69,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
         return;
       }
       try {
-        const res = await fetch(`/api/coupons/info?code=${encodeURIComponent(formData.coupon_code)}`);
+        const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
+        const res = await fetch(`${apiUrl}/api/coupons/info?code=${encodeURIComponent(formData.coupon_code)}`);
         const data = await res.json();
         const maxUsage = data.maxUsagePerUser || 0;
         const userUsages = data.userUsages || {};

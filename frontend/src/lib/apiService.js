@@ -8,11 +8,12 @@ class ApiService {  constructor() {
     // In production, we use the environment variable
     const isDev = process.env.NODE_ENV === 'development';
     
-    // Always use the API URL from .env if available
-    this.endpoint = process.env.REACT_APP_PATH_BACKEND || '';
-      // In development, we prefer to use the proxy setup in package.json
+    // Always use the API URL from .env if available, otherwise fallback to production URL
+    this.endpoint = process.env.REACT_APP_API_URL || process.env.REACT_APP_PATH_BACKEND || 'https://api.monkeyz.co.il';
+    
+    // In development, we prefer to use the proxy setup in package.json if no explicit API URL is set
     // This helps avoid CORS issues
-    if (isDev) {
+    if (isDev && !process.env.REACT_APP_API_URL) {
       this.endpoint = '';
     }
     

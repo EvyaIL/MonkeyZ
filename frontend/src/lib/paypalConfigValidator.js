@@ -65,7 +65,8 @@ export const validatePayPalConfig = async () => {
 
     // Test API connectivity (backend health check)
     try {
-      const response = await axios.get('/api/paypal/health', { timeout: 5000 });
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
+      const response = await axios.get(`${apiUrl}/api/paypal/health`, { timeout: 5000 });
       if (response.status === 200) {
         validationResults.apiConnectable = true;
       }

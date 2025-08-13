@@ -118,7 +118,7 @@ export default function Checkout() {
     setDiscount(0);
     if (!coupon) return setCouponMsg("Enter a coupon code");
     try {
-      const res = await axios.post("/api/coupons/validate", {
+      const res = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/coupons/validate`, {
         code: coupon,
         amount: subtotal,
       });
@@ -316,10 +316,21 @@ export default function Checkout() {
                 if (!isComponentMountedRef.current) return;
               }}
               createOrder={async () => {
-                if (!isComponentMountedRef.current) return;
+                if (!isComponentMountedRef.current) return Promise.reject(new Error("Component unmounted"));
                 
                 setProcessing(true);
+                setError("");
+                
                 try {
+                  // Validate required fields
+                  if (!email || !name || !phone) {
+                    throw new Error("Please fill in all required fields (email, name, phone)");
+                  }
+                  
+                  if (cartArray.length === 0) {
+                    throw new Error("Your cart is empty");
+                  }
+                  
                   // Validate cart items before sending
                   const validatedCart = cartArray.map((i, index) => {
                     const productId = i.id || i.productId;
@@ -330,7 +341,7 @@ export default function Checkout() {
                     }
                     
                     return {
-                      productId: productId, // Always send productId for backend compatibility
+                      productId: productId, // Backend expects productId
                       id: productId, // Also send id for redundancy
                       name: typeof i.name === "object" ? i.name.en : i.name,
                       quantity: i.count || i.quantity || 1,
@@ -338,39 +349,86 @@ export default function Checkout() {
                     };
                   });
 
-                  const { data } = await axios.post("/api/paypal/orders", {
+                  console.log("Creating PayPal order with data:", {
                     cart: validatedCart,
                     couponCode: coupon,
                     customerEmail: email,
                     customerName: name,
                     phone: phone,
                   });
-                  setError("");
-                  setOrderID(data.id);
-                  return data.id;
+
+                  const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders`, {
+                    cart: validatedCart,
+                    couponCode: coupon,
+                    customerEmail: email,
+                    customerName: name,
+                    phone: phone,
+                  });
+                  
+                  const orderId = response.data?.id;
+                  if (!orderId) {
+                    console.error("No order ID returned from server:", response.data);
+                    throw new Error("Invalid response from payment service");
+                  }
+                  
+                  console.log("PayPal order created successfully:", orderId);
+                  setOrderID(orderId);
+                  return orderId;
+                  
                 } catch (err) {
+                  console.error("PayPal createOrder error:", err);
                   setProcessing(false);
-                  setError(err.message || err.response?.data?.detail || "Failed to create order");
-                  throw err;
+                  
+                  let errorMessage = "Failed to create order";
+                  if (err.response?.data?.detail) {
+                    errorMessage = err.response.data.detail;
+                  } else if (err.message) {
+                    errorMessage = err.message;
+                  }
+                  
+                  setError(errorMessage);
+                  
+                  // Return a rejected promise so PayPal knows the order creation failed
+                  return Promise.reject(new Error(errorMessage));
                 }
               }}
               onApprove={async (data) => {
                 if (!isComponentMountedRef.current) return;
                 
                 try {
-                  await axios.post(`/api/paypal/orders/${data.orderID}/capture`);
+                  console.log("PayPal payment approved, capturing order:", data.orderID);
+                  
+                  const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/capture`);
+                  
+                  console.log("PayPal order captured successfully:", response.data);
+                  
+                  // Redirect to success page
                   window.location.href = "/success";
                 } catch (err) {
+                  console.error("PayPal capture error:", err);
+                  
                   if (!isComponentMountedRef.current) return;
                   
-                  setError(err.response?.data?.message || "Payment failed");
-                  // Mark order as cancelled when capture fails
+                  let errorMessage = "Payment capture failed";
+                  if (err.response?.data?.detail) {
+                    errorMessage = err.response.data.detail;
+                  } else if (err.response?.data?.message) {
+                    errorMessage = err.response.data.message;
+                  }
+                  
+                  setError(errorMessage);
+                  
+                  // Try to cancel the order
                   try {
-                    await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
+                    await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/cancel`);
                   } catch (cancelErr) {
                     console.warn("Failed to cancel order:", cancelErr);
                   }
-                  window.location.href = "/fail";
+                  
+                  // Redirect to failure page after a short delay
+                  setTimeout(() => {
+                    window.location.href = "/fail";
+                  }, 2000);
                 } finally {
                   if (isComponentMountedRef.current) {
                     setProcessing(false);
@@ -380,12 +438,15 @@ export default function Checkout() {
               onCancel={async (data) => {
                 if (!isComponentMountedRef.current) return;
                 
+                console.log("PayPal payment cancelled by user:", data.orderID);
+                
                 // Mark order as cancelled when user aborts
                 try {
-                  await axios.post(`/api/paypal/orders/${data.orderID}/cancel`);
+                  await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/cancel`);
                 } catch (cancelErr) {
                   console.warn("Failed to cancel order:", cancelErr);
                 }
+                
                 window.location.href = "/fail";
               }}
               onError={async (err) => {
@@ -393,12 +454,24 @@ export default function Checkout() {
                 
                 console.error("PayPal payment error:", err);
                 const errorInfo = getPayPalErrorMessage(err);
-                setError(`Payment failed: ${errorInfo.message}`);
+                
+                let errorMessage = `Payment failed: ${errorInfo.message}`;
+                
+                // Handle specific PayPal error codes
+                if (err.toString().includes("Expected an order id to be passed")) {
+                  errorMessage = "Payment setup failed. Please refresh the page and try again.";
+                } else if (err.toString().includes("INSTRUMENT_DECLINED")) {
+                  errorMessage = "Your payment method was declined. Please try a different payment method.";
+                } else if (err.toString().includes("INSUFFICIENT_FUNDS")) {
+                  errorMessage = "Insufficient funds. Please try a different payment method.";
+                }
+                
+                setError(errorMessage);
                 
                 // Cancel order if one exists
                 if (orderID) {
                   try {
-                    await axios.post(`/api/paypal/orders/${orderID}/cancel`);
+                    await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${orderID}/cancel`);
                   } catch (cancelErr) {
                     console.error("Failed to cancel order:", cancelErr);
                   }
