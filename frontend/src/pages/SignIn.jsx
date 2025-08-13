@@ -176,7 +176,7 @@ const SignIn = () => {
           <PrimaryInput
             title={t("username_or_email", "Username or Email")}
             value={form.usernameOrEmail}
-            placeholder={t("enter_username_or_email", "Enter your username or email")}
+            placeholder={t("enter_username_or_email", "Enter your username, email, or Google name")}
             onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
             autoComplete="username"
             required

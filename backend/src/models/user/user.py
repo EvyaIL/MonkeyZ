@@ -15,6 +15,7 @@ class User(Document):
     password:str
     email:Indexed(str, unique=True) # type: ignore 
     phone_number: Optional[int] = None # Ensure it is Optional and not indexed for uniqueness if None
+    google_name: Optional[str] = None  # Store Google name separately for login purposes
     keys:Optional[dict[PydanticObjectId,PydanticObjectId] ] =None
 
 class UserRequest(BaseModel):

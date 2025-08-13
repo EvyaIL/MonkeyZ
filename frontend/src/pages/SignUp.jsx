@@ -171,6 +171,7 @@ const SignUp = () => {
       const { data, error } = await apiService.post('/user/google', {
         credential: credentialResponse.credential,
         skip_otp: true, // Tell backend to skip OTP for Google
+        custom_username: form.username || null, // Send custom username if provided
       });
       setIsSubmit(false);
       setGoogleLoading(false);

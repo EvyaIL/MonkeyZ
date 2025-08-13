@@ -100,6 +100,7 @@ async def get_all_users(user_controller:UserController = Depends(get_user_contro
 class GoogleAuthRequest(BaseModel):
     credential: str
     skip_otp: bool = True
+    custom_username: Optional[str] = None  # Allow custom username for Google signup
 
 @users_router.post("/google")
 async def google_login(data: GoogleAuthRequest, user_controller: UserController = Depends(get_user_controller_dependency)):
@@ -119,19 +120,29 @@ async def google_login(data: GoogleAuthRequest, user_controller: UserController 
         logging.error("[Google OAuth] No email found in Google token.")
         raise HTTPException(status_code=400, detail="No email found in Google token.")
     name = token_info.get("name", email.split("@")[0])
+    
+    # Use custom username if provided, otherwise use Google name
+    username_to_use = data.custom_username if data.custom_username else name
+    
     user = await user_controller.user_collection.get_user_by_email(email)
     user_created = False
     if not user:
-        # Create new user with Google info
+        # Create new user with Google info and custom username if provided
         # Ensure phone_number is explicitly set to None if not provided by Google
-        user_req = UserRequest(username=name, email=email, password="google-oauth", phone_number=None)
+        user_req = UserRequest(username=username_to_use, email=email, password="google-oauth", phone_number=None)
         user = await user_controller.user_collection.create_user(user_req)
+        
+        # Store Google name separately if different from username
+        if username_to_use != name:
+            user.google_name = name
+            await user.save()
+            
         user_created = True
-        logging.info(f"[Google OAuth] Created new user: {email}")
+        logging.info(f"[Google OAuth] Created new user: {email} with username: {username_to_use} and Google name: {name}")
         
         # Send welcome email for new Google users
         try:
-            send_welcome_email(to_email=email, username=name)
+            send_welcome_email(to_email=email, username=username_to_use)
         except Exception as e:
             logging.error(f"Failed to send welcome email to Google user: {e}")
             # Continue even if email sending fails

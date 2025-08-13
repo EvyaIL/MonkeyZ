@@ -108,7 +108,11 @@ class UserCollection(MongoDb, metaclass=Singleton):
                 user = await self.get_user_by_username(body.username)
                 if not user:
                     print(f"No user found with username: {body.username}")
-                    raise LoginError("Email or username does not exist.")
+                    # Try Google name as fallback
+                    user = await self.get_user_by_google_name(body.username)
+                    if not user:
+                        print(f"No user found with Google name: {body.username}")
+                        raise LoginError("Email, username, or Google name does not exist.")
         else:
             print(f"Attempting to find user by username: {body.username}")
             user = await self.get_user_by_username(body.username)
@@ -118,7 +122,11 @@ class UserCollection(MongoDb, metaclass=Singleton):
                 user = await self.get_user_by_email(body.username)
                 if not user:
                     print(f"No user found with email: {body.username}")
-                    raise LoginError("Username or email does not exist.")
+                    # Try Google name as fallback
+                    user = await self.get_user_by_google_name(body.username)
+                    if not user:
+                        print(f"No user found with Google name: {body.username}")
+                        raise LoginError("Username, email, or Google name does not exist.")
         
         print(f"User found, verifying password for user: {user.username}")
         if not Hase.verify(body.password, user.password):
@@ -158,6 +166,22 @@ class UserCollection(MongoDb, metaclass=Singleton):
                     The user with the given email, or None if not found.
         """
         user = await User.find_one(User.email == email)
+        return user
+    
+    async def get_user_by_google_name(self, google_name: str) -> User:
+        """ Retrieves a user by their Google name.
+
+            Parameters
+            ----------
+                google_name : str
+                    The Google name of the user to retrieve.
+
+            Returns
+            -------
+                User
+                    The user with the given Google name, or None if not found.
+        """
+        user = await User.find_one(User.google_name == google_name)
         return user
     
     async def get_user_by_phone_number(self, phone_number: int) -> User:
