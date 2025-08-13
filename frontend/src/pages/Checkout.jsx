@@ -324,6 +324,8 @@ export default function Checkout() {
                   const validatedCart = cartArray.map((i, index) => {
                     const productId = i.id || i.productId;
                     if (!productId) {
+                      console.error(`Cart item at position ${index + 1} is missing a product ID:`, i);
+                      console.error("Full cart array:", cartArray);
                       throw new Error(`Cart item at position ${index + 1} is missing a product ID. Please refresh the page and try again.`);
                     }
                     

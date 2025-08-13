@@ -114,7 +114,10 @@ function AdminStock() {
 
       // Combine metrics with product details
       const stockData = products.map(product => {
-        const productMetrics = metrics.keyUsageByProduct?.find(p => p.productId === product.id) || {};
+        // Check if metrics.keyUsageByProduct exists and is an array before using find
+        const productMetrics = (metrics.keyUsageByProduct && Array.isArray(metrics.keyUsageByProduct)) 
+          ? metrics.keyUsageByProduct.find(p => p && p.productId === product.id) || {}
+          : {};
         const availableKeys = productMetrics.availableKeys || 0;
         const totalKeys = productMetrics.totalKeys || 0;
         // const minStockAlert = product.keyManagement?.minStockAlert || 10; // Old logic
@@ -164,13 +167,16 @@ function AdminStock() {
   }, [loadStockData]);
 
   const handleOpenAddKeysDialog = (productId) => {
-    const product = stockItems.find(item => item.productId === productId);
-    if (product) {
-      setSelectedProductId(productId);
-      setSelectedProduct(product);
-      setKeyFormat(product.keyFormat);
-      setNewKeys("");
-      setOpenAddKeysDialog(true);
+    // Check if stockItems exists and is an array before using find
+    if (stockItems && Array.isArray(stockItems)) {
+      const product = stockItems.find(item => item && item.productId === productId);
+      if (product) {
+        setSelectedProductId(productId);
+        setSelectedProduct(product);
+        setKeyFormat(product.keyFormat);
+        setNewKeys("");
+        setOpenAddKeysDialog(true);
+      }
     }
   };
 

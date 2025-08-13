@@ -269,6 +269,52 @@ const GlobalProvider = React.memo(({ children }) => {
   }, []);
 
   /**
+   * Clean and fix cart items that may be missing required fields
+   */
+  const cleanCartItems = useCallback(() => {
+    setCartItems((prev) => {
+      const cleanedCart = {};
+      let hasChanges = false;
+
+      Object.entries(prev).forEach(([key, item]) => {
+        // Ensure each cart item has both productId and id fields
+        const productId = item.productId || item.id || key;
+        const cleanedItem = {
+          ...item,
+          productId: productId,
+          id: productId,
+          // Ensure count is a number
+          count: typeof item.count === 'number' ? item.count : 1,
+          // Ensure price is a number
+          price: typeof item.price === 'number' ? item.price : 0,
+          // Add validation timestamp if missing
+          lastValidated: item.lastValidated || Date.now()
+        };
+
+        // Check if item was actually cleaned
+        if (JSON.stringify(item) !== JSON.stringify(cleanedItem)) {
+          hasChanges = true;
+          console.log('Cleaned cart item:', { original: item, cleaned: cleanedItem });
+        }
+
+        cleanedCart[productId] = cleanedItem;
+      });
+
+      if (hasChanges) {
+        // Save cleaned cart to localStorage
+        try {
+          localStorage.setItem('cart', JSON.stringify(cleanedCart));
+          console.log('Cart cleaned and saved to localStorage');
+        } catch (e) {
+          console.error('Error saving cleaned cart to localStorage', e);
+        }
+      }
+
+      return cleanedCart;
+    });
+  }, []);
+
+  /**
    * Validate cart items against current products and remove deleted/unavailable items
    */
   const validateCartItems = useCallback(async () => {
@@ -348,19 +394,27 @@ const GlobalProvider = React.memo(({ children }) => {
         const parsedCart = JSON.parse(savedCart);
         setCartItems(parsedCart);
         
+        // Clean cart items after loading to ensure proper structure
+        const cleanTimer = setTimeout(() => {
+          cleanCartItems();
+        }, 1000); // Clean after 1 second
+        
         // Validate cart items after a longer delay to allow API to be ready and avoid aggressive validation
         const validateTimer = setTimeout(() => {
           validateCartItems();
         }, 10000); // Increased from 2 seconds to 10 seconds
         
-        return () => clearTimeout(validateTimer);
+        return () => {
+          clearTimeout(cleanTimer);
+          clearTimeout(validateTimer);
+        };
       }
     } catch (e) {
       console.error('Error loading cart from localStorage', e);
       // Clear corrupted cart data
       localStorage.removeItem('cart');
     }
-  }, []); // Remove validateCartItems dependency to prevent infinite loop
+  }, [cleanCartItems]); // Include cleanCartItems dependency
 
   // Validate cart items periodically when cart is not empty
   useEffect(() => {
@@ -391,6 +445,7 @@ const GlobalProvider = React.memo(({ children }) => {
     deleteItemFromCart,
     clearCart,
     validateCartItems,
+    cleanCartItems,
     openCart,
     setOpenCart,
     notify,
@@ -425,6 +480,7 @@ const GlobalProvider = React.memo(({ children }) => {
         deleteItemFromCart,
         clearCart,
         validateCartItems,
+        cleanCartItems,
         showError,
         showSuccess,
         couponCode,

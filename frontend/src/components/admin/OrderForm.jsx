@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], allUsers = [], loading, error, t }) => {
+  // Safety checks to ensure arrays are properly defined
+  const safeAllProducts = Array.isArray(allProducts) ? allProducts : [];
+  const safeAllUsers = Array.isArray(allUsers) ? allUsers : [];
+  
   // Coupon usage enforcement
   const [couponUsageError, setCouponUsageError] = useState('');
   // const { t } = useTranslation(); // t is now passed as a prop
@@ -20,7 +24,7 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     total: 0, // final total: original_total - discount_amount
     notes: '',
   });
-  const [users, setUsers] = useState(allUsers);
+  const [users, setUsers] = useState(safeAllUsers);
   // Removed unused: loadingUsers, setLoadingUsers, coupons, setCoupons
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -98,9 +102,16 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     }
     let userNameToDisplay = '';
     if (initialOrder.user_id) {
-      const existingUser = users.find(u => u.id === initialOrder.user_id || u._id === initialOrder.user_id);
-      if (existingUser) {
-        userNameToDisplay = `${existingUser.username} (${existingUser.email})`;
+      // Check if users exists and is an array before using find
+      if (users && Array.isArray(users)) {
+        const existingUser = users.find(u => u && (u.id === initialOrder.user_id || u._id === initialOrder.user_id));
+        if (existingUser) {
+          userNameToDisplay = `${existingUser.username} (${existingUser.email})`;
+        } else if (initialOrder.selectedUserName) {
+          userNameToDisplay = initialOrder.selectedUserName;
+        } else {
+          userNameToDisplay = initialOrder.user_id;
+        }
       } else if (initialOrder.selectedUserName) {
         userNameToDisplay = initialOrder.selectedUserName;
       } else {
@@ -140,18 +151,21 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
   };
 
   const handleUserSelect = (userId) => {
-    const selectedUser = users.find(u => u.id === userId || u._id === userId);
-    if (selectedUser) {
-      setFormData(prev => ({
-        ...prev,
-        user_id: selectedUser.id || selectedUser._id,
-        selectedUserName: `${selectedUser.username} (${selectedUser.email})`, // Store name for display
-        // Optionally pre-fill customerName and email if they are empty
-        customerName: prev.customerName || selectedUser.username || '',
-        email: prev.email || selectedUser.email || '',
-      }));
-      setSearchTerm(''); // Clear search
-      setFilteredUsers(users); // Reset filtered users to show all or none depending on your preference
+    // Check if users exists and is an array before using find
+    if (users && Array.isArray(users)) {
+      const selectedUser = users.find(u => u && (u.id === userId || u._id === userId));
+      if (selectedUser) {
+        setFormData(prev => ({
+          ...prev,
+          user_id: selectedUser.id || selectedUser._id,
+          selectedUserName: `${selectedUser.username} (${selectedUser.email})`, // Store name for display
+          // Optionally pre-fill customerName and email if they are empty
+          customerName: prev.customerName || selectedUser.username || '',
+          email: prev.email || selectedUser.email || '',
+        }));
+        setSearchTerm(''); // Clear search
+        setFilteredUsers(users); // Reset filtered users to show all or none depending on your preference
+      }
     }
   };
 
@@ -172,7 +186,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
     setCurrentItem(prev => ({ ...prev, [name]: processedValue }));
 
     if (name === 'productId') {
-      const selectedProduct = allProducts.find(p => p.id === value || p._id === value);
+      // Use the safe array for finding products
+      const selectedProduct = safeAllProducts.find(p => p && (p.id === value || p._id === value));
       if (selectedProduct) {
         setCurrentItem(prev => ({
           ...prev,
@@ -236,8 +251,8 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
   const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 
   useEffect(() => {
-    setUsers(allUsers);
-  }, [allUsers]);
+    setUsers(safeAllUsers);
+  }, [safeAllUsers]);
 
   useEffect(() => {
     if (searchTerm && users.length > 0) {
@@ -338,7 +353,7 @@ const OrderForm = ({ order: initialOrder, onSubmit, onCancel, allProducts = [], 
               <label htmlFor="productId" className={labelClass}>{t('admin.orderForm.productLabel', 'Product')}</label>
               <select name="productId" id="productId" value={currentItem.productId} onChange={handleItemInputChange} className={inputClass}>
                 <option value="">{t('admin.orderForm.selectProductPlaceholder', '-- Select Product --')}</option>
-                {allProducts.map(p => (
+                {safeAllProducts.map(p => (
                   <option key={p.id || p._id} value={p.id || p._id}>
                     {p.name?.en || p.name?.he || p.name} (ID: {p.id || p._id})
                   </option>
