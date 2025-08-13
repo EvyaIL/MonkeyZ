@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { apiService } from "../lib/apiService";
 import { trackAddToCart, trackEvent } from "../lib/analytics";
 
@@ -24,6 +24,21 @@ const GlobalProvider = ({ children }) => {
     }
     return 'light';
   });
+
+  // Memoized cart calculations for performance
+  const cartSummary = useMemo(() => {
+    const items = Object.values(cartItems);
+    const totalItems = items.reduce((sum, item) => sum + item.count, 0);
+    const totalPrice = items.reduce((sum, item) => sum + (item.price * item.count), 0);
+    return { items, totalItems, totalPrice, isEmpty: items.length === 0 };
+  }, [cartItems]);
+
+  // Memoized theme configuration
+  const themeConfig = useMemo(() => ({
+    current: theme,
+    isDark: theme === 'dark',
+    isLight: theme === 'light'
+  }), [theme]);
 
   // For auto-logout on token expiry
   useEffect(() => {
@@ -163,11 +178,9 @@ const GlobalProvider = ({ children }) => {
   };
 
   /**
-   * Add an item to the cart.
-   * @param {string|number} id
-   * @param {number} count
-   * @param {object} item
-   */  const addItemToCart = (id, count, item) => {
+   * Add an item to the cart - optimized with useCallback
+   */
+  const addItemToCart = useCallback((id, count, item) => {
     setCartItems((prev) => {
       const newCart = { ...prev };
       if (id in newCart) {
@@ -202,14 +215,12 @@ const GlobalProvider = ({ children }) => {
     }
     
     setOpenCart(true);
-  };
+  }, []);
 
   /**
-   * Remove a quantity of an item from the cart.
-   * @param {string|number} id
-   * @param {number} count
+   * Remove a quantity of an item from the cart - optimized with useCallback
    */
-  const removeItemFromCart = (id, count) => {
+  const removeItemFromCart = useCallback((id, count) => {
     setCartItems((prev) => {
       const newCart = { ...prev };
       if (!(id in newCart)) return newCart;
@@ -227,13 +238,12 @@ const GlobalProvider = ({ children }) => {
       
       return newCart;
     });
-  };
+  }, []);
 
   /**
-   * Delete an item from the cart.
-   * @param {string|number} id
+   * Delete an item from the cart - optimized with useCallback
    */
-  const deleteItemFromCart = (id) => {
+  const deleteItemFromCart = useCallback((id) => {
     setCartItems((prev) => {
       const newCart = { ...prev };
       if (id in newCart) {
@@ -249,15 +259,15 @@ const GlobalProvider = ({ children }) => {
       
       return newCart;
     });
-  };
+  }, []);
   
   /**
-   * Clear all items from the cart.
+   * Clear all items from the cart - optimized with useCallback
    */
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCartItems({});
     localStorage.removeItem('cart');
-  };
+  }, []);
 
   /**
    * Validate cart items against current products and remove deleted/unavailable items
