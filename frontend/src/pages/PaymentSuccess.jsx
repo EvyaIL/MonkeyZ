@@ -48,9 +48,13 @@ const PaymentSuccess = () => {
             transaction_id: order.id
           });
         }
+        // Always clear cart after successful payment, regardless of analytics tracking
         clearCart();
       } catch (err) {
-        console.error(err);
+        console.error('Error fetching order details:', err);
+        // Still clear cart even if we can't fetch order details
+        // since we reached the success page, payment was successful
+        clearCart();
       }
     }
     fetchOrder();

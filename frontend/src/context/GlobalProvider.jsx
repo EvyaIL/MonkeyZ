@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiService } from "../lib/apiService";
 import { trackAddToCart, trackEvent } from "../lib/analytics";
 
@@ -259,17 +259,102 @@ const GlobalProvider = ({ children }) => {
     localStorage.removeItem('cart');
   };
 
-  // Load cart from localStorage on initial load
+  /**
+   * Validate cart items against current products and remove deleted/unavailable items
+   */
+  const validateCartItems = useCallback(async () => {
+    const cartItemIds = Object.keys(cartItems);
+    if (cartItemIds.length === 0) return;
+
+    try {
+      // Get all current products to validate against
+      const { data: allProducts } = await apiService.get('/product/all');
+      
+      if (!allProducts || !Array.isArray(allProducts)) {
+        console.warn('Unable to validate cart items - products not available');
+        return;
+      }
+
+      const validProductIds = new Set(allProducts.map(p => p.id));
+      const itemsToRemove = [];
+
+      // Check each cart item
+      cartItemIds.forEach(cartItemId => {
+        if (!validProductIds.has(cartItemId)) {
+          itemsToRemove.push(cartItemId);
+        }
+      });
+
+      // Remove invalid items
+      if (itemsToRemove.length > 0) {
+        setCartItems((prev) => {
+          const newCart = { ...prev };
+          itemsToRemove.forEach(id => {
+            delete newCart[id];
+          });
+          
+          // Save updated cart to localStorage
+          try {
+            localStorage.setItem('cart', JSON.stringify(newCart));
+          } catch (e) {
+            console.error('Error saving cart to localStorage', e);
+          }
+          
+          return newCart;
+        });
+
+        // Notify user about removed items
+        if (itemsToRemove.length === 1) {
+          notify({
+            message: "An item in your cart is no longer available and has been removed.",
+            type: "warning"
+          });
+        } else {
+          notify({
+            message: `${itemsToRemove.length} items in your cart are no longer available and have been removed.`,
+            type: "warning"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error validating cart items:', error);
+    }
+  }, [cartItems, notify]);
+
+  // Load cart from localStorage on initial load and validate items
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('cart');
       if (savedCart) {
-        setCartItems(JSON.parse(savedCart));
+        const parsedCart = JSON.parse(savedCart);
+        setCartItems(parsedCart);
+        
+        // Validate cart items after a short delay to allow API to be ready
+        const validateTimer = setTimeout(() => {
+          validateCartItems();
+        }, 2000);
+        
+        return () => clearTimeout(validateTimer);
       }
     } catch (e) {
       console.error('Error loading cart from localStorage', e);
+      // Clear corrupted cart data
+      localStorage.removeItem('cart');
     }
-  }, []);
+  }, []); // Remove validateCartItems dependency to prevent infinite loop
+
+  // Validate cart items periodically when cart is not empty
+  useEffect(() => {
+    const cartItemCount = Object.keys(cartItems).length;
+    if (cartItemCount === 0) return;
+
+    // Validate cart items every 5 minutes when user is active
+    const validationInterval = setInterval(() => {
+      validateCartItems();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(validationInterval);
+  }, [Object.keys(cartItems).length]); // Only re-run when cart item count changes
 
   // eslint-disable-next-line no-unused-vars
   const value = {
@@ -286,6 +371,7 @@ const GlobalProvider = ({ children }) => {
     cartItems,
     deleteItemFromCart,
     clearCart,
+    validateCartItems,
     openCart,
     setOpenCart,
     notify,
@@ -319,6 +405,7 @@ const GlobalProvider = ({ children }) => {
         removeItemFromCart,
         deleteItemFromCart,
         clearCart,
+        validateCartItems,
         showError,
         showSuccess,
         couponCode,

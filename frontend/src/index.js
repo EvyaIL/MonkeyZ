@@ -6,6 +6,14 @@ import reportWebVitals from "./reportWebVitals";
 import "./i18n"; // <-- Import i18n setup
 import { BrowserRouter } from "react-router-dom";
 
+// Production optimizations
+if (process.env.NODE_ENV === 'production') {
+  // Import and apply production console optimization
+  import('./lib/productionConsoleOptimizer').then(({ initAllProductionOptimizations }) => {
+    initAllProductionOptimizations();
+  });
+}
+
 // Fix CSP issues in development mode early
 if (process.env.NODE_ENV === 'development') {
   // Import and run CSP fix
@@ -20,7 +28,9 @@ if (process.env.REACT_APP_PAYPAL_CLIENT_ID) {
     if (PAYPAL_CONFIG.performance.enablePreload) {
       // Pre-cache PayPal script for instant loading on checkout page
       preloadPayPalScript().catch(error => {
-        console.warn('PayPal script preload failed:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('PayPal script preload failed:', error);
+        }
       });
     }
   });

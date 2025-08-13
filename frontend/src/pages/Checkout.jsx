@@ -7,7 +7,7 @@ import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspN
 import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
 
 export default function Checkout() {
-  const { cartItems } = useGlobalProvider();
+  const { cartItems, validateCartItems } = useGlobalProvider();
   const { t, i18n } = useTranslation();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -37,6 +37,9 @@ export default function Checkout() {
   // Initialize CSP nonce and PayPal performance optimization with cleanup
   useEffect(() => {
     isComponentMountedRef.current = true;
+    
+    // Validate cart items when checkout page loads
+    validateCartItems();
     
     // Initialize CSP nonce and PayPal performance optimization with cleanup
     const nonce = getCurrentNonce();

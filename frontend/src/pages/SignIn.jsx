@@ -121,7 +121,6 @@ const SignIn = () => {
 
   const onPasswordReset = async (e) => {
     e?.preventDefault();
-    console.log("Password reset button clicked"); // Debug log
     setResetMsg("");
     
     if (!resetEmail.trim()) {
@@ -134,7 +133,6 @@ const SignIn = () => {
       return;
     }
     
-    console.log("Sending password reset request for:", resetEmail); // Debug log
     setIsResetSubmit(true);
     
     try {
@@ -144,13 +142,9 @@ const SignIn = () => {
         { email: resetEmail }
       );
 
-      console.log("Password reset response:", { data, error }); // Debug log
-
       if (error) {
-        console.error("Password reset error:", error);
         setResetMsg(error || t("reset_email_failed", "Failed to send reset email"));
       } else {
-        console.log("Password reset success:", data);
         setResetMsg(data?.message || t("reset_email_sent", "Password reset link sent. Please check your email"));
         // Clear email input after successful request
         setResetEmail("");
@@ -160,7 +154,6 @@ const SignIn = () => {
         }, 5000);
       }
     } catch (err) {
-      console.error("Password reset catch error:", err);
       const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || err?.message || t("unexpected_error", "An unexpected error occurred. Failed to send reset email");
       setResetMsg(errorMessage);
     } finally {

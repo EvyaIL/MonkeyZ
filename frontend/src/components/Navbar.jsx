@@ -13,6 +13,7 @@ const Navbar = memo(() => {
     removeItemFromCart,
     addItemToCart,
     deleteItemFromCart,
+    validateCartItems,
     openCart,
     setOpenCart,
     logout,
@@ -24,9 +25,12 @@ const Navbar = memo(() => {
   const cartRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
-  // Handle clicks outside the cart
+  // Handle clicks outside the cart and validate cart items when opened
   useEffect(() => {
     if (!openCart) return;
+    
+    // Validate cart items when cart is opened
+    validateCartItems();
     
     const handleClickOutside = (event) => {
       if (cartRef.current && !cartRef.current.contains(event.target)) {
@@ -42,7 +46,7 @@ const Navbar = memo(() => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "";
     };
-  }, [openCart, setOpenCart]);
+  }, [openCart, setOpenCart, validateCartItems]);
 
   // Handle clicks outside mobile menu
   useEffect(() => {
@@ -307,19 +311,34 @@ const Navbar = memo(() => {
         dir={i18n.language === "he" ? "rtl" : "ltr"}
       >
         {/* Cart Header */}
-        <div className={`flex justify-between items-center mb-6 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>
-          <h2 className="text-xl font-bold text-primary dark:text-white">{t("cart")}</h2>          <button
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 transition-colors"
-            onClick={() => {
-              setOpenCart(false);
-              setMobileMenuOpen(false);
-            }}
-            aria-label={t("close_cart")}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className={`flex justify-between items-center mb-4 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>
+          <h2 className="text-xl font-bold text-primary dark:text-white">{t("cart")}</h2>
+          <div className="flex items-center gap-2">
+            {/* Refresh Cart Button */}
+            <button
+              onClick={() => validateCartItems()}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 transition-colors"
+              aria-label="Refresh cart"
+              title="Check for product availability"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+            {/* Close Button */}
+            <button
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 transition-colors"
+              onClick={() => {
+                setOpenCart(false);
+                setMobileMenuOpen(false);
+              }}
+              aria-label={t("close_cart")}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Cart Content */}
@@ -340,7 +359,7 @@ const Navbar = memo(() => {
             </button>
           </div>
         ) : (
-          <div className="space-y-4 flex flex-col h-[calc(100%-120px)]">
+          <div className="space-y-4 flex flex-col h-[calc(100%-130px)]">
             {/* Cart Items List */}
             <div className="flex-grow overflow-y-auto space-y-4 pr-2">              {Object.values(cartItems).map((item, idx) => (
                 <div
