@@ -26,6 +26,9 @@ services:
   - key: ACCESS_TOKEN_EXPIRE_MINUTES
     scope: RUN_TIME
     value: "30"
+  - key: ALLOWED_ORIGINS
+    scope: RUN_TIME
+    value: "http://localhost:3000,https://monkeyz.co.il,https://www.monkeyz.co.il,https://monkeyz-frontend.ondigitalocean.app"
   health_check:
     http_path: /health
     initial_delay_seconds: 30

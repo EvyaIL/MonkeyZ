@@ -3,6 +3,7 @@ Backend Performance Optimizations for MonkeyZ
 Add these optimizations to your FastAPI application
 """
 
+import os
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,9 +64,10 @@ def setup_performance_optimizations(app: FastAPI):
     app.add_middleware(PerformanceMiddleware)
     
     # 3. Optimized CORS settings
+    allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,https://monkeyz.co.il").split(",")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["https://monkeyz.co.il", "http://localhost:3000"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
         allow_headers=["*"],
