@@ -283,3 +283,13 @@ img {
 .image-will-animate {
   will-change: transform;
 }
+
+/* PayPal button container optimization */
+.paypal-buttons {
+  /* Additional isolation for button container */
+  contain: layout;
+  /* Prevent any transform inheritance */
+  transform: none;
+  /* Ensure sharp rendering */
+  image-rendering: auto;
+}

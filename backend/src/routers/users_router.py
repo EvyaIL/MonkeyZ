@@ -278,3 +278,79 @@ async def get_my_orders(
     if not orders:
         return [] 
     return orders
+
+# OTP functionality
+import random
+import string
+
+class OTPRequestPayload(BaseModel):
+    email: str
+
+class OTPVerifyPayload(BaseModel):
+    email: str
+    otp: str
+
+# Simple in-memory OTP storage (in production, use Redis or database)
+otp_storage = {}
+
+def generate_otp(length=6):
+    """Generate a random OTP of specified length"""
+    return ''.join(random.choices(string.digits, k=length))
+
+@users_router.post("/otp/request")
+async def request_otp(payload: OTPRequestPayload, user_controller: UserController = Depends(get_user_controller_dependency)):
+    """Request an OTP for email verification"""
+    email = payload.email
+    
+    # Check if user exists
+    user = await user_controller.user_collection.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate OTP
+    otp = generate_otp()
+    
+    # Store OTP (expires in 10 minutes)
+    from datetime import datetime, timedelta
+    otp_storage[email] = {
+        "otp": otp,
+        "expires": datetime.utcnow() + timedelta(minutes=10)
+    }
+    
+    # Send OTP email
+    email_sent = send_otp_email(
+        to_email=email,
+        otp=otp
+    )
+    
+    if not email_sent:
+        raise HTTPException(status_code=500, detail="Failed to send OTP email")
+    
+    return {"message": "OTP sent to your email"}
+
+@users_router.post("/otp/verify")
+async def verify_otp(payload: OTPVerifyPayload):
+    """Verify an OTP"""
+    email = payload.email
+    provided_otp = payload.otp
+    
+    # Check if OTP exists
+    if email not in otp_storage:
+        raise HTTPException(status_code=400, detail="No OTP found for this email")
+    
+    stored_data = otp_storage[email]
+    
+    # Check if OTP expired
+    from datetime import datetime
+    if datetime.utcnow() > stored_data["expires"]:
+        del otp_storage[email]  # Clean up expired OTP
+        raise HTTPException(status_code=400, detail="OTP has expired")
+    
+    # Verify OTP
+    if provided_otp != stored_data["otp"]:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    
+    # OTP verified successfully, clean up
+    del otp_storage[email]
+    
+    return {"message": "OTP verified successfully"}

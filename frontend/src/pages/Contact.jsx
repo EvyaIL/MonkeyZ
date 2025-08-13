@@ -46,18 +46,32 @@ const Contact = () => {
     setLoading(true);
     try {
       const formData = new FormData(formRef.current);
-      const response = await fetch("/api/contact", {
+      const contactData = {
+        name: formData.get("from_name"),
+        email: formData.get("reply_to"),
+        message: formData.get("message")
+      };
+
+      // Use proxy configuration to route to backend
+      const response = await fetch("/contact", {
         method: "POST",
-        body: formData
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(contactData)
       });
+
+      const result = await response.json();
+      
       if (response.ok) {
-        setStatus(t("success"));
+        setStatus(t("success") || "Message sent successfully! We'll get back to you soon.");
         formRef.current.reset();
       } else {
-        setStatus(t("fail"));
+        setStatus(result.detail || t("fail") || "Failed to send message. Please try again.");
       }
     } catch (error) {
-      setStatus(t("fail"));
+      console.error("Contact form error:", error);
+      setStatus(t("fail") || "Failed to send message. Please try again.");
     } finally {
       setLoading(false);
     }

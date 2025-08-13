@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 import uvicorn
 from dotenv import load_dotenv
 import os
+from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 import json
 from starlette.requests import Request as StarletteRequest
@@ -18,6 +19,7 @@ from src.routers.paypal_health import paypal_health_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
+from src.lib.email_service import send_contact_email, send_auto_reply_email  # Import email functions
 from motor.motor_asyncio import AsyncIOMotorClient
 from src.lib.mongo_json_encoder import MongoJSONEncoder
 from bson.objectid import ObjectId
@@ -248,10 +250,48 @@ async def shutdown_event():
 
 @app.post("/contact", response_model=ContactResponse)
 async def handle_contact_form(contact_form: ContactForm):
-    # Save the contact form to MongoDB
-    contact_data = contact_form.dict()
-    contact_id = await contact_collection.save_contact(contact_data)
-    return ContactResponse(message=f"Message received successfully! ID: {contact_id}")
+    try:
+        # Save the contact form to MongoDB
+        contact_data = contact_form.dict()
+        contact_data["timestamp"] = datetime.now()
+        contact_id = await contact_collection.save_contact(contact_data)
+        
+        # Send email notification to admin (you)
+        admin_email = os.getenv("ADMIN_EMAIL", "support@monkeyz.co.il")  # Set your admin email in .env
+        email_sent_to_admin = send_contact_email(
+            to_email=admin_email,
+            name=contact_form.name,
+            message=f"Email: {contact_form.email}\nMessage: {contact_form.message}"
+        )
+        
+        # Send auto-reply to customer
+        auto_reply_sent = send_auto_reply_email(
+            to_email=contact_form.email,
+            subject="Thank you for contacting MonkeyZ!",
+            message=f"Hello {contact_form.name},\n\nThank you for reaching out to us! We have received your message and will get back to you soon.\n\nYour message:\n{contact_form.message}\n\nBest regards,\nMonkeyZ Team"
+        )
+        
+        # Log email sending status
+        if email_sent_to_admin:
+            logger.info(f"Contact form notification sent to admin for contact ID: {contact_id}")
+        else:
+            logger.error(f"Failed to send contact form notification to admin for contact ID: {contact_id}")
+        
+        if auto_reply_sent:
+            logger.info(f"Auto-reply sent to {contact_form.email} for contact ID: {contact_id}")
+        else:
+            logger.error(f"Failed to send auto-reply to {contact_form.email} for contact ID: {contact_id}")
+        
+        return ContactResponse(
+            message=f"Message received successfully! We'll get back to you soon. ID: {contact_id}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error handling contact form: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error processing your message. Please try again later."
+        )
 
 HOST = os.getenv('HOST', '127.0.0.1')
 PORT = int(os.getenv('PORT', 8000))

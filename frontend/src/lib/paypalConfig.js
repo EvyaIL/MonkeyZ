@@ -10,7 +10,7 @@ export const PAYPAL_CONFIG = {
   
   // Currency and locale settings
   currency: 'ILS',
-  locale: 'he_IL',
+  locale: 'en_US', // Changed to English to show "PayPal" instead of Hebrew text
   
   // Security settings
   csp: {
@@ -45,8 +45,9 @@ export const PAYPAL_CONFIG = {
     components: 'buttons',
     // Disable debug mode in production
     debug: false,
-    // Disable unwanted funding sources but keep credit cards enabled
-    'disable-funding': 'venmo,sepa,bancontact,giropay,ideal,eps,sofort,mybank,p24',
+    // Disable unwanted funding sources and separate credit card button
+    // This removes the separate "Pay with Credit Card" button but still allows credit cards through PayPal
+    'disable-funding': 'credit,card,venmo,sepa,bancontact,giropay,ideal,eps,sofort,mybank,p24',
     // Intent for immediate capture
     intent: 'capture',
     // Commit for Pay Now button

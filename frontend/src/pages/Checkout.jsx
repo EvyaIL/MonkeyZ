@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from "axios";
+import { useTranslation } from "react-i18next";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
 import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
 
 export default function Checkout() {
   const { cartItems } = useGlobalProvider();
+  const { t, i18n } = useTranslation();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -254,6 +256,33 @@ export default function Checkout() {
         {/* Payment Section */}
         <div className="bg-white p-6 rounded shadow flex flex-col justify-between">
           {error && <div className="text-red-600 mb-4">{error}</div>}
+          
+          {/* Payment Methods Info */}
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 className="font-semibold text-gray-800 mb-2">
+              {i18n.language === 'he' ? 'אמצעי תשלום מקובלים:' : 'Accepted Payment Methods:'}
+            </h3>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm text-gray-700">
+                {i18n.language === 'he' ? 'כרטיסי אשראי:' : 'Credit Cards:'}
+              </span>
+              {/* Credit Card Icons */}
+              <div className="flex gap-2">
+                <div className="bg-white px-2 py-1 rounded border text-xs font-bold text-blue-900">VISA</div>
+                <div className="bg-white px-2 py-1 rounded border text-xs font-bold text-red-600">MC</div>
+                <div className="bg-white px-2 py-1 rounded border text-xs font-bold text-blue-800">AMEX</div>
+              </div>
+              <span className="text-sm text-gray-700">+</span>
+              <div className="bg-white px-2 py-1 rounded border text-xs font-bold text-blue-600">PayPal</div>
+            </div>
+            <p className="text-xs text-gray-600 mt-2">
+              {i18n.language === 'he' 
+                ? 'לחץ על הכפתור למטה כדי לשלם עם כרטיס אשראי או חשבון PayPal'
+                : 'Click the button below to pay with credit card or PayPal account'
+              }
+            </p>
+          </div>
+
           {(cspNonce || PAYPAL_CONFIG.isDevelopment) && paypalLoaded && (
             <PayPalScriptProvider 
               key={`paypal-provider-${componentKey}`} // Unique key to prevent zoid conflicts
@@ -275,7 +304,9 @@ export default function Checkout() {
                 layout: "vertical",
                 color: "gold",
                 shape: "pill",
-                height: 40, // Optimize height for performance
+                height: 50, // Increased height for better icon visibility
+                label: "paypal", // Use "paypal" label to show just "PayPal"
+                tagline: false, // Remove PayPal tagline
               }}
               disabled={processing || !email || !name || !phone || cartArray.length === 0}
               onInit={() => {
