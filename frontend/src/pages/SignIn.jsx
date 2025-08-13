@@ -121,12 +121,22 @@ const SignIn = () => {
 
   const onPasswordReset = async (e) => {
     e?.preventDefault();
+    console.log("Password reset button clicked"); // Debug log
     setResetMsg("");
+    
+    if (!resetEmail.trim()) {
+      setResetMsg(t("email_required", "Email is required"));
+      return;
+    }
+    
     if (!validateEmail(resetEmail)) {
       setResetMsg(t("invalid_email", "Invalid email address"));
       return;
     }
-    setIsResetSubmit(true); // Use separate loading state for password reset
+    
+    console.log("Sending password reset request for:", resetEmail); // Debug log
+    setIsResetSubmit(true);
+    
     try {
       // Call the backend endpoint to request a password reset
       const { data, error } = await apiService.post(
@@ -134,9 +144,13 @@ const SignIn = () => {
         { email: resetEmail }
       );
 
+      console.log("Password reset response:", { data, error }); // Debug log
+
       if (error) {
+        console.error("Password reset error:", error);
         setResetMsg(error || t("reset_email_failed", "Failed to send reset email"));
       } else {
+        console.log("Password reset success:", data);
         setResetMsg(data?.message || t("reset_email_sent", "Password reset link sent. Please check your email"));
         // Clear email input after successful request
         setResetEmail("");
@@ -146,10 +160,11 @@ const SignIn = () => {
         }, 5000);
       }
     } catch (err) {
-      console.error("Password reset error:", err);
-      setResetMsg(err?.response?.data?.detail || t("unexpected_error", "An unexpected error occurred. Failed to send reset email"));
+      console.error("Password reset catch error:", err);
+      const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || err?.message || t("unexpected_error", "An unexpected error occurred. Failed to send reset email");
+      setResetMsg(errorMessage);
     } finally {
-      setIsResetSubmit(false); // Reset loading state for password reset
+      setIsResetSubmit(false);
     }
   };
 
@@ -234,7 +249,7 @@ const SignIn = () => {
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
               {t("reset_password_instructions", "Enter your email address below and we'll send you a link to reset your password.")}
             </p>
-            <form onSubmit={onPasswordReset}>
+            <div>
               <PrimaryInput
                 title={t("email", "Email")}
                 value={resetEmail}
@@ -247,7 +262,7 @@ const SignIn = () => {
               <div className="mt-3">
                 <PrimaryButton
                   title={isResetSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
-                  type="submit"
+                  onClick={onPasswordReset}
                   otherStyle="w-full"
                   disabled={isResetSubmit}
                 />
@@ -257,7 +272,7 @@ const SignIn = () => {
                   {resetMsg}
                 </p>
               )}
-            </form>
+            </div>
           </div>
         )}
 
