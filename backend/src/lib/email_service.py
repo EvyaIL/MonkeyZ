@@ -22,8 +22,21 @@ def _send_email(template_type: str, template_params: dict) -> bool:
         body = ""
         # Basic template logic (customize as needed)
         if template_type == "password_reset":
-            subject = "Password Reset Request"
-            body = f"Hello,\n\nClick the link to reset your password: {template_params.get('link')}\n\nIf you did not request this, ignore this email."
+            subject = "Password Reset Request - MonkeyZ"
+            reset_link = template_params.get('reset_link') or template_params.get('link')
+            body = f"""Hello,
+
+You requested a password reset for your MonkeyZ account.
+
+Click the link below to reset your password:
+{reset_link}
+
+This link will expire in 30 minutes.
+
+If you did not request this password reset, please ignore this email and your password will remain unchanged.
+
+Best regards,
+MonkeyZ Support Team"""
         elif template_type == "otp":
             subject = "Your One-Time Password (OTP)"
             body = f"Hello,\n\nYour OTP is: {template_params.get('otp')}\n\nDo not share this code."
@@ -66,7 +79,8 @@ def send_password_reset_email(to_email: str, reset_link: str) -> bool:
     template_params = {
         "to_email": to_email,
         "email": to_email,
-        "link": reset_link
+        "reset_link": reset_link,
+        "link": reset_link  # Keep both for compatibility
     }
     return _send_email("password_reset", template_params)
 

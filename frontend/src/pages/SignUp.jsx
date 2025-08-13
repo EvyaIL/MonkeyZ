@@ -55,16 +55,47 @@ const SignUp = () => {
       return;
     }
 
-    // Generate OTP and send email via backend
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setOtp(generatedOtp);
+    // Request OTP from backend and send email
     try {
-      // Note: OTP sending should be handled by backend API
-      // For now, we'll proceed without sending OTP email
-      setOtpSent(true);
-      setMessage({ message: "OTP generated successfully.", color: "#16A34A" });
+      const { data, error } = await apiService.post("/user/otp/request", { 
+        email: form.email 
+      });
+      
+      if (error) {
+        // If user doesn't exist, create user first then request OTP
+        if (error.includes("User not found")) {
+          // Create user account first
+          const createResult = await apiService.post("/user", form);
+          if (createResult.error) {
+            setMessage({ message: createResult.error, color: "#DC2626" });
+            setIsSubmit(false);
+            return;
+          }
+          
+          // Now request OTP for the newly created user
+          const otpResult = await apiService.post("/user/otp/request", { 
+            email: form.email 
+          });
+          
+          if (otpResult.error) {
+            setMessage({ message: otpResult.error, color: "#DC2626" });
+            setIsSubmit(false);
+            return;
+          }
+          
+          setOtpSent(true);
+          setMessage({ message: "Account created! OTP sent to your email.", color: "#16A34A" });
+        } else {
+          setMessage({ message: error, color: "#DC2626" });
+          setIsSubmit(false);
+          return;
+        }
+      } else {
+        setOtpSent(true);
+        setMessage({ message: "OTP sent to your email.", color: "#16A34A" });
+      }
     } catch (err) {
-      setMessage({ message: "Failed to generate OTP.", color: "#DC2626" });
+      setMessage({ message: "Failed to send OTP. Please try again.", color: "#DC2626" });
       setIsSubmit(false);
       return;
     }
@@ -73,26 +104,60 @@ const SignUp = () => {
 
   const onVerifyOtp = async (e) => {
     e?.preventDefault();
-    if (enteredOtp !== otp) {
-      setOtpError(t("invalid_otp") || "Invalid OTP.");
-      return;
-    }
     setOtpError("");
     setIsSubmit(true);
-    const { error } = await apiService.post("/user", form);
-    setIsSubmit(false);
-    if (error) {
-      setMessage({ message: error, color: "#DC2626" });
-      return;
+    
+    try {
+      // Verify OTP with backend
+      const { data, error } = await apiService.post("/user/otp/verify", {
+        email: form.email,
+        otp: enteredOtp
+      });
+      
+      if (error) {
+        setOtpError(error);
+        setIsSubmit(false);
+        return;
+      }
+      
+      setMessage({ message: t("email_verified_successfully") || "Email verified successfully!", color: "#16A34A" });
+      
+      // Reset form and redirect
+      setForm({ username: "", password: "", email: "", phone_number: "" });
+      setOtpSent(false);
+      setOtp("");
+      setEnteredOtp("");
+      
+      // Redirect to login page after short delay
+      setTimeout(() => navigate("/sign-in"), 1200);
+      
+    } catch (err) {
+      setOtpError(t("verification_failed") || "Verification failed. Please try again.");
+      setIsSubmit(false);
     }
-    setMessage({ message: t("user_created_successfully") || "User created successfully!", color: "#16A34A" });
-    // Note: Welcome email should be handled by backend API
-    setForm({ username: "", password: "", email: "", phone_number: "" });
-    setOtpSent(false);
-    setOtp("");
-    setEnteredOtp("");
-    // Redirect to login page after short delay
-    setTimeout(() => navigate("/sign-in"), 1200);
+  };
+
+  const onResendOtp = async () => {
+    if (isSubmit) return;
+    setIsSubmit(true);
+    setMessage({ message: "", color: "" });
+    setOtpError("");
+
+    try {
+      const { data, error } = await apiService.post("/user/otp/request", { 
+        email: form.email 
+      });
+      
+      if (error) {
+        setMessage({ message: error, color: "#DC2626" });
+      } else {
+        setMessage({ message: "OTP resent to your email.", color: "#16A34A" });
+      }
+    } catch (err) {
+      setMessage({ message: "Failed to resend OTP. Please try again.", color: "#DC2626" });
+    }
+    
+    setIsSubmit(false);
   };
 
   // Google sign up/sign in handler
@@ -233,7 +298,7 @@ const SignUp = () => {
                 />
                 <SecondaryButton
                   title={t("resend_otp")}
-                  onClick={onSubmitSignUp}
+                  onClick={onResendOtp}
                   otherStyle="w-full text-xs py-1"
                   disabled={isSubmit}
                 />

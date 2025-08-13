@@ -21,6 +21,7 @@ const SignIn = () => {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMsg, setResetMsg] = useState("");
+  const [isResetSubmit, setIsResetSubmit] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
@@ -125,7 +126,7 @@ const SignIn = () => {
       setResetMsg(t("invalid_email", "Invalid email address"));
       return;
     }
-    setIsSubmit(true); // Indicate loading/submission state
+    setIsResetSubmit(true); // Use separate loading state for password reset
     try {
       // Call the backend endpoint to request a password reset
       const { data, error } = await apiService.post(
@@ -145,9 +146,10 @@ const SignIn = () => {
         }, 5000);
       }
     } catch (err) {
-      setResetMsg(t("unexpected_error", "An unexpected error occurred. Failed to send reset email"));
+      console.error("Password reset error:", err);
+      setResetMsg(err?.response?.data?.detail || t("unexpected_error", "An unexpected error occurred. Failed to send reset email"));
     } finally {
-      setIsSubmit(false); // Reset loading/submission state
+      setIsResetSubmit(false); // Reset loading state for password reset
     }
   };
 
@@ -244,10 +246,10 @@ const SignIn = () => {
               />
               <div className="mt-3">
                 <PrimaryButton
-                  title={isSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
+                  title={isResetSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
                   type="submit"
                   otherStyle="w-full"
-                  disabled={isSubmit}
+                  disabled={isResetSubmit}
                 />
               </div>
               {resetMsg && (
