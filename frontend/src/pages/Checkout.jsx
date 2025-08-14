@@ -52,7 +52,8 @@ export default function Checkout() {
     }
 
     // Create a unique component key to prevent zoid conflicts
-    setComponentKey(Date.now());
+    const uniqueKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setComponentKey(uniqueKey);
     
     // Performance Optimization: Preload PayPal script (PayPal Best Practice)
     if (PAYPAL_CONFIG.performance.enablePreload) {
@@ -67,14 +68,14 @@ export default function Checkout() {
               if (isComponentMountedRef.current) {
                 setPaypalLoaded(true);
               }
-            }, 200);
+            }, 300);
           } else {
             // Delayed render with minimal delay
             cleanupTimeoutRef.current = setTimeout(() => {
               if (isComponentMountedRef.current) {
                 setPaypalLoaded(true);
               }
-            }, 500);
+            }, 800);
           }
         })
         .catch((error) => {
@@ -88,7 +89,7 @@ export default function Checkout() {
         if (!isComponentMountedRef.current) return;
         
         setPaypalLoaded(true);
-      }, 500);
+      }, 800);
     }
 
     // Cleanup function to prevent memory leaks and zoid conflicts
@@ -103,7 +104,7 @@ export default function Checkout() {
       // Reset PayPal loaded state to prevent stale renders
       setPaypalLoaded(false);
     };
-  }, []);
+  }, []); // Empty dependency array to run only once
 
   const cartArray = Object.values(cartItems);
   const subtotal = cartArray.reduce(
@@ -158,8 +159,8 @@ export default function Checkout() {
         PAYPAL_CONFIG.clientId && 
         (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
         { debug: PAYPAL_CONFIG.scriptConfig.debug }),
-    // Add unique identifier to prevent zoid conflicts
-    "data-uid": `paypal-${componentKey}`,
+    // Add unique identifier to prevent zoid conflicts and session issues
+    "data-uid": `paypal-checkout-${componentKey}`,
   };
 
   return (
@@ -287,34 +288,58 @@ export default function Checkout() {
           </div>
 
           {(cspNonce || PAYPAL_CONFIG.isDevelopment) && paypalLoaded && (
-            <PayPalScriptProvider 
-              key={`paypal-provider-${componentKey}`} // Unique key to prevent zoid conflicts
-              options={initialOptions}
-              onLoadScript={() => {
-                if (!isComponentMountedRef.current) return;
-              }}
-              onError={(err) => {
-                if (!isComponentMountedRef.current) return;
-                
-                console.error("PayPal script load error:", err);
-                const errorInfo = getPayPalErrorMessage(err);
-                setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
-              }}
-            >
-            <PayPalButtons
-              key={`paypal-buttons-${componentKey}`} // Unique key for buttons
-              style={{
-                layout: "vertical",
-                color: "gold",
-                shape: "pill",
-                height: 50, // Increased height for better icon visibility
-                label: "paypal", // Use "paypal" label to show just "PayPal"
-                tagline: false, // Remove PayPal tagline
-              }}
-              disabled={processing || !email || !name || !phone || cartArray.length === 0}
-              onInit={() => {
-                if (!isComponentMountedRef.current) return;
-              }}
+            <div key={`paypal-container-${componentKey}`}>
+              <PayPalScriptProvider 
+                options={initialOptions}
+                onLoadScript={() => {
+                  if (!isComponentMountedRef.current) return;
+                  console.log("PayPal script loaded successfully");
+                }}
+                onError={(err) => {
+                  if (!isComponentMountedRef.current) return;
+                  
+                  console.error("PayPal script load error:", err);
+                  const errorInfo = getPayPalErrorMessage(err);
+                  setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
+                }}
+              >
+              <PayPalButtons
+                style={{
+                  layout: "vertical",
+                  color: "gold",
+                  shape: "pill",
+                  height: 50, // Increased height for better icon visibility
+                  label: "paypal", // Use "paypal" label to show just "PayPal"
+                  tagline: false, // Remove PayPal tagline
+                }}
+                disabled={processing || !email || !name || !phone || cartArray.length === 0}
+                onInit={(data, actions) => {
+                  if (!isComponentMountedRef.current) return;
+                  console.log("PayPal buttons initialized");
+                  
+                  // Disable buttons until form is complete
+                  if (!email || !name || !phone || cartArray.length === 0) {
+                    actions.disable();
+                  } else {
+                    actions.enable();
+                  }
+                }}
+                onClick={(data, actions) => {
+                  // Validate form before allowing PayPal popup
+                  if (!email || !name || !phone) {
+                    setError("Please fill in all required fields before proceeding with payment.");
+                    return actions.reject();
+                  }
+                  
+                  if (cartArray.length === 0) {
+                    setError("Your cart is empty. Please add items before proceeding.");
+                    return actions.reject();
+                  }
+                  
+                  // Clear any previous errors
+                  setError("");
+                  return actions.resolve();
+                }}
               createOrder={async () => {
                 if (!isComponentMountedRef.current) return Promise.reject(new Error("Component unmounted"));
                 
@@ -482,6 +507,7 @@ export default function Checkout() {
               }}
             />
           </PayPalScriptProvider>
+            </div>
           )}
           {!(cspNonce || PAYPAL_CONFIG.isDevelopment) || !paypalLoaded ? (
             <div className="text-center py-8">
