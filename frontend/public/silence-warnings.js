@@ -57,10 +57,15 @@
     'Warning: validateDOMNesting',
     'unique "key" prop',
     
-    // CSP and security
+    // CSP and security warnings (development only)
     'Content Security Policy',
+    'CSP meta tag not found',
+    'PayPal and Google OAuth integration may be blocked',
     'Refused to load',
-    'Refused to frame'
+    'Refused to frame',
+    
+    // Performance warnings in development
+    'Slow route load'
   ];
   
   // Check if message should be suppressed

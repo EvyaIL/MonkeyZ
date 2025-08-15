@@ -22,8 +22,16 @@ let currentNonce = null;
 
 export const getCurrentNonce = () => {
   if (!currentNonce) {
-    // In development, we might not need a nonce if we're using 'unsafe-inline'
     const isDevelopment = process.env.NODE_ENV === 'development';
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // In production, CSP nonce is typically handled by server headers
+    // We still generate a nonce for PayPal SDK compatibility
+    if (isProduction) {
+      // Generate a nonce for PayPal compatibility even in production
+      currentNonce = generateNonce();
+      return currentNonce;
+    }
     
     if (isDevelopment) {
       // Check if the current CSP allows unsafe-inline
@@ -31,8 +39,8 @@ export const getCurrentNonce = () => {
       if (cspMeta) {
         const content = cspMeta.getAttribute('content');
         if (content.includes("'unsafe-inline'")) {
-          // Silent in development - no need to log every time
-          return null; // No nonce needed in development with unsafe-inline
+          // No nonce needed in development with unsafe-inline
+          return null;
         }
       }
     }
@@ -48,7 +56,7 @@ export const getCurrentNonce = () => {
       }
     }
     
-    // Generate new nonce for production
+    // Generate new nonce as fallback
     currentNonce = generateNonce();
   }
   return currentNonce;
@@ -76,12 +84,27 @@ export const setCSPNonce = (nonce = null) => {
 
 // Check if PayPal and Google OAuth domains are allowed in CSP
 export const verifyPayPalCSP = () => {
+  // In production, CSP is often set via HTTP headers, not meta tags
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
-  if (!cspMeta) {
-    console.warn('CSP meta tag not found. PayPal and Google OAuth integration may be blocked.');
-    return false;
-  }
   
+  if (!cspMeta) {
+    if (isProduction) {
+      // In production, this is normal - CSP is set via server headers
+      console.log('No CSP meta tag found. This is normal in production where CSP is set via HTTP headers.');
+      return true; // Assume CSP is handled by server in production
+    } else if (isDevelopment && isLocalhost) {
+      // In development on localhost, CSP is typically not enforced
+      console.log('Development mode on localhost - CSP not enforced, PayPal integration should work.');
+      return true; // Allow PayPal to work in development
+    } else {
+      console.warn('CSP meta tag not found. PayPal and Google OAuth integration may be blocked.');
+      return false;
+    }
+  }
+
   const content = cspMeta.getAttribute('content');
   const requiredPayPalDomains = ['paypal.com', 'paypalobjects.com', 'venmo.com'];
   const requiredGoogleDomains = ['accounts.google.com'];
@@ -105,7 +128,6 @@ export const verifyPayPalCSP = () => {
   }
   
   // Check for style violations in development
-  const isDevelopment = process.env.NODE_ENV === 'development';
   if (isDevelopment && !content.includes("'unsafe-inline'")) {
     console.warn('Development mode requires unsafe-inline for CSS-in-JS libraries');
   }
