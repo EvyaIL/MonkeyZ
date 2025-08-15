@@ -1,5 +1,6 @@
 from src.mongodb.orders_collection import OrdersCollection
 from src.models.order import normalize_status, StatusEnum
+import re  # Add import for regex operations
 # --- COUPON ANALYTICS RECALCULATION ---
 async def recalculate_coupon_analytics(coupon_code: str, db):
     """
@@ -61,12 +62,35 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     }
 
     # Update the coupon using case-insensitive search
-    await db.coupons.update_one(
-        {"code": {"$regex": f"^{coupon_code_normalized}$", "$options": "i"}}, 
+    # Try both the original and normalized code
+    update_result = await db.coupons.update_one(
+        {"code": {"$regex": f"^{re.escape(coupon_code)}$", "$options": "i"}}, 
         {"$set": update_payload}
     )
     
+    # If no match found with original code, try normalized
+    if update_result.matched_count == 0:
+        update_result = await db.coupons.update_one(
+            {"code": {"$regex": f"^{re.escape(coupon_code_normalized)}$", "$options": "i"}}, 
+            {"$set": update_payload}
+        )
+    
+    # If still no match, try exact matches
+    if update_result.matched_count == 0:
+        update_result = await db.coupons.update_one(
+            {"code": coupon_code}, 
+            {"$set": update_payload}
+        )
+    
+    # If still no match, try normalized exact match
+    if update_result.matched_count == 0:
+        update_result = await db.coupons.update_one(
+            {"code": coupon_code_normalized}, 
+            {"$set": update_payload}
+        )
+    
     print(f"Recalculated analytics for coupon '{coupon_code}': {update_payload}")
+    print(f"Database update result: matched={update_result.matched_count}, modified={update_result.modified_count}")
 
     return update_payload
 
@@ -821,6 +845,9 @@ async def get_coupons(
     await verify_admin(user_controller, current_user)
     coupons = await user_controller.get_all_coupons()  # Using the controller method instead of accessing collection directly
     
+    # Get database connection for analytics recalculation
+    db = user_controller.db if hasattr(user_controller, 'db') else await MongoDb().get_db()
+    
     # Convert backend model to frontend format for each coupon
     result = []
     for coupon in coupons:
@@ -829,6 +856,16 @@ async def get_coupons(
             coupon_dict = coupon.dict() if hasattr(coupon, 'dict') else (
                 coupon.model_dump() if hasattr(coupon, 'model_dump') else coupon
             )
+            
+            # Recalculate total_active_uses for this coupon to ensure accuracy
+            if "code" in coupon_dict:
+                try:
+                    analytics = await recalculate_coupon_analytics(coupon_dict["code"], db)
+                    # Update usageCount with the current total_active_uses
+                    coupon_dict["usageCount"] = analytics.get("usageCount", 0)
+                except Exception as analytics_error:
+                    print(f"Failed to recalculate analytics for coupon {coupon_dict.get('code', 'unknown')}: {analytics_error}")
+                    # Keep the existing usageCount if analytics fails
             
             # Ensure _id is properly converted to string id
             if "_id" in coupon_dict and "id" not in coupon_dict:

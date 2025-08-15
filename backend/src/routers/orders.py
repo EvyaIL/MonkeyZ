@@ -41,6 +41,130 @@ paypal_client = PayPalHttpClient(environment)
 
 router = APIRouter()
 
+# TEMPORARY DEBUG ENDPOINT - Remove this after testing!
+@router.post("/debug/apply-coupon")
+async def debug_apply_coupon(payload: dict):
+    """
+    TEMPORARY DEBUG ENDPOINT - Remove this after testing!
+    Manually applies a coupon to test usage tracking.
+    """
+    try:
+        coupon_code = payload.get("code")
+        amount = payload.get("amount", 100)
+        email = payload.get("email", "debug@test.com")
+        
+        if not coupon_code:
+            return {"error": "No coupon code provided"}
+        
+        logger.info(f"DEBUG: Applying coupon {coupon_code} for email {email}, amount {amount}")
+        
+        # Get database connection like in the capture process
+        from ..deps.deps import get_user_controller_dependency
+        user_controller = get_user_controller_dependency()
+        
+        if not hasattr(user_controller.product_collection, 'db') or user_controller.product_collection.db is None:
+            await user_controller.product_collection.initialize()
+            
+        db = user_controller.product_collection.db
+        logger.info(f"DEBUG: Using database: {db.name if db else 'None'}")
+        
+        # Apply the coupon (this should increment usage)
+        coupon_service = CouponService(db)
+        discount_applied, coupon_obj, apply_error = await coupon_service.apply_coupon(
+            coupon_code, amount, email
+        )
+        
+        if apply_error:
+            logger.error(f"DEBUG: Coupon application failed: {apply_error}")
+            return {
+                "success": False,
+                "error": apply_error,
+                "debug_info": {
+                    "database": str(db.name if db else "None"),
+                    "coupon_code": coupon_code,
+                    "amount": amount,
+                    "email": email
+                }
+            }
+        
+        logger.info(f"DEBUG: Coupon application successful: discount={discount_applied}")
+        used_count = coupon_obj.get("used", "unknown") if coupon_obj else "no_coupon_obj"
+        logger.info(f"DEBUG: Coupon used count after apply: {used_count}")
+        
+        return {
+            "success": True,
+            "discount_applied": discount_applied,
+            "coupon_used_count": used_count,
+            "debug_info": {
+                "database": str(db.name if db else "None"),
+                "coupon_code": coupon_code,
+                "amount": amount,
+                "email": email
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"DEBUG: Exception in apply coupon: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "error": f"Exception: {str(e)}",
+            "debug_info": {
+                "exception_type": str(type(e).__name__)
+            }
+        }
+
+# TEMPORARY DEBUG ENDPOINT - Remove this after testing!  
+@router.post("/debug/recalc-analytics")
+async def debug_recalc_analytics(payload: dict):
+    """
+    TEMPORARY DEBUG ENDPOINT - Remove this after testing!
+    Manually recalculates coupon analytics.
+    """
+    try:
+        coupon_code = payload.get("code")
+        
+        if not coupon_code:
+            return {"error": "No coupon code provided"}
+        
+        logger.info(f"DEBUG: Recalculating analytics for coupon {coupon_code}")
+        
+        # Get database connection
+        from ..deps.deps import get_user_controller_dependency
+        user_controller = get_user_controller_dependency()
+        
+        if not hasattr(user_controller.product_collection, 'db') or user_controller.product_collection.db is None:
+            await user_controller.product_collection.initialize()
+            
+        db = user_controller.product_collection.db
+        logger.info(f"DEBUG: Using database: {db.name if db else 'None'}")
+        
+        # Recalculate analytics
+        from .admin_router import recalculate_coupon_analytics
+        analytics = await recalculate_coupon_analytics(coupon_code, db)
+        
+        logger.info(f"DEBUG: Analytics recalculated: {analytics}")
+        
+        return {
+            "success": True,
+            "analytics": analytics,
+            "debug_info": {
+                "database": str(db.name if db else "None"),
+                "coupon_code": coupon_code
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"DEBUG: Exception in recalc analytics: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "error": f"Exception: {str(e)}",
+            "debug_info": {
+                "exception_type": str(type(e).__name__)
+            }
+        }
+
+router = APIRouter()
+
 # Public endpoint for coupon validation (used during checkout)
 @router.post("/coupons/validate")
 async def validate_coupon_public(request: Request):
@@ -58,7 +182,10 @@ async def validate_coupon_public(request: Request):
         
         if not code:
             logger.warning("No coupon code provided in request")
-            return JSONResponse({"discount": 0, "message": "No coupon code provided"}, status_code=400)
+            return JSONResponse({
+                "discount": 0, 
+                "message": "No coupon code provided"
+            }, status_code=200)
         
         logger.info(f"Attempting to validate coupon: code={code}, amount={amount}, email={user_email}")
         
@@ -89,7 +216,10 @@ async def validate_coupon_public(request: Request):
             logger.info("CouponService initialized successfully")
         except Exception as service_error:
             logger.error(f"CouponService initialization failed: {service_error}")
-            return JSONResponse({"discount": 0, "message": "Service initialization error"}, status_code=500)
+            return JSONResponse({
+                "discount": 0, 
+                "message": "Service initialization error"
+            }, status_code=200)
         
         # Validate coupon
         try:
@@ -98,31 +228,32 @@ async def validate_coupon_public(request: Request):
             logger.info(f"validate_coupon returned: discount={discount}, coupon={coupon is not None}, error={error}")
         except Exception as validation_error:
             logger.error(f"Coupon validation exception: {validation_error}", exc_info=True)
-            return JSONResponse({"discount": 0, "message": f"Validation error: {str(validation_error)}"}, status_code=500)
+            return JSONResponse({
+                "discount": 0, 
+                "message": f"Validation error: {str(validation_error)}"
+            }, status_code=200)
         
         if error:
             logger.warning(f"Coupon validation failed: {error}")
-            return JSONResponse({"discount": 0, "message": error}, status_code=400)
+            return JSONResponse({
+                "discount": 0, 
+                "message": error
+            }, status_code=200)  # Return 200 to match production behavior
             
         logger.info(f"Coupon validation successful: discount={discount}")
         
-        # Convert coupon object to serializable format if present
-        coupon_data = None
-        if coupon:
-            coupon_data = {}
-            for key, value in coupon.items():
-                if key == '_id':
-                    coupon_data[key] = str(value)
-                elif key == 'expiresAt' and value:
-                    coupon_data[key] = value.isoformat() if hasattr(value, 'isoformat') else str(value)
-                else:
-                    coupon_data[key] = value
-        
-        return {"discount": discount, "message": "Coupon valid!", "coupon": coupon_data}
+        # Return simple format like production (without valid/error fields)
+        return JSONResponse({
+            "discount": discount, 
+            "message": "Coupon valid!"
+        }, status_code=200)
         
     except Exception as e:
         logger.error(f"Error validating coupon: {str(e)}", exc_info=True)
-        return JSONResponse({"discount": 0, "message": f"Internal server error: {str(e)}"}, status_code=500)
+        return JSONResponse({
+            "discount": 0, 
+            "message": f"Internal server error: {str(e)}"
+        }, status_code=200)
 
 # Customer: fetch authenticated user's own orders
 @router.get("/orders/user", response_model=List[Order])
@@ -1016,23 +1147,54 @@ async def capture_paypal_order(
     paid_amount = float(cap_resp.result.purchase_units[0].payments.captures[0].amount.value)
 
     # Update coupon analytics if completed
-    if current_order_status == StatusEnum.COMPLETED and coupon_code:
+    logger.info(f"PayPal Capture: current_order_status={current_order_status}, coupon_code='{coupon_code}'")
+    
+    # CRITICAL FIX: Apply coupon for ALL non-failed orders, not just COMPLETED
+    if coupon_code and current_order_status not in [StatusEnum.CANCELLED, StatusEnum.FAILED]:
+        logger.info(f"PayPal Capture: Starting coupon application for {coupon_code} (status: {current_order_status})")
+        
         # APPLY the coupon (increment usage count) - this was the missing piece!
         coupon_service = CouponService(db)
-        customer_email = order_doc.get('email')
+        customer_email = order_doc.get('email') or order_doc.get('userEmail')
+        
+        logger.info(f"PayPal Capture: Applying coupon {coupon_code} for email {customer_email}, amount {original_total}")
+        
+        # Force usage count sync first
+        real_usage_before = await coupon_service.get_real_usage_count(coupon_code)
+        logger.info(f"PayPal Capture: Real usage before apply: {real_usage_before}")
+        
         discount_applied, coupon_obj, apply_error = await coupon_service.apply_coupon(
             coupon_code, original_total, customer_email
         )
         
         if apply_error:
-            logger.warning(f"Failed to apply coupon {coupon_code} during capture: {apply_error}")
+            logger.error(f"PayPal Capture: Failed to apply coupon {coupon_code} during capture: {apply_error}")
         else:
-            logger.info(f"Successfully applied coupon {coupon_code} for order {order_id}, discount: {discount_applied}")
+            logger.info(f"PayPal Capture: Successfully applied coupon {coupon_code} for order {order_id}, discount: {discount_applied}")
+            
+            # Force sync the usage count to display
+            await coupon_service.update_coupon_usage_count(coupon_code)
+            
+            # Log coupon object details for debugging
+            if coupon_obj:
+                logger.info(f"PayPal Capture: Coupon object after apply: usageCount={coupon_obj.get('usageCount', 'unknown')}, maxUses={coupon_obj.get('maxUses', 'unknown')}")
+        
+        # Verify the fix worked
+        real_usage_after = await coupon_service.get_real_usage_count(coupon_code)
+        logger.info(f"PayPal Capture: Real usage after apply: {real_usage_after}")
         
         # Also recalculate analytics for admin panel
-        from .admin_router import recalculate_coupon_analytics
-        await recalculate_coupon_analytics(coupon_code, db)
-        logger.info("PayPal Order %s: Applied coupon and recalculated analytics for %s on capture", order_id, coupon_code)
+        try:
+            from .admin_router import recalculate_coupon_analytics
+            await recalculate_coupon_analytics(coupon_code, db)
+            logger.info(f"PayPal Capture: Recalculated analytics for coupon {coupon_code}")
+        except Exception as analytics_error:
+            logger.error(f"PayPal Capture: Failed to recalculate analytics for {coupon_code}: {analytics_error}")
+    else:
+        if not coupon_code:
+            logger.info("PayPal Capture: No coupon code found - skipping coupon application")
+        else:
+            logger.info(f"PayPal Capture: Order status is {current_order_status} - skipping coupon application for failed order")
 
     # Update order in DB with unified structure
     now = datetime.now(timezone.utc)
@@ -1141,3 +1303,102 @@ async def cancel_paypal_order(order_id: str):
         logger.info("PayPal Order %s: Recalculated analytics for coupon %s on cancellation", order_id, coupon_code)
 
     return {"message": "Order cancelled"}
+
+
+# COMPREHENSIVE DEBUG ENDPOINT for fixing all coupon issues
+@router.post("/debug/fix-all-coupons")
+async def debug_fix_all_coupons():
+    """
+    COMPREHENSIVE DEBUG ENDPOINT - Fixes all coupon usage tracking issues.
+    This will identify and fix the 'Total: 1 but Used: 0' problem.
+    """
+    try:
+        logger.info("=== STARTING COMPREHENSIVE COUPON FIX ===")
+        
+        # Get database connection
+        from ..deps.deps import get_user_controller_dependency
+        user_controller = get_user_controller_dependency()
+        
+        if not hasattr(user_controller.product_collection, 'db') or user_controller.product_collection.db is None:
+            await user_controller.product_collection.initialize()
+            
+        db = user_controller.product_collection.db
+        logger.info(f"Using database: {db.name if db else 'None'}")
+        
+        # Get all coupons from admin.coupons collection
+        admin_db = db.client.get_database("admin")
+        coupons_collection = admin_db.get_collection("coupons")
+        
+        all_coupons = await coupons_collection.find({'active': True}).to_list(None)
+        logger.info(f"Found {len(all_coupons)} active coupons to analyze")
+        
+        results = {}
+        fixed_count = 0
+        
+        for coupon in all_coupons:
+            coupon_code = coupon.get('code')
+            if not coupon_code:
+                continue
+            
+            # Get current stored usage count
+            stored_usage = coupon.get('usageCount', 0)
+            
+            # Get real usage count from orders
+            coupon_service = CouponService(db)
+            real_usage = await coupon_service.get_real_usage_count(coupon_code)
+            
+            # Get detailed order breakdown
+            orders = await db.orders.find({
+                'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'}
+            }).to_list(None)
+            
+            status_breakdown = {}
+            for order in orders:
+                status = order.get('status', 'unknown')
+                status_breakdown[status] = status_breakdown.get(status, 0) + 1
+            
+            # Check if fix is needed
+            needs_fix = stored_usage != real_usage
+            
+            if needs_fix:
+                # Fix the usage count
+                await coupons_collection.update_one(
+                    {'_id': coupon['_id']},
+                    {'$set': {'usageCount': real_usage}}
+                )
+                fixed_count += 1
+                logger.info(f"FIXED '{coupon_code}': {stored_usage} -> {real_usage}")
+            
+            results[coupon_code] = {
+                'stored_usage_before': stored_usage,
+                'real_usage': real_usage,
+                'fixed': needs_fix,
+                'total_orders': len(orders),
+                'status_breakdown': status_breakdown,
+                'max_uses': coupon.get('maxUses', 'unlimited')
+            }
+        
+        logger.info(f"=== COMPREHENSIVE COUPON FIX COMPLETED ===")
+        logger.info(f"Fixed {fixed_count} out of {len(all_coupons)} coupons")
+        
+        return {
+            "success": True,
+            "message": f"Fixed {fixed_count} coupon(s) out of {len(all_coupons)} total",
+            "coupons_analyzed": len(all_coupons),
+            "coupons_fixed": fixed_count,
+            "results": results,
+            "database_info": {
+                "database": str(db.name if db else "None"),
+                "client": str(db.client.address) if hasattr(db.client, 'address') else "unknown"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in comprehensive coupon fix: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "error": f"Exception: {str(e)}",
+            "debug_info": {
+                "exception_type": str(type(e).__name__)
+            }
+        }

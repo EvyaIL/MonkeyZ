@@ -1,11 +1,64 @@
 from datetime import datetime, timezone
 import logging
+from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
 
 class CouponService:
     def __init__(self, db):
         self.db = db
+
+    async def get_real_usage_count(self, coupon_code):
+        """
+        Calculate real-time usage count from orders collection.
+        This is the source of truth for coupon usage.
+        """
+        try:
+            orders_collection = self.db.orders
+            
+            # Count orders with this coupon that are not cancelled
+            # Use case-insensitive search for coupon codes
+            count = await orders_collection.count_documents({
+                'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'},
+                'status': {'$nin': ['cancelled', 'failed']}
+            })
+            
+            logger.info(f"Real usage count for coupon '{coupon_code}': {count}")
+            return count
+            
+        except Exception as e:
+            logger.error(f"Error calculating real usage count for coupon {coupon_code}: {e}")
+            return 0
+
+    async def update_coupon_usage_count(self, coupon_code):
+        """
+        Update the stored usageCount field to match real orders count.
+        This syncs the display with actual usage.
+        """
+        try:
+            # Get real count from orders
+            real_count = await self.get_real_usage_count(coupon_code)
+            
+            # Update the stored count in coupons collection
+            admin_db = self.db.client.get_database("admin")
+            collection = admin_db.get_collection("coupons")
+            
+            result = await collection.update_one(
+                {'code': {'$regex': f'^{coupon_code}$', '$options': 'i'}},
+                {'$set': {'usageCount': real_count}}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Updated usageCount for coupon '{coupon_code}' to {real_count}")
+                return True
+            else:
+                logger.warning(f"No coupon found to update usage count for '{coupon_code}'")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating usage count for coupon {coupon_code}: {e}")
+            return False
 
     async def apply_coupon(self, coupon_code, original_total, user_email=None):
         """
@@ -23,8 +76,8 @@ class CouponService:
             collection = admin_db.get_collection("coupons")
             code = coupon_code.strip().lower()
             
-            # Find the coupon
-            coupon = await collection.find_one({'code': code, 'active': True})
+            # Find the coupon (case-insensitive)
+            coupon = await collection.find_one({'code': {'$regex': f'^{code}$', '$options': 'i'}, 'active': True})
             if not coupon:
                 return 0.0, None, f'Coupon code \'{coupon_code}\' not found or not active.'
 
@@ -43,10 +96,13 @@ class CouponService:
                         return 0.0, None, 'Coupon expired.'
 
             # --- Overall Usage Limit Check ---
-            current_usage = coupon.get('usageCount', 0)
+            # Use real-time usage count instead of stored usageCount
             max_uses = coupon.get('maxUses')
-            if max_uses is not None and current_usage >= max_uses:
-                return 0.0, None, f'Coupon usage limit reached ({current_usage}/{max_uses}).'
+            if max_uses is not None:
+                current_usage = await self.get_real_usage_count(coupon['code'])
+                if current_usage >= max_uses:
+                    logger.warning(f"Coupon '{coupon_code}' usage limit exceeded: {current_usage}/{max_uses}")
+                    return 0.0, None, f'Coupon usage limit exceeded ({current_usage}/{max_uses}).'
 
             # --- Per-User Usage Limit Check ---
             if user_email:
@@ -55,9 +111,9 @@ class CouponService:
                     # Count how many times this user has used this coupon
                     orders_collection = self.db.orders
                     user_usage_count = await orders_collection.count_documents({
-                        'email': user_email,
-                        'couponCode': code,
-                        'status': {'$in': ['completed', 'confirmed']}
+                        'userEmail': user_email,
+                        'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
+                        'status': {'$nin': ['cancelled', 'failed']}
                     })
                     
                     if user_usage_count >= max_usage_per_user:
@@ -75,15 +131,15 @@ class CouponService:
             # Round to 2 decimal places
             discount_amount = round(discount_amount, 2)
             
-            # --- INCREMENT USAGE COUNT ---
-            await collection.update_one(
-                {'code': code},
-                {'$inc': {'usageCount': 1}}
-            )
+            # --- UPDATE USAGE COUNT TO MATCH REALITY ---
+            # Instead of just incrementing, update to real count
+            await self.update_coupon_usage_count(coupon['code'])
             
+            logger.info(f"Successfully applied coupon '{coupon_code}': ${discount_amount} discount")
             return discount_amount, coupon, None
             
         except Exception as e:
+            logger.error(f"Error applying coupon '{coupon_code}': {e}")
             return 0.0, None, f'Error applying coupon: {str(e)}'
 
     async def validate_coupon(self, coupon_code, original_total, user_email=None):
@@ -121,21 +177,22 @@ class CouponService:
                         return 0.0, None, 'Coupon expired.'
 
             # --- Overall Usage Limit Check ---
-            current_usage = coupon.get('usageCount', 0)
+            # Use real-time usage count instead of stored usageCount
             max_uses = coupon.get('maxUses')
-            if max_uses is not None and current_usage >= max_uses:
-                return 0.0, None, f'Coupon usage limit reached ({current_usage}/{max_uses}).'
+            if max_uses is not None:
+                current_usage = await self.get_real_usage_count(coupon['code'])
+                if current_usage >= max_uses:
+                    return 0.0, None, f'Coupon usage limit reached ({current_usage}/{max_uses}).'
 
             # --- Per-User Usage Limit Check ---
             if user_email:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
                 if max_usage_per_user > 0:
-                    # Count how many times this user has used this coupon
                     orders_collection = self.db.orders
                     user_usage_count = await orders_collection.count_documents({
-                        'email': user_email,
-                        'couponCode': code,
-                        'status': {'$in': ['completed', 'confirmed']}
+                        'userEmail': user_email,
+                        'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
+                        'status': {'$nin': ['cancelled', 'failed']}
                     })
                     
                     if user_usage_count >= max_usage_per_user:
@@ -154,6 +211,10 @@ class CouponService:
             discount_amount = round(discount_amount, 2)
             
             return discount_amount, coupon, None
+            
+        except Exception as e:
+            logger.error(f"Error validating coupon '{coupon_code}': {e}")
+            return 0.0, None, f'Error validating coupon: {str(e)}'
             
         except Exception as e:
             return 0.0, None, f'Error validating coupon: {str(e)}' 

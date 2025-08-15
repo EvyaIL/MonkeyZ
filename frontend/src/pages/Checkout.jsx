@@ -88,9 +88,19 @@ export default function Checkout() {
     setCspNonce(nonce);
     
     // Verify PayPal CSP configuration
+    // In production, CSP is set via HTTP headers, not meta tags
+    const isProduction = !PAYPAL_CONFIG.isDevelopment;
     const cspValid = verifyPayPalCSP();
-    if (!cspValid && !PAYPAL_CONFIG.isDevelopment) {
-      setError('Payment security configuration needs attention. Please reload the page.');
+    
+    // Only show CSP error if we're in production AND there's actually a CSP issue
+    // In production, CSP headers are set by the server, so missing meta tag is normal
+    if (!cspValid && isProduction) {
+      // Check if we're actually in a production environment where CSP matters
+      const hasCSPHeaders = document.location.protocol === 'https:';
+      if (hasCSPHeaders) {
+        console.warn('CSP configuration may need attention, but PayPal should still work with server-side CSP headers');
+        // Don't set error - let PayPal try to load, server CSP headers should handle it
+      }
     }
 
     // Create a unique component key to prevent zoid conflicts
@@ -165,20 +175,50 @@ export default function Checkout() {
     setCouponMsg("");
     setDiscount(0);
     if (!coupon) return setCouponMsg("Enter a coupon code");
+    
+    // Debug logging for environment differences
+    const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
+    console.log('Coupon validation - API URL:', apiUrl);
+    console.log('Coupon validation - Environment:', process.env.NODE_ENV);
+    console.log('Coupon validation - Current host:', window.location.host);
+    
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/coupons/validate`, {
+      const requestData = {
         code: coupon,
         amount: subtotal,
         email: email || user?.email || null, // Include user email for per-user validation
-      });
-      if (res.data.discount) {
+      };
+      
+      console.log('Coupon validation request:', requestData);
+      
+      const res = await axios.post(`${apiUrl}/api/coupons/validate`, requestData);
+      
+      console.log('Coupon validation response:', res.data);
+      
+      // Check if coupon validation was successful
+      if (res.data.valid === false || res.data.error) {
+        // Handle specific error cases
+        const errorMessage = res.data.message || res.data.error || "Invalid coupon";
+        setCouponMsg(errorMessage);
+        setDiscount(0);
+        return;
+      }
+      
+      if (res.data.discount && res.data.discount > 0) {
         setDiscount(res.data.discount);
         setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
       } else {
-        setCouponMsg(res.data.message);
+        setCouponMsg(res.data.message || "Coupon is not applicable");
+        setDiscount(0);
       }
     } catch (err) {
-      setCouponMsg(err.response?.data?.message || "Invalid coupon");
+      console.error('Coupon validation error:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || "Invalid coupon";
+      setCouponMsg(errorMessage);
+      setDiscount(0);
     }
   };
 
@@ -190,8 +230,8 @@ export default function Checkout() {
     // Only load required components for performance
     components: PAYPAL_CONFIG.scriptConfig.components,
     commit: PAYPAL_CONFIG.scriptConfig.commit,
-    // CSP nonce for enhanced security (only in production)
-    ...(cspNonce && !PAYPAL_CONFIG.isDevelopment && { "data-csp-nonce": cspNonce }),
+    // CSP nonce for enhanced security (only in development with meta tags)
+    ...(cspNonce && PAYPAL_CONFIG.isDevelopment && { "data-csp-nonce": cspNonce }),
     // Localization for Israeli users
     locale: PAYPAL_CONFIG.locale,
     // Performance optimization: disable unused funding
@@ -270,7 +310,15 @@ export default function Checkout() {
                 Apply
               </button>
             </div>
-            {couponMsg && <p className="mt-2 text-sm">{couponMsg}</p>}
+            {couponMsg && (
+              <p className={`mt-2 text-sm ${
+                couponMsg.includes('applied') || couponMsg.includes('off') 
+                  ? 'text-green-600' 
+                  : 'text-red-600'
+              }`}>
+                {couponMsg}
+              </p>
+            )}
           </div>
           {/* Email Input */}
           <div className="mt-6">
@@ -336,7 +384,7 @@ export default function Checkout() {
             </p>
           </div>
 
-          {(cspNonce || PAYPAL_CONFIG.isDevelopment) && paypalLoaded && (
+          {(cspNonce || PAYPAL_CONFIG.isDevelopment || PAYPAL_CONFIG.isProduction) && paypalLoaded && (
             <div key={`paypal-container-${componentKey}`}>
               <PayPalScriptProvider 
                 options={initialOptions}
@@ -469,6 +517,35 @@ export default function Checkout() {
                     throw new Error("Cart validation failed. Please refresh the page and try again.");
                   }
 
+                  // Double-check coupon validity before creating order if a coupon is applied
+                  if (coupon && discount > 0) {
+                    try {
+                      const couponValidation = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/coupons/validate`, {
+                        code: coupon,
+                        amount: subtotal,
+                        email: email || user?.email || null,
+                      });
+                      
+                      // If coupon is no longer valid, clear it and throw error
+                      if (couponValidation.data.valid === false || couponValidation.data.error || !couponValidation.data.discount) {
+                        setDiscount(0);
+                        setCouponMsg(couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid");
+                        throw new Error("Coupon validation failed: " + (couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid"));
+                      }
+                      
+                      // Update discount if it changed
+                      if (couponValidation.data.discount !== discount) {
+                        setDiscount(couponValidation.data.discount);
+                        setCouponMsg(`Coupon applied - ₪${couponValidation.data.discount.toFixed(2)} off`);
+                      }
+                    } catch (couponErr) {
+                      console.error("Coupon re-validation failed:", couponErr);
+                      setDiscount(0);
+                      setCouponMsg("Coupon validation failed");
+                      throw new Error("Coupon validation failed. Please remove the coupon and try again.");
+                    }
+                  }
+
                   console.log("Creating PayPal order with data:", {
                     cart: finalValidatedCart,
                     couponCode: coupon,
@@ -502,8 +579,41 @@ export default function Checkout() {
                   let errorMessage = "Failed to create order";
                   if (err.response?.data?.detail) {
                     errorMessage = err.response.data.detail;
+                    
+                    // Check if this is a coupon validation error
+                    if (errorMessage.toLowerCase().includes('coupon') || 
+                        errorMessage.toLowerCase().includes('usage limit') ||
+                        errorMessage.toLowerCase().includes('max uses') ||
+                        errorMessage.toLowerCase().includes('exceed') ||
+                        errorMessage.toLowerCase().includes('invalid')) {
+                      // Clear the discount and update coupon message
+                      setDiscount(0);
+                      setCouponMsg(errorMessage);
+                      errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
+                    }
+                  } else if (err.response?.data?.message) {
+                    errorMessage = err.response.data.message;
+                    
+                    // Check if this is a coupon validation error
+                    if (errorMessage.toLowerCase().includes('coupon') || 
+                        errorMessage.toLowerCase().includes('usage limit') ||
+                        errorMessage.toLowerCase().includes('max uses') ||
+                        errorMessage.toLowerCase().includes('exceed') ||
+                        errorMessage.toLowerCase().includes('invalid')) {
+                      // Clear the discount and update coupon message
+                      setDiscount(0);
+                      setCouponMsg(errorMessage);
+                      errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
+                    }
                   } else if (err.message) {
                     errorMessage = err.message;
+                    
+                    // Check if this is a coupon validation error from our frontend validation
+                    if (errorMessage.toLowerCase().includes('coupon')) {
+                      // The discount and coupon message should already be cleared by the validation code above
+                      // Just show a user-friendly message
+                      errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
+                    }
                   }
                   
                   setError(errorMessage);

@@ -225,6 +225,8 @@ function AdminCoupons() {
                   usageAnalytics: res.data.usageAnalytics || res.data.usage_analytics || {},
                   userUsages: res.data.userUsages || res.data.user_usages || {},
                 });
+                // Refresh coupon list to show updated usage count in main table
+                await fetchCoupons();
               }
             } catch (err) {
               setAnalyticsError('Failed to load analytics');

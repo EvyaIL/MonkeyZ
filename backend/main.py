@@ -118,25 +118,8 @@ async def get_csrf_token_endpoint():
     token = get_csrf_token()
     return {"csrf_token": token}
 
-# Add coupon validation endpoint
-@app.post("/api/coupons/validate")
-async def validate_coupon(request: Request):
-    from src.services.coupon_service import CouponService
-    from src.mongodb.mongodb import MongoDb
-    
-    data = await request.json()
-    code = data.get("code")
-    amount = data.get("amount", 0)
-    
-    mongo_db = MongoDb()
-    db = await mongo_db.get_db()
-    coupon_service = CouponService(db)
-    # Use validate_coupon (no usage increment) for validation endpoint
-    discount, _, error = await coupon_service.validate_coupon(code, amount)
-    
-    if error:
-        return JSONResponse({"discount": 0, "message": error}, status_code=400)
-    return {"discount": discount, "message": "Coupon valid!"}
+# Note: Coupon validation is handled by the orders router at /api/coupons/validate
+# This endpoint is public and doesn't require CSRF protection
 
 def get_cors_origin(request: StarletteRequest):
     origin = request.headers.get("origin")
