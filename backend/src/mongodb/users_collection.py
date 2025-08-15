@@ -1,3 +1,4 @@
+import logging
 from src.models.token.token import LoginResponse
 from .mongodb import MongoDb
 from src.models.user.user import User, UserRequest, Role
@@ -7,6 +8,8 @@ from src.lib.haseing import Hase
 from src.lib.token_handler import create_access_token
 from typing import Optional # Added Optional for type hinting
 from beanie import PydanticObjectId # Added for get_user_by_id
+
+logger = logging.getLogger(__name__)
 
 class UserCollection(MongoDb, metaclass=Singleton):
     """
@@ -96,44 +99,44 @@ class UserCollection(MongoDb, metaclass=Singleton):
                 LogginUserException
                     If the username/email does not exist or the password is incorrect.
         """
-        print(f"Login attempt with: {body.username}")
+        logger.info(f"Login attempt with: {body.username}")
         user = None
         # Check if the input is an email
         if '@' in body.username:
-            print(f"Detected email format in login attempt: {body.username}")
+            logger.info(f"Detected email format in login attempt: {body.username}")
             user = await self.get_user_by_email(body.username)
             if not user:
-                print(f"No user found with email: {body.username}")
+                logger.info(f"No user found with email: {body.username}")
                 # Try username as fallback (in case someone has @ in their username)
                 user = await self.get_user_by_username(body.username)
                 if not user:
-                    print(f"No user found with username: {body.username}")
+                    logger.info(f"No user found with username: {body.username}")
                     # Try Google name as fallback
                     user = await self.get_user_by_google_name(body.username)
                     if not user:
-                        print(f"No user found with Google name: {body.username}")
+                        logger.info(f"No user found with Google name: {body.username}")
                         raise LoginError("Email, username, or Google name does not exist.")
         else:
-            print(f"Attempting to find user by username: {body.username}")
+            logger.info(f"Attempting to find user by username: {body.username}")
             user = await self.get_user_by_username(body.username)
             if not user:
-                print(f"No user found with username: {body.username}")
+                logger.info(f"No user found with username: {body.username}")
                 # Try email as fallback (maybe they forgot to include @ or it's somehow not detected)
                 user = await self.get_user_by_email(body.username)
                 if not user:
-                    print(f"No user found with email: {body.username}")
+                    logger.info(f"No user found with email: {body.username}")
                     # Try Google name as fallback
                     user = await self.get_user_by_google_name(body.username)
                     if not user:
-                        print(f"No user found with Google name: {body.username}")
+                        logger.info(f"No user found with Google name: {body.username}")
                         raise LoginError("Username, email, or Google name does not exist.")
         
-        print(f"User found, verifying password for user: {user.username}")
+        logger.info(f"User found, verifying password for user: {user.username}")
         if not Hase.verify(body.password, user.password):
-            print(f"Password verification failed for user: {user.username}")
+            logger.warning(f"Password verification failed for user: {user.username}")
             raise LoginError("Password is incorrect.")
         
-        print(f"Login successful for user: {user.username}")
+        logger.info(f"Login successful for user: {user.username}")
         return user
 
     async def get_user_by_username(self, username: str) -> User:

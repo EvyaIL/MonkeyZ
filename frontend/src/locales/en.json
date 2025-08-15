@@ -1,6 +1,7 @@
 {
   "welcome": "Welcome, {{username}}!",
   "welcome_prefix": "Welcome",
+  "menu": "Menu",
   "all_products": "All Products",
   "about_us": "About Us",
   "contact": "Contact",

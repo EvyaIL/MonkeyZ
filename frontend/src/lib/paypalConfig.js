@@ -43,7 +43,7 @@ export const PAYPAL_CONFIG = {
   scriptConfig: {
     // Only load required components
     components: 'buttons',
-    // Disable debug mode in production
+    // Disable debug mode to reduce console warnings
     debug: false,
     // Disable unwanted funding sources and separate credit card button
     // This removes the separate "Pay with Credit Card" button but still allows credit cards through PayPal
@@ -53,7 +53,9 @@ export const PAYPAL_CONFIG = {
     // Commit for Pay Now button
     commit: true,
     // Buyer country for optimization
-    'buyer-country': 'IL'
+    'buyer-country': 'IL',
+    // Disable session warnings
+    'disable-warnings': true
   }
 };
 

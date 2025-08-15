@@ -12,8 +12,16 @@ class OrdersCollection(MongoDb, metaclass=Singleton):
 
     async def get_orders_by_coupon_code(self, coupon_code: str) -> List[Dict[str, Any]]:
         db = await self.get_db()
-        # Support both couponCode and coupon_code for legacy data
-        orders_cursor = db.orders.find({"$or": [{"couponCode": coupon_code}, {"coupon_code": coupon_code}]})
+        # Normalize coupon code to lowercase for consistent searching
+        coupon_code_lower = coupon_code.lower().strip()
+        
+        # Support both couponCode and coupon_code for legacy data, case-insensitive
+        orders_cursor = db.orders.find({
+            "$or": [
+                {"couponCode": {"$regex": f"^{coupon_code_lower}$", "$options": "i"}},
+                {"coupon_code": {"$regex": f"^{coupon_code_lower}$", "$options": "i"}}
+            ]
+        })
         orders_list = []
         async for order_doc in orders_cursor:
             # Normalize coupon fields for consistency

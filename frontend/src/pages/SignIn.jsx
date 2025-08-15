@@ -221,7 +221,22 @@ const SignIn = () => {
         <div className="flex justify-center">
           <GoogleLogin
             onSuccess={onGoogleSignIn}
-            onError={() => { setMessage({ message: 'Google sign in failed.', color: '#DC2626' }); setGoogleLoading(false); }}
+            onError={(error) => { 
+              console.error('Google OAuth Error:', error);
+              let errorMessage = 'Google sign in failed.';
+              
+              // Provide more specific error messages
+              if (error?.error === 'popup_blocked') {
+                errorMessage = 'Google sign-in popup was blocked. Please allow popups for this site.';
+              } else if (error?.error === 'access_blocked') {
+                errorMessage = 'Google sign-in access was blocked. Please check your browser settings.';
+              } else if (window.location.hostname === 'localhost') {
+                errorMessage = 'Google sign-in failed. Make sure localhost:3000 is authorized in Google Console.';
+              }
+              
+              setMessage({ message: errorMessage, color: '#DC2626' }); 
+              setGoogleLoading(false); 
+            }}
             locale={document.documentElement.lang || 'en'}
             theme="filled_blue"
             text="signin_with"

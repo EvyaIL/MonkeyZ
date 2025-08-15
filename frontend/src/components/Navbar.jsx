@@ -55,15 +55,25 @@ const Navbar = memo(() => {
     if (!mobileMenuOpen) return;
     
     const handleClickOutside = (event) => {
+      // Don't close if clicking on the mobile menu button itself
+      const mobileMenuButton = event.target.closest('[aria-label*="menu"]');
+      if (mobileMenuButton) return;
+      
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
         setMobileMenuOpen(false);
       }
     };
     
-    document.addEventListener("mousedown", handleClickOutside);
+    // Use a small delay to avoid immediate closing when menu opens
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }, 100);
     
     return () => {
+      clearTimeout(timer);
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [mobileMenuOpen]);
 
@@ -89,10 +99,15 @@ const Navbar = memo(() => {
     setOpenCart(!openCart);
   }, [openCart, setOpenCart]);
 
-  // Memoize mobile menu toggle
-  const handleMobileMenuToggle = useCallback(() => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  }, [mobileMenuOpen]);
+  // Memoize mobile menu toggle with enhanced event handling
+  const handleMobileMenuToggle = useCallback((event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    console.log('Mobile menu toggle clicked'); // Debug log
+    setMobileMenuOpen(prev => !prev);
+  }, []);
 
   return (
     <header className="top-0 z-20 sticky">
@@ -224,12 +239,14 @@ const Navbar = memo(() => {
 
             {/* Mobile Menu Button */}
             <button
-              className="md:hidden p-2 rounded-md hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors duration-200"
+              className="md:hidden p-2 rounded-md hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent transition-colors duration-200 touch-manipulation"
               onClick={handleMobileMenuToggle}
               aria-expanded={mobileMenuOpen}
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              type="button"
+              style={{ touchAction: 'manipulation' }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6 pointer-events-none">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={mobileMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
               </svg>
             </button>
@@ -241,6 +258,21 @@ const Navbar = memo(() => {
           ref={mobileMenuRef}
           className="md:hidden bg-white dark:bg-gray-800 text-gray-800 dark:text-white border-t border-gray-200 dark:border-gray-700 p-4 shadow-lg"
         >
+          {/* Mobile Menu Header with Close Button */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">{t("menu", "Menu")}</h3>
+            <button
+              onClick={handleMobileMenuToggle}
+              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Close menu"
+              type="button"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
           <div className="flex flex-col gap-4">
             <Link              to="/products"
               className="px-4 py-2 text-gray-800 dark:text-white hover:bg-accent/10 dark:hover:bg-gray-700 rounded-md hover:text-accent dark:hover:text-accent transition-colors"

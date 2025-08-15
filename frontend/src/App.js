@@ -17,6 +17,20 @@ const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
+// Debug Google OAuth configuration in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('🔧 Google OAuth Debug Info:');
+  console.log('Current Origin:', window.location.origin);
+  console.log('Google Client ID:', GOOGLE_CLIENT_ID ? '✅ Present' : '❌ Missing');
+  if (!GOOGLE_CLIENT_ID) {
+    console.error('❌ GOOGLE_CLIENT_ID is missing from .env file');
+  } else {
+    console.log('🔗 To fix 403 error, add this origin to Google Console:');
+    console.log(`   ${window.location.origin}`);
+    console.log('📝 Instructions: https://console.cloud.google.com/ → APIs & Services → Credentials');
+  }
+}
+
 const AppContent = () => {
   const { i18n } = useTranslation();
   

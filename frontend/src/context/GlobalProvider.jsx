@@ -19,8 +19,7 @@ const GlobalProvider = React.memo(({ children }) => {
   // Theme state
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 
-             (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      return localStorage.getItem('theme') || 'light'; // Default to light theme
     }
     return 'light';
   });
@@ -180,22 +179,32 @@ const GlobalProvider = React.memo(({ children }) => {
   const addItemToCart = useCallback((id, count, item) => {
     setCartItems((prev) => {
       const newCart = { ...prev };
-      if (id in newCart) {
-        newCart[id].count += count;
+      
+      // Ensure we have a valid product ID - handle MongoDB _id and regular id
+      const productId = id || item?.id || item?.productId || item?._id;
+      if (!productId) {
+        console.error('Cannot add item to cart: missing product ID', { id, item });
+        return prev; // Don't add if no valid ID
+      }
+      
+      if (productId in newCart) {
+        newCart[productId].count += count;
       } else {
         // Ensure we have a consistent image field for cart display
         const cartItem = { 
           ...item, 
           count: count,
           // Always ensure productId and id are present for backend compatibility
-          productId: item.productId || id,
-          id: id,
+          productId: productId,
+          id: productId,
+          // Ensure price is a number
+          price: typeof item?.price === 'number' ? item.price : 0,
           // Prioritize imageUrl, then image for cart display
-          image: item.imageUrl || item.image || item.images?.[0] || null,
+          image: item?.imageUrl || item?.image || item?.images?.[0] || null,
           // Add validation timestamp to prevent aggressive removal
           lastValidated: Date.now()
         };
-        newCart[id] = cartItem;
+        newCart[productId] = cartItem;
       }
       
       // Save cart to localStorage for persistence
@@ -278,17 +287,25 @@ const GlobalProvider = React.memo(({ children }) => {
 
       Object.entries(prev).forEach(([key, item]) => {
         // Ensure each cart item has both productId and id fields
-        const productId = item.productId || item.id || key;
+        const productId = item?.productId || item?.id || key;
+        
+        // Skip items without valid product ID
+        if (!productId) {
+          console.warn('Removing cart item with no valid product ID:', item);
+          hasChanges = true;
+          return;
+        }
+        
         const cleanedItem = {
           ...item,
           productId: productId,
           id: productId,
-          // Ensure count is a number
-          count: typeof item.count === 'number' ? item.count : 1,
+          // Ensure count is a positive number
+          count: typeof item?.count === 'number' && item.count > 0 ? item.count : 1,
           // Ensure price is a number
-          price: typeof item.price === 'number' ? item.price : 0,
+          price: typeof item?.price === 'number' ? item.price : 0,
           // Add validation timestamp if missing
-          lastValidated: item.lastValidated || Date.now()
+          lastValidated: item?.lastValidated || Date.now()
         };
 
         // Check if item was actually cleaned
@@ -429,6 +446,198 @@ const GlobalProvider = React.memo(({ children }) => {
     return () => clearInterval(validationInterval);
   }, [Object.keys(cartItems).length]); // Only re-run when cart item count changes
 
+  /**
+   * Sync cart items with updated product data (names, prices, availability)
+   */
+  const syncCartWithProducts = useCallback(async () => {
+    const cartItemIds = Object.keys(cartItems);
+    if (cartItemIds.length === 0) return;
+
+    try {
+      // Get current product data
+      const { data: allProducts } = await apiService.get('/product/all');
+      
+      if (!allProducts || !Array.isArray(allProducts)) {
+        console.warn('Unable to sync cart items - products not available');
+        return;
+      }
+
+      // Create a map for quick product lookup
+      const productMap = new Map(allProducts.map(p => [p.id, p]));
+      let hasUpdates = false;
+
+      setCartItems((prev) => {
+        const newCart = { ...prev };
+
+        Object.entries(prev).forEach(([cartItemId, cartItem]) => {
+          const currentProduct = productMap.get(cartItemId);
+          
+          if (currentProduct) {
+            // Check if product data has changed
+            const priceChanged = cartItem.price !== currentProduct.price;
+            const nameChanged = cartItem.name !== currentProduct.name;
+            const imageChanged = cartItem.image !== (currentProduct.imageUrl || currentProduct.image);
+            
+            if (priceChanged || nameChanged || imageChanged) {
+              hasUpdates = true;
+              
+              // Update cart item with new product data
+              newCart[cartItemId] = {
+                ...cartItem,
+                name: currentProduct.name,
+                price: currentProduct.price,
+                image: currentProduct.imageUrl || currentProduct.image || currentProduct.images?.[0] || cartItem.image,
+                lastUpdated: Date.now()
+              };
+              
+              console.log(`Cart item updated: ${currentProduct.name}`, {
+                priceChanged: priceChanged ? `${cartItem.price} → ${currentProduct.price}` : false,
+                nameChanged: nameChanged ? `${cartItem.name} → ${currentProduct.name}` : false,
+                imageChanged
+              });
+            }
+          }
+        });
+
+        if (hasUpdates) {
+          // Save updated cart to localStorage
+          try {
+            localStorage.setItem('cart', JSON.stringify(newCart));
+            
+            // Notify user about updates
+            notify({
+              message: "Your cart has been updated with the latest product information.",
+              type: "info"
+            });
+          } catch (e) {
+            console.error('Error saving updated cart to localStorage', e);
+          }
+        }
+
+        return newCart;
+      });
+    } catch (error) {
+      console.error('Error syncing cart with products:', error);
+    }
+  }, [cartItems, notify]);
+
+  // Sync cart with products periodically
+  useEffect(() => {
+    const cartItemCount = Object.keys(cartItems).length;
+    if (cartItemCount === 0) return;
+
+    // Initial sync after a short delay
+    const initialSyncTimer = setTimeout(() => {
+      syncCartWithProducts();
+    }, 5000);
+
+    // Regular sync every 30 minutes when cart has items
+    const syncInterval = setInterval(() => {
+      syncCartWithProducts();
+    }, 30 * 60 * 1000);
+
+    return () => {
+      clearTimeout(initialSyncTimer);
+      clearInterval(syncInterval);
+    };
+  }, [Object.keys(cartItems).length, syncCartWithProducts]);
+
+  /**
+   * Update cart items when a product is edited in admin panel
+   */
+  const updateCartItemForProduct = useCallback((productId, updatedProductData) => {
+    console.log('🔄 Checking cart for product to update:', productId, updatedProductData);
+    
+    // Check if this product exists in the cart
+    if (!cartItems[productId]) {
+      console.log('✓ Product not in cart, no update needed');
+      return;
+    }
+    
+    const currentCartItem = cartItems[productId];
+    console.log('🔍 Found product in cart, updating...', currentCartItem);
+    
+    // Create updated cart item with new product data
+    const updatedCartItem = {
+      ...currentCartItem, // Keep existing cart data like count
+      id: updatedProductData.id,
+      productId: updatedProductData.id,
+      name: updatedProductData.name,
+      price: Number(updatedProductData.price),
+      image: updatedProductData.imageUrl || updatedProductData.image,
+      imageUrl: updatedProductData.imageUrl,
+      lastUpdated: Date.now()
+    };
+    
+    // Update the cart
+    setCartItems(prev => {
+      const newCart = {
+        ...prev,
+        [productId]: updatedCartItem
+      };
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('cart', JSON.stringify(newCart));
+      } catch (e) {
+        console.error('Error saving updated cart to localStorage', e);
+      }
+      
+      console.log('✅ Cart item updated automatically:', updatedCartItem);
+      return newCart;
+    });
+    
+    // Show notification to user
+    notify({
+      message: `Cart updated! "${typeof updatedProductData.name === 'object' ? updatedProductData.name.en || updatedProductData.name.he : updatedProductData.name}" has been updated with latest information.`,
+      type: "info"
+    });
+    
+  }, [cartItems, notify]);
+
+  /**
+   * Remove cart items when a product is deleted in admin panel
+   */
+  const removeCartItemForDeletedProduct = useCallback((productId) => {
+    console.log('🗑️ Checking cart for deleted product to remove:', productId);
+    
+    // Check if this product exists in the cart
+    if (!cartItems[productId]) {
+      console.log('✓ Deleted product not in cart, no removal needed');
+      return;
+    }
+    
+    const deletedCartItem = cartItems[productId];
+    console.log('🔍 Found deleted product in cart, removing...', deletedCartItem);
+    
+    // Remove the item from cart
+    setCartItems(prev => {
+      const newCart = { ...prev };
+      delete newCart[productId];
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('cart', JSON.stringify(newCart));
+      } catch (e) {
+        console.error('Error saving updated cart to localStorage', e);
+      }
+      
+      console.log('✅ Deleted product removed from cart:', deletedCartItem.name);
+      return newCart;
+    });
+    
+    // Show notification to user
+    const productName = typeof deletedCartItem.name === 'object' 
+      ? deletedCartItem.name.en || deletedCartItem.name.he 
+      : deletedCartItem.name;
+    
+    notify({
+      message: `"${productName}" has been removed from your cart because it's no longer available.`,
+      type: "warning"
+    });
+    
+  }, [cartItems, notify]);
+
   // eslint-disable-next-line no-unused-vars
   const value = {
     token,
@@ -481,6 +690,9 @@ const GlobalProvider = React.memo(({ children }) => {
         clearCart,
         validateCartItems,
         cleanCartItems,
+        syncCartWithProducts,
+        updateCartItemForProduct, // Add the new function
+        removeCartItemForDeletedProduct, // Add the delete function
         showError,
         showSuccess,
         couponCode,

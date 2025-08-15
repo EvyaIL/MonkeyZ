@@ -27,7 +27,19 @@ const ProductCard = memo(({ product, otherStyle }) => {
   // Handle adding to cart with useCallback to prevent re-renders
   const handleAddToCart = useCallback((e) => {
     e.stopPropagation();
-    addItemToCart(product.id, 1, product);
+    
+    // Ensure we have a valid product ID - handle both MongoDB _id and id formats
+    const productId = product.id || product._id;
+    if (!productId) {
+      console.error("Cannot add to cart: Product missing ID", product);
+      notify({
+        message: t("errors.missingProductId", "Cannot add product to cart - missing ID"),
+        type: "error"
+      });
+      return;
+    }
+    
+    addItemToCart(productId, 1, product);
     
     // Show feedback animation (optional)
     const button = e.currentTarget;

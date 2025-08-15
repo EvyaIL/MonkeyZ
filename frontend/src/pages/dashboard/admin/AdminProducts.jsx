@@ -2,6 +2,7 @@ import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiService } from '../../../lib/apiService';
+import { useGlobalProvider } from '../../../context/GlobalProvider'; // Add cart context
 // import KeyDialog from '../../../components/admin/KeyDialog'; // Removed
 import {
   Box,
@@ -52,6 +53,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'; // For error me
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // For success messages
 
 export default function AdminProducts() {  const { t } = useTranslation();
+  const { updateCartItemForProduct, removeCartItemForDeletedProduct } = useGlobalProvider(); // Add cart functions
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -296,6 +298,12 @@ export default function AdminProducts() {  const { t } = useTranslation();
         throw new Error(response.error);
       }
       
+      // If this was an edit (not a new product), update any cart items that contain this product
+      if (editingProduct?.id && response.data) {
+        console.log('🛒 Product updated, checking cart for items to update...', editingProduct.id);
+        updateCartItemForProduct(editingProduct.id, response.data);
+      }
+      
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
         await loadProducts();
@@ -370,6 +378,10 @@ export default function AdminProducts() {  const { t } = useTranslation();
       if (response.error) {
         throw new Error(response.error);
       }
+      
+      // Remove the deleted product from any shopping carts
+      console.log('🛒 Product deleted, removing from all carts...', productId);
+      removeCartItemForDeletedProduct(productId);
       
       // Show success message
       setShowSuccessMessage(true);

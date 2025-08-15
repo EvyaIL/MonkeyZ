@@ -13,7 +13,9 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     - The total number of times the coupon has been successfully used (i.e., is in an active state).
     """
     orders_collection = OrdersCollection()
-    orders = await orders_collection.get_orders_by_coupon_code(coupon_code)
+    # Normalize coupon code for consistent analytics
+    coupon_code_normalized = coupon_code.lower().strip()
+    orders = await orders_collection.get_orders_by_coupon_code(coupon_code_normalized)
 
     analytics = {
         "total_orders": 0,
@@ -58,7 +60,11 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
         "usageCount": total_active_uses,
     }
 
-    await db.coupons.update_one({"code": coupon_code}, {"$set": update_payload})
+    # Update the coupon using case-insensitive search
+    await db.coupons.update_one(
+        {"code": {"$regex": f"^{coupon_code_normalized}$", "$options": "i"}}, 
+        {"$set": update_payload}
+    )
     
     print(f"Recalculated analytics for coupon '{coupon_code}': {update_payload}")
 
@@ -656,6 +662,25 @@ async def add_cd_keys_to_product(
         key_strings = [cd_key.key for cd_key in request.keys]
         # Use product_collection (shop.Product) directly
         updated_product = await user_controller.product_collection.add_keys_to_product(product_id, key_strings)
+        
+        # Auto-trigger retry process for awaiting stock orders when new keys are added
+        try:
+            from .orders import retry_failed_orders_internal
+            from ..mongodb.mongodb import MongoDb
+            
+            mongo_db = MongoDb()
+            db = await mongo_db.get_db()
+            await retry_failed_orders_internal(db, user_controller.product_collection)
+            
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Auto-triggered retry process after adding {len(key_strings)} keys to product {product_id}")
+        except Exception as retry_error:
+            # Don't fail the main operation if retry fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to auto-trigger retry process after adding keys: {retry_error}")
+        
         return updated_product
     except ValueError as e:
         if "not found" in str(e).lower(): # For product not found

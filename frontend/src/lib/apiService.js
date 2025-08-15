@@ -36,8 +36,8 @@ class ApiService {  constructor() {
         // Always try to get the latest token before each request
         const token = this.token || localStorage.getItem('access_token') || localStorage.getItem('token') || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
         
-        // Debug logging for token issues
-        if (process.env.NODE_ENV === 'development') {
+        // Debug logging for token issues (disabled to reduce console spam)
+        if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
           console.log('API Request Auth Debug:', {
             url: config.url,
             method: config.method,
@@ -111,7 +111,7 @@ class ApiService {  constructor() {
     contentType = "application/json",
   ) {
     try {
-      // Only log in development mode
+      // Only log in development mode with debug flag
       if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
         console.log(`API Request: ${method} ${url}`, { data, params });
       }
@@ -124,7 +124,7 @@ class ApiService {  constructor() {
         headers: { "Content-Type": contentType },
       });
       
-      // Only log in development mode
+      // Only log in development mode with debug flag
       if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_DEBUG_API === 'true') {
         console.log(`API Response: ${method} ${url}`, response.data);
       }

@@ -1,5 +1,16 @@
 /* Custom global styles for MonkeyZ app */
 
+/* Suppress browser deprecation warnings */
+@media screen {
+  /* Replace deprecated -ms-high-contrast with modern forced-colors */
+  @media (forced-colors: active) {
+    /* Modern forced colors mode styles */
+    * {
+      forced-color-adjust: auto;
+    }
+  }
+}
+
 /* Example: Utility class for visually hidden content (for accessibility) */
 .sr-only {
   position: absolute;

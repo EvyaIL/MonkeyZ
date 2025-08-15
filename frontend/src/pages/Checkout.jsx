@@ -7,7 +7,7 @@ import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspN
 import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
 
 export default function Checkout() {
-  const { cartItems, validateCartItems } = useGlobalProvider();
+  const { cartItems, validateCartItems, cleanCartItems, user } = useGlobalProvider();
   const { t, i18n } = useTranslation();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -38,7 +38,49 @@ export default function Checkout() {
   useEffect(() => {
     isComponentMountedRef.current = true;
     
-    // Validate cart items when checkout page loads
+    // Suppress PayPal console warnings that are not critical
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+    
+    console.warn = (...args) => {
+      // Filter out specific PayPal warnings that don't affect functionality
+      const message = args.join(' ');
+      if (message.includes('global_session_not_found') || 
+          message.includes('prebuild') ||
+          message.includes('sessionId') ||
+          message.includes('csnwCorrelationId') ||
+          message.includes('PayPal SDK')) {
+        return; // Suppress these warnings
+      }
+      originalConsoleWarn.apply(console, args);
+    };
+    
+    console.error = (...args) => {
+      // Filter out specific PayPal errors that are warnings, not actual errors
+      const message = args.join(' ');
+      if (message.includes('global_session_not_found') ||
+          message.includes('PayPal SDK')) {
+        return; // Suppress this error as it's just a warning
+      }
+      originalConsoleError.apply(console, args);
+    };
+    
+    // Also suppress window errors for PayPal
+    const originalWindowError = window.onerror;
+    window.onerror = function(message, source, lineno, colno, error) {
+      if (typeof message === 'string' && 
+          (message.includes('global_session_not_found') || 
+           message.includes('PayPal'))) {
+        return true; // Suppress the error
+      }
+      if (originalWindowError) {
+        return originalWindowError.call(this, message, source, lineno, colno, error);
+      }
+      return false;
+    };
+    
+    // Clean and validate cart items when checkout page loads
+    cleanCartItems();
     validateCartItems();
     
     // Initialize CSP nonce and PayPal performance optimization with cleanup
@@ -96,6 +138,11 @@ export default function Checkout() {
     return () => {
       isComponentMountedRef.current = false;
       
+      // Restore original console methods
+      console.warn = originalConsoleWarn;
+      console.error = originalConsoleError;
+      window.onerror = originalWindowError;
+      
       if (cleanupTimeoutRef.current) {
         clearTimeout(cleanupTimeoutRef.current);
         cleanupTimeoutRef.current = null;
@@ -122,6 +169,7 @@ export default function Checkout() {
       const res = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/coupons/validate`, {
         code: coupon,
         amount: subtotal,
+        email: email || user?.email || null, // Include user email for per-user validation
       });
       if (res.data.discount) {
         setDiscount(res.data.discount);
@@ -154,13 +202,14 @@ export default function Checkout() {
         PAYPAL_CONFIG.clientId && 
         (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
         { "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'] }),
-    // Debug mode in development (only with sandbox)
+    // Debug mode in development (only with sandbox) - disabled to reduce console warnings
     ...(PAYPAL_CONFIG.isDevelopment && 
         PAYPAL_CONFIG.clientId && 
         (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
-        { debug: PAYPAL_CONFIG.scriptConfig.debug }),
-    // Add unique identifier to prevent zoid conflicts and session issues
-    "data-uid": `paypal-checkout-${componentKey}`,
+        { debug: false }), // Set to false to reduce console warnings
+    // Add data-namespace to prevent conflicts
+    "data-namespace": "MonkeyZPayPal",
+    "data-uid": `paypal-checkout-${componentKey}`
   };
 
   return (
@@ -356,26 +405,72 @@ export default function Checkout() {
                     throw new Error("Your cart is empty");
                   }
                   
+                  // Debug: Log cart structure for troubleshooting
+                  console.log("Cart debugging info:", {
+                    cartItems: cartItems,
+                    cartArray: cartArray,
+                    cartItemsKeys: Object.keys(cartItems),
+                    cartArrayLength: cartArray.length
+                  });
+                  
                   // Validate cart items before sending
-                  const validatedCart = cartArray.map((i, index) => {
-                    const productId = i.id || i.productId;
-                    if (!productId) {
-                      console.error(`Cart item at position ${index + 1} is missing a product ID:`, i);
-                      console.error("Full cart array:", cartArray);
-                      throw new Error(`Cart item at position ${index + 1} is missing a product ID. Please refresh the page and try again.`);
+                  const validatedCart = cartArray
+                    .map((i, index) => {
+                      // Try multiple ways to get the product ID
+                      const productId = i.id || i.productId || i._id || Object.keys(cartItems)[index];
+                      
+                      // Check if productId is valid (not undefined, null, empty string, etc.)
+                      if (!productId || productId === 'undefined' || productId === 'null' || productId.toString().trim() === '') {
+                        console.error(`Cart item at position ${index + 1} has invalid product ID:`, productId, i);
+                        return null; // Mark for filtering
+                      }
+                      
+                      // Ensure we have a valid price
+                      const itemPrice = typeof i.price === 'number' ? i.price : 0;
+                      if (itemPrice <= 0) {
+                        console.error(`Cart item at position ${index + 1} has invalid price:`, itemPrice, i);
+                        return null; // Mark for filtering
+                      }
+
+                      // Ensure we have a valid quantity
+                      const quantity = i.count || i.quantity || 1;
+                      if (quantity <= 0) {
+                        console.error(`Cart item at position ${index + 1} has invalid quantity:`, quantity, i);
+                        return null; // Mark for filtering
+                      }
+                      
+                      return {
+                        productId: productId.toString(), // Backend expects productId as string
+                        id: productId.toString(), // Also send id for redundancy
+                        name: typeof i.name === "object" ? i.name.en : i.name,
+                        quantity: quantity,
+                        price: itemPrice
+                      };
+                    })
+                    .filter(item => item !== null); // Remove invalid items
+
+                  // Check if we have any valid items left
+                  if (validatedCart.length === 0) {
+                    console.error("No valid items in cart after validation:", cartArray);
+                    throw new Error("Your cart contains no valid items. Please refresh the page and add items again.");
+                  }
+
+                  // Final safety check - ensure no 'undefined' productIds made it through
+                  const finalValidatedCart = validatedCart.filter(item => {
+                    if (!item.productId || item.productId === 'undefined' || item.productId === 'null') {
+                      console.error("Removing cart item with invalid productId in final check:", item);
+                      return false;
                     }
-                    
-                    return {
-                      productId: productId, // Backend expects productId
-                      id: productId, // Also send id for redundancy
-                      name: typeof i.name === "object" ? i.name.en : i.name,
-                      quantity: i.count || i.quantity || 1,
-                      price: i.price
-                    };
+                    return true;
                   });
 
+                  if (finalValidatedCart.length === 0) {
+                    console.error("No valid items in cart after final validation:", validatedCart);
+                    throw new Error("Cart validation failed. Please refresh the page and try again.");
+                  }
+
                   console.log("Creating PayPal order with data:", {
-                    cart: validatedCart,
+                    cart: finalValidatedCart,
                     couponCode: coupon,
                     customerEmail: email,
                     customerName: name,
@@ -383,7 +478,7 @@ export default function Checkout() {
                   });
 
                   const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders`, {
-                    cart: validatedCart,
+                    cart: finalValidatedCart,
                     couponCode: coupon,
                     customerEmail: email,
                     customerName: name,

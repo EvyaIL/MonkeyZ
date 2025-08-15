@@ -1,3 +1,6 @@
+// Load warning suppressor FIRST before anything else
+import './lib/reactWarningSuppress';
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";

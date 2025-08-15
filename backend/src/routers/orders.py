@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
+from fastapi.responses import JSONResponse
 from typing import List, Optional
 from ..lib.token_handler import get_current_user
 from ..mongodb.mongodb import MongoDb
@@ -39,6 +40,89 @@ logger.debug(f"PayPal environment configured for {paypal_mode} mode")
 paypal_client = PayPalHttpClient(environment)
 
 router = APIRouter()
+
+# Public endpoint for coupon validation (used during checkout)
+@router.post("/coupons/validate")
+async def validate_coupon_public(request: Request):
+    """
+    Public endpoint to validate coupons during checkout.
+    This endpoint is accessible without authentication.
+    """
+    try:
+        data = await request.json()
+        logger.info(f"Coupon validation request: {data}")
+        
+        code = data.get("code")
+        amount = data.get("amount", 0)
+        user_email = data.get("email")
+        
+        if not code:
+            logger.warning("No coupon code provided in request")
+            return JSONResponse({"discount": 0, "message": "No coupon code provided"}, status_code=400)
+        
+        logger.info(f"Attempting to validate coupon: code={code}, amount={amount}, email={user_email}")
+        
+        # Use the same database connection as admin panel (UserController)
+        from ..deps.deps import get_user_controller_dependency
+        user_controller = get_user_controller_dependency()
+        
+        # Ensure the product collection is properly initialized
+        if not hasattr(user_controller.product_collection, 'db') or user_controller.product_collection.db is None:
+            await user_controller.product_collection.initialize()
+            
+        # Access database through the product collection
+        main_db = user_controller.product_collection.db
+        
+        # Check the admin database where coupons are actually stored
+        admin_db = user_controller.product_collection.client['admin']
+        admin_coupon_count = await admin_db.coupons.count_documents({})
+        logger.info(f"Coupons in 'admin' database: {admin_coupon_count}")
+        
+        if admin_coupon_count > 0:
+            logger.info("Using 'admin' database as it contains coupons")
+        else:
+            logger.warning("No coupons found in admin database!")
+        
+        # Initialize coupon service with the main database (it will auto-use admin for coupons)
+        try:
+            coupon_service = CouponService(main_db)
+            logger.info("CouponService initialized successfully")
+        except Exception as service_error:
+            logger.error(f"CouponService initialization failed: {service_error}")
+            return JSONResponse({"discount": 0, "message": "Service initialization error"}, status_code=500)
+        
+        # Validate coupon
+        try:
+            logger.info(f"Calling validate_coupon with: code={code}, amount={amount}, email={user_email}")
+            discount, coupon, error = await coupon_service.validate_coupon(code, amount, user_email=user_email)
+            logger.info(f"validate_coupon returned: discount={discount}, coupon={coupon is not None}, error={error}")
+        except Exception as validation_error:
+            logger.error(f"Coupon validation exception: {validation_error}", exc_info=True)
+            return JSONResponse({"discount": 0, "message": f"Validation error: {str(validation_error)}"}, status_code=500)
+        
+        if error:
+            logger.warning(f"Coupon validation failed: {error}")
+            return JSONResponse({"discount": 0, "message": error}, status_code=400)
+            
+        logger.info(f"Coupon validation successful: discount={discount}")
+        
+        # Convert coupon object to serializable format if present
+        coupon_data = None
+        if coupon:
+            coupon_data = {}
+            for key, value in coupon.items():
+                if key == '_id':
+                    coupon_data[key] = str(value)
+                elif key == 'expiresAt' and value:
+                    coupon_data[key] = value.isoformat() if hasattr(value, 'isoformat') else str(value)
+                else:
+                    coupon_data[key] = value
+        
+        return {"discount": discount, "message": "Coupon valid!", "coupon": coupon_data}
+        
+    except Exception as e:
+        logger.error(f"Error validating coupon: {str(e)}", exc_info=True)
+        return JSONResponse({"discount": 0, "message": f"Internal server error: {str(e)}"}, status_code=500)
 
 # Customer: fetch authenticated user's own orders
 @router.get("/orders/user", response_model=List[Order])
@@ -207,8 +291,9 @@ async def create_order(
             if 'assigned_keys' in item and item['assigned_keys']:
                 assigned_keys.extend(item['assigned_keys'])
                 products.append({"name": item.get("name", "Product"), "id": item.get("productId")})
+        
+        # Send email to customer
         if assigned_keys:
-            # Send email using correct signature
             try:
                 email_service = EmailService()
                 await email_service.send_order_email(
@@ -217,9 +302,53 @@ async def create_order(
                     products=products,
                     keys=assigned_keys
                 )
+                logger.info("Successfully sent order confirmation email to customer: %s", user_email)
             except Exception as e:
                 logger.error("Failed to send CD key email: %s", e)
-            # SMS/WhatsApp sending removed (no longer used)
+        
+        # Send notification to admin (support@monkeyz.co.il)
+        try:
+            from ..services.email_service import EMAIL_ENABLED, conf
+            if EMAIL_ENABLED and conf:
+                admin_email = os.getenv("ADMIN_EMAIL", "support@monkeyz.co.il")
+                order_id = created_order.get('_id')
+                total = created_order.get('total', 0)
+                original_total = created_order.get('original_total', created_order.get('originalTotal', 0))
+                discount_amount = created_order.get('discount_amount', created_order.get('discountAmount', 0))
+                coupon_code = created_order.get('coupon_code') or created_order.get('couponCode')
+                
+                admin_subject = f"New Order Completed - {order_id}"
+                admin_body = f"""
+                <h2>New Order Notification</h2>
+                <p><strong>Order ID:</strong> {order_id}</p>
+                <p><strong>Customer:</strong> {created_order.get('customerName', 'N/A')} ({user_email})</p>
+                <p><strong>Phone:</strong> {created_order.get('phone', 'N/A')}</p>
+                <p><strong>Total:</strong> ${total:.2f}</p>
+                <p><strong>Original Total:</strong> ${original_total:.2f}</p>
+                <p><strong>Discount:</strong> ${discount_amount:.2f}</p>
+                {f"<p><strong>Coupon Used:</strong> {coupon_code}</p>" if coupon_code else ""}
+                <p><strong>Products:</strong></p>
+                <ul>
+                {"".join([f"<li>{item.get('name', 'Product')} (x{item.get('quantity', 1)}) - Keys: {', '.join(item.get('assigned_keys', []) or ['None'])}</li>" for item in created_order.get('items', [])])}
+                </ul>
+                <p><strong>Status:</strong> {created_order.get('status')}</p>
+                """
+                
+                from fastapi_mail import MessageSchema, FastMail
+                
+                admin_message = MessageSchema(
+                    subject=admin_subject,
+                    recipients=[admin_email],
+                    body=admin_body,
+                    subtype="html"
+                )
+                fm = FastMail(conf)
+                await fm.send_message(admin_message)
+                logger.info("Successfully sent admin notification email for order: %s", order_id)
+            else:
+                logger.warning("Email service disabled - cannot send admin notification for order: %s", created_order.get('_id'))
+        except Exception as e:
+            logger.error("Failed to send admin notification email for order %s: %s", created_order.get('_id'), e)
 
     return Order(**created_order)
 
@@ -231,66 +360,119 @@ async def retry_failed_orders_internal(db: Database, product_collection: Product
     Internal function to retry assigning keys to orders in 'AWAITING_STOCK' or 'FAILED' status.
     This would typically be called by a scheduled task or after a stock update.
     """
+    email_service = EmailService()
     orders_to_retry_cursor = db.orders.find({"status": {"$in": [StatusEnum.AWAITING_STOCK, StatusEnum.FAILED]}})
+    
     async for order_doc in orders_to_retry_cursor:
-        # Convert ObjectId to string for '_id' to satisfy Pydantic validation
-        if '_id' in order_doc and not isinstance(order_doc['_id'], str):
-            order_doc['_id'] = str(order_doc['_id'])
-        order = Order(**order_doc)
-        all_items_processed_successfully = True
-        needs_update = False
+        try:
+            # Keep the original ID for database operations (can be ObjectId or string like PayPal ID)
+            original_id = order_doc['_id']
+            logger.debug(f"Processing order with _id: {original_id} (type: {type(original_id)})")
+            
+            # Convert ObjectId to string for '_id' to satisfy Pydantic validation
+            if '_id' in order_doc and not isinstance(order_doc['_id'], str):
+                order_doc['_id'] = str(order_doc['_id'])
+            
+            order = Order(**order_doc)
+            all_items_processed_successfully = True
+            needs_update = False
+            assigned_keys_for_email = []
+            products_for_email = []
 
-        for item in order.items:
-            # Check both assigned_key and assigned_keys (list)
-            already_assigned = False
-            if hasattr(item, 'assigned_keys') and item.assigned_keys:
-                already_assigned = True
-            if hasattr(item, 'assigned_key') and item.assigned_key:
-                already_assigned = True
-            if already_assigned:
-                continue
+            for item in order.items:
+                # Check both assigned_key and assigned_keys (list)
+                already_assigned = False
+                if hasattr(item, 'assigned_keys') and item.assigned_keys:
+                    already_assigned = True
+                if hasattr(item, 'assigned_key') and item.assigned_key:
+                    already_assigned = True
+                if already_assigned:
+                    continue
 
-            product = await product_collection.get_product_by_id(item.productId)
-            if product and product.manages_cd_keys:
-                # Assign as many keys as needed for the quantity
-                assigned_keys = []
-                available_keys = [k for k in product.cdKeys if not k.isUsed]
-                if len(available_keys) >= item.quantity:
-                    for i in range(item.quantity):
-                        key_obj = available_keys[i]
-                        key_obj.isUsed = True
-                        key_obj.usedAt = datetime.now(timezone.utc)
-                        key_obj.orderId = order.id
-                        assigned_keys.append(key_obj.key)
-                    # Save the updated product with used keys
-                    await product.save()
-                    item.assigned_keys = assigned_keys
-                    needs_update = True
-                    logger.info("Retry successful: Keys assigned to item %s in order %s", item.productId, order.id)
+                product = await product_collection.get_product_by_id(item.productId)
+                if product and product.manages_cd_keys:
+                    # Assign as many keys as needed for the quantity
+                    assigned_keys = []
+                    available_keys = [k for k in product.cdKeys if not k.isUsed]
+                    if len(available_keys) >= item.quantity:
+                        for i in range(item.quantity):
+                            key_obj = available_keys[i]
+                            key_obj.isUsed = True
+                            key_obj.usedAt = datetime.now(timezone.utc)
+                            key_obj.orderId = order.id
+                            assigned_keys.append(key_obj.key)
+                        
+                        # Save the updated product with used keys
+                        await product.save()
+                        item.assigned_keys = assigned_keys
+                        needs_update = True
+                        
+                        # Collect data for email
+                        assigned_keys_for_email.extend(assigned_keys)
+                        products_for_email.append({
+                            "name": item.name,
+                            "id": item.productId,
+                            "quantity": item.quantity
+                        })
+                        
+                        logger.info("Retry successful: Keys assigned to item %s in order %s", item.productId, order.id)
+                    else:
+                        all_items_processed_successfully = False
+                        logger.warning("Retry failed: Not enough keys for item %s in order %s", item.productId, order.id)
+                        break
+
+            if needs_update: # If any key was assigned in this retry attempt
+                if all_items_processed_successfully:
+                    new_status = StatusEnum.PROCESSING # Or COMPLETED, depending on your flow
+                    order.statusHistory.append(StatusHistoryEntry(status=new_status, date=datetime.now(timezone.utc), note="Keys assigned on retry - order processing."))
                 else:
-                    all_items_processed_successfully = False
-                    logger.warning("Retry failed: Not enough keys for item %s in order %s", item.productId, order.id)
-                    break
+                    # If some items got keys but others didn't, it remains in AWAITING_STOCK or FAILED
+                    # Or you could introduce a new status like PARTIALLY_FULFILLED
+                    new_status = order.status # Keep current status if not all items fulfilled
+                    order.statusHistory.append(StatusHistoryEntry(status=order.status, date=datetime.now(timezone.utc), note="Partial key assignment on retry."))
 
-        if needs_update: # If any key was assigned in this retry attempt
-            if all_items_processed_successfully:
-                new_status = StatusEnum.PROCESSING # Or COMPLETED, depending on your flow
-                order.statusHistory.append(StatusHistoryEntry(status=new_status, date=datetime.now(timezone.utc), note="Key assigned on retry."))
-            else:
-                # If some items got keys but others didn't, it remains in AWAITING_STOCK or FAILED
-                # Or you could introduce a new status like PARTIALLY_FULFILLED
-                new_status = order.status # Keep current status if not all items fulfilled
-                order.statusHistory.append(StatusHistoryEntry(status=order.status, date=datetime.now(timezone.utc), note="Partial key assignment on retry."))
-
-            await db.orders.update_one(
-                {"_id": ObjectId(order.id)},
-                {"$set": {
-                    "items": [i.model_dump() for i in order.items], 
-                    "status": new_status,
-                    "statusHistory": [sh.model_dump() for sh in order.statusHistory],
-                    "updatedAt": datetime.now(timezone.utc)
-                }}
-            )
+                # Use the original ID for database update (handles both ObjectId and string IDs)
+                update_filter = {"_id": original_id}
+                
+                update_result = await db.orders.update_one(
+                    update_filter,
+                    {"$set": {
+                        "items": [i.model_dump() for i in order.items], 
+                        "status": new_status,
+                        "statusHistory": [sh.model_dump() for sh in order.statusHistory],
+                        "updatedAt": datetime.now(timezone.utc)
+                    }}
+                )
+                
+                if update_result.modified_count == 0:
+                    logger.warning(f"Failed to update order {order.id} - no documents modified")
+                else:
+                    logger.info(f"Successfully updated order {order.id}")
+                
+                # Send email with assigned keys if any keys were assigned
+                if assigned_keys_for_email and order.email:
+                    try:
+                        success = await email_service.send_order_email(
+                            to=order.email,
+                            subject=f"Your MonkeyZ Order Keys - Order #{order.id}",
+                            products=products_for_email,
+                            keys=assigned_keys_for_email
+                        )
+                        if success:
+                            logger.info("Email sent successfully to %s for order %s with %d keys", order.email, order.id, len(assigned_keys_for_email))
+                        else:
+                            logger.warning("Failed to send email to %s for order %s", order.email, order.id)
+                    except Exception as e:
+                        logger.error("Error sending email to %s for order %s: %s", order.email, order.id, str(e))
+                else:
+                    if not order.email:
+                        logger.warning("No email address found for order %s - cannot send keys", order.id)
+                    if not assigned_keys_for_email:
+                        logger.info("No new keys assigned for order %s - no email sent", order.id)
+        
+        except Exception as e:
+            logger.error(f"Error processing order {order_doc.get('_id', 'unknown')}: {str(e)}")
+            # Continue with next order instead of failing the entire batch
 
 @router.post("/orders/retry-failed", status_code=status.HTTP_200_OK)
 async def retry_failed_orders_endpoint(
@@ -632,10 +814,18 @@ async def create_paypal_order(
     # Calculate original total from validated items
     original_total = sum(item.get("price", 0) * item.get("quantity", 0) for item in valid_items_for_db)
     
-    # Validate coupon (no usage increment)
-    coupon_service = CouponService((await mongo_db.get_db()))
-    discount, _, _ = await coupon_service.validate_coupon(coupon_code, original_total)
+    # Apply coupon discount if provided
+    discount = 0
+    if coupon_code and coupon_code.strip():
+        coupon_service = CouponService((await mongo_db.get_db()))
+        discount, _, error = await coupon_service.validate_coupon(coupon_code, original_total, customer_email)
+        if error:
+            logger.warning(f"Coupon validation failed for {coupon_code}: {error}")
+            # Continue with full amount if coupon is invalid
+            discount = 0
+    
     net_total = original_total - discount
+    logger.info(f"PayPal order: original_total={original_total}, discount={discount}, net_total={net_total}, coupon='{coupon_code}'")
 
     # Build PayPal order with enhanced error handling
     req = OrdersCreateRequest()
@@ -721,6 +911,13 @@ async def capture_paypal_order(
     This ensures PayPal orders are identical to manual orders in all admin/user views.
     """
     db = await mongo_db.get_db()
+    
+    # Check if order has already been captured (prevent duplicates)
+    existing_order = await db.orders.find_one({"_id": order_id})
+    if existing_order and existing_order.get("status") in [StatusEnum.COMPLETED.value, StatusEnum.CANCELLED.value]:
+        logger.warning("Order %s already processed with status %s, ignoring duplicate capture request", order_id, existing_order.get("status"))
+        return {"message": f"Order already {existing_order.get('status').lower()}"}
+    
     # Step 1: Capture payment (run PayPal SDK in thread to avoid blocking async loop)
     import asyncio
     from concurrent.futures import ThreadPoolExecutor
@@ -820,9 +1017,22 @@ async def capture_paypal_order(
 
     # Update coupon analytics if completed
     if current_order_status == StatusEnum.COMPLETED and coupon_code:
+        # APPLY the coupon (increment usage count) - this was the missing piece!
+        coupon_service = CouponService(db)
+        customer_email = order_doc.get('email')
+        discount_applied, coupon_obj, apply_error = await coupon_service.apply_coupon(
+            coupon_code, original_total, customer_email
+        )
+        
+        if apply_error:
+            logger.warning(f"Failed to apply coupon {coupon_code} during capture: {apply_error}")
+        else:
+            logger.info(f"Successfully applied coupon {coupon_code} for order {order_id}, discount: {discount_applied}")
+        
+        # Also recalculate analytics for admin panel
         from .admin_router import recalculate_coupon_analytics
         await recalculate_coupon_analytics(coupon_code, db)
-        logger.info("PayPal Order %s: Recalculated analytics for coupon %s on capture", order_id, coupon_code)
+        logger.info("PayPal Order %s: Applied coupon and recalculated analytics for %s on capture", order_id, coupon_code)
 
     # Update order in DB with unified structure
     now = datetime.now(timezone.utc)
@@ -849,6 +1059,8 @@ async def capture_paypal_order(
         email_service = EmailService()
         all_keys = [key for item in order_items for key in (item.assigned_keys or [])]
         recipient = order_doc.get("email") or order_doc.get("customerEmail")
+        
+        # Send product keys to customer
         if recipient and all_keys:
             try:
                 products_for_email = [
@@ -861,8 +1073,47 @@ async def capture_paypal_order(
                     products=products_for_email,
                     keys=all_keys
                 )
+                logger.info("Successfully sent order confirmation email to customer: %s", recipient)
             except Exception as e:
                 logger.error("Failed to send CD key email for order %s: %s", order_id, e)
+        
+        # Send notification to admin (support@monkeyz.co.il)
+        try:
+            from ..services.email_service import EMAIL_ENABLED, conf
+            if EMAIL_ENABLED and conf:
+                admin_email = os.getenv("ADMIN_EMAIL", "support@monkeyz.co.il")
+                admin_subject = f"New Order Completed - {order_id}"
+                admin_body = f"""
+                <h2>New Order Notification</h2>
+                <p><strong>Order ID:</strong> {order_id}</p>
+                <p><strong>Customer:</strong> {order_doc.get('customerName', 'N/A')} ({recipient})</p>
+                <p><strong>Phone:</strong> {order_doc.get('phone', 'N/A')}</p>
+                <p><strong>Total Paid:</strong> ${paid_amount:.2f}</p>
+                <p><strong>Original Total:</strong> ${original_total:.2f}</p>
+                <p><strong>Discount:</strong> ${discount_amount:.2f}</p>
+                {f"<p><strong>Coupon Used:</strong> {coupon_code}</p>" if coupon_code else ""}
+                <p><strong>Products:</strong></p>
+                <ul>
+                {"".join([f"<li>{item.name} (x{item.quantity}) - Keys: {', '.join(item.assigned_keys or ['None'])}</li>" for item in order_items])}
+                </ul>
+                <p><strong>Status:</strong> {current_order_status.value}</p>
+                """
+                
+                from fastapi_mail import MessageSchema, FastMail
+                
+                admin_message = MessageSchema(
+                    subject=admin_subject,
+                    recipients=[admin_email],
+                    body=admin_body,
+                    subtype="html"
+                )
+                fm = FastMail(conf)
+                await fm.send_message(admin_message)
+                logger.info("Successfully sent admin notification email for order: %s", order_id)
+            else:
+                logger.warning("Email service disabled - cannot send admin notification for order: %s", order_id)
+        except Exception as e:
+            logger.error("Failed to send admin notification email for order %s: %s", order_id, e)
 
     return {"message": f"Order {current_order_status.value.lower()}"}
 

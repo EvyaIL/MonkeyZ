@@ -45,7 +45,8 @@ const ProductPage = () => {
 
   // Fetch related products
   const fetchRelatedProducts = useCallback(async () => {
-    if (!product.id || !product.category) { // Guard: Must have product ID and category
+    const productId = product.id || product._id;
+    if (!productId || !product.category) { // Guard: Must have product ID and category
       setRelatedProducts([]);
       setLoadingRelated(false); // Ensure loading is stopped
       return;
@@ -57,14 +58,14 @@ const ProductPage = () => {
       let productsToShow = [];
 
       if (allPublicProducts && Array.isArray(allPublicProducts) && allPublicProducts.length > 0) {
-        const currentProductId = product.id;
+        const currentProductId = productId; // Use the already computed productId
         const currentProductCategory = product.category.toLowerCase();
 
         // 1. Filter for active products in the same category, excluding the current product
         // Assuming the /product/all endpoint already returns active products or suitable public products
         const categoryMatches = allPublicProducts.filter(p => 
           p && 
-          p.id !== currentProductId && 
+          (p.id || p._id) !== currentProductId && 
           // p.active !== false && // Assuming /product/all handles active status
           p.category && 
           p.category.toLowerCase() === currentProductCategory
@@ -92,7 +93,7 @@ const ProductPage = () => {
     } finally {
       setLoadingRelated(false);
     }
-  }, [product.id, product.category, setLoadingRelated, setRelatedProducts]); // apiService is stable
+  }, [product.id, product._id, product.category, setLoadingRelated, setRelatedProducts]); // apiService is stable
 
   // Fetch product data
   const fetchProduct = useCallback(async () => {
@@ -146,14 +147,16 @@ const ProductPage = () => {
 
   // Effect to fetch related products when the main product's data (id or category) changes
   useEffect(() => {
-    if (product && product.id) { // Ensure product is loaded
+    const productId = product?.id || product?._id;
+    if (product && productId) { // Ensure product is loaded
       fetchRelatedProducts();
     }
   }, [product, fetchRelatedProducts]); // Added product to dependencies
 
   // Add structured data when product data changes
   useEffect(() => {
-    if (product && product.id) {
+    const productId = product?.id || product?._id;
+    if (product && productId) {
       const productData = {
         ...product,
         name: displayName,
@@ -169,8 +172,18 @@ const ProductPage = () => {
   }, [product, displayName, displayDesc]);
 
   const handleAddToCart = useCallback(() => {
-    if (!product.id) return;
-    addItemToCart(product.id, quantity, product);
+    // Ensure we have a valid product ID - handle both MongoDB _id and id formats
+    const productId = product.id || product._id;
+    if (!productId) {
+      console.error("Cannot add to cart: Product missing ID", product);
+      notify({
+        message: t("errors.missingProductId", "Cannot add product to cart - missing ID"),
+        type: "error"
+      });
+      return;
+    }
+    
+    addItemToCart(productId, quantity, product);
     setAddedToCart(true);
     notify({
       message: `${displayName} ${t("added_to_cart_suffix", "added to cart")}`,
@@ -333,7 +346,7 @@ const ProductPage = () => {
                       title={addedToCart ? t("added_to_cart", "Added!") : t("add_to_cart")}
                       otherStyle={`h-11 transition-all duration-300 ${addedToCart ? 'bg-green-600 hover:bg-green-700' : ''}`}
                       onClick={handleAddToCart}
-                      disabled={!product.id}
+                      disabled={!(product.id || product._id)}
                       aria-label={`${t("add")} ${displayName} ${t("to_cart")}`}
                     />
                   </div>

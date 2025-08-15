@@ -17,7 +17,7 @@ i18n
       he: { translation: mergedHe },
       en: { translation: en },
     },
-    lng: savedLanguage || 'he', // Use saved language or default to Hebrew
+    lng: savedLanguage || 'en', // Use saved language or default to English
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   });

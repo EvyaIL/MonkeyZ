@@ -15,11 +15,31 @@ const generateNonce = () => {
 app.use((req, res, next) => {
   const nonce = generateNonce();
   
+  // Detect environment
+  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.REACT_APP_API_URL?.includes('localhost');
+  
   // PayPal and Google OAuth Best Practice: CSP Headers
+  const connectSrc = [
+    "'self'",
+    "*.paypal.com",
+    "*.paypalobjects.com", 
+    "*.venmo.com",
+    "https://accounts.google.com",
+    "https://api.monkeyz.co.il",
+    "https://www.google-analytics.com",
+    "https://analytics.google.com"
+  ];
+  
+  // Add localhost for development
+  if (isDevelopment) {
+    connectSrc.push("http://localhost:8000", "http://127.0.0.1:8000");
+    console.log('🔧 Development mode detected - allowing localhost connections in CSP');
+  }
+  
   const cspPolicy = [
     "default-src 'self'",
     `script-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://apis.google.com https://www.googletagmanager.com https://www.google-analytics.com 'nonce-${nonce}' 'unsafe-eval'`,
-    "connect-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://api.monkeyz.co.il https://www.google-analytics.com https://analytics.google.com",
+    `connect-src ${connectSrc.join(' ')}`,
     "child-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
     "frame-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com",
     "img-src 'self' *.paypal.com *.paypalobjects.com *.venmo.com https://accounts.google.com https://www.google-analytics.com data: https:",
