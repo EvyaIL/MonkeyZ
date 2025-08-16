@@ -65,7 +65,9 @@
   "scripts": {
     "start": "cross-env PORT=3000 DISABLE_ESLINT_PLUGIN=true react-scripts start",
     "start:prod": "node server.js",
-    "build": "cross-env DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "build": "cross-env DISABLE_ESLINT_PLUGIN=true GENERATE_SOURCEMAP=false react-scripts build",
+    "build:fast": "cross-env DISABLE_ESLINT_PLUGIN=true GENERATE_SOURCEMAP=false CI=true react-scripts build",
+    "build:analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
     "test": "react-scripts test",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "prod": "npx serve -s build -l 8080",
