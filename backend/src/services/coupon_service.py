@@ -13,19 +13,42 @@ class CouponService:
         """
         Calculate real-time usage count from orders collection.
         This is the source of truth for coupon usage.
+        FIXED: Ensure we check the correct database for orders
         """
         try:
-            orders_collection = self.db.orders
+            # Try multiple database locations to find orders
+            databases_to_check = [
+                self.db,  # Current database
+                self.db.client.get_database("admin"),  # Admin database
+                self.db.client.get_database("monkeyz"),  # MonkeyZ database
+            ]
             
-            # Count orders with this coupon that are not cancelled
-            # Use case-insensitive search for coupon codes
-            count = await orders_collection.count_documents({
-                'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'},
-                'status': {'$nin': ['cancelled', 'failed']}
-            })
+            total_count = 0
+            orders_collection = None
             
-            logger.info(f"Real usage count for coupon '{coupon_code}': {count}")
-            return count
+            for db in databases_to_check:
+                try:
+                    collection = db.orders
+                    # Check if this collection has orders
+                    sample_count = await collection.count_documents({})
+                    logger.info(f"Database '{db.name}' has {sample_count} total orders")
+                    
+                    if sample_count > 0:
+                        # Count orders with this coupon that are not cancelled
+                        count = await collection.count_documents({
+                            'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'},
+                            'status': {'$nin': ['cancelled', 'failed']}
+                        })
+                        logger.info(f"Found {count} orders with coupon '{coupon_code}' in database '{db.name}'")
+                        total_count += count
+                        orders_collection = collection
+                        
+                except Exception as db_error:
+                    logger.debug(f"Could not check database '{db.name}': {db_error}")
+                    continue
+            
+            logger.info(f"TOTAL real usage count for coupon '{coupon_code}': {total_count}")
+            return total_count
             
         except Exception as e:
             logger.error(f"Error calculating real usage count for coupon {coupon_code}: {e}")
@@ -108,13 +131,30 @@ class CouponService:
             if user_email:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
                 if max_usage_per_user > 0:
-                    # Count how many times this user has used this coupon
-                    orders_collection = self.db.orders
-                    user_usage_count = await orders_collection.count_documents({
-                        'userEmail': user_email,
-                        'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
-                        'status': {'$nin': ['cancelled', 'failed']}
-                    })
+                    # Count how many times this user has used this coupon across all databases
+                    user_usage_count = 0
+                    
+                    # Check multiple database locations for orders
+                    databases_to_check = [
+                        self.db,  # Current database
+                        self.db.client.get_database("admin"),  # Admin database  
+                        self.db.client.get_database("monkeyz"),  # MonkeyZ database
+                    ]
+                    
+                    for db in databases_to_check:
+                        try:
+                            orders_collection = db.orders
+                            count = await orders_collection.count_documents({
+                                'userEmail': user_email,
+                                'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
+                                'status': {'$nin': ['cancelled', 'failed']}
+                            })
+                            user_usage_count += count
+                            if count > 0:
+                                logger.info(f"User {user_email} used coupon {coupon['code']} {count} times in db '{db.name}'")
+                        except Exception as db_error:
+                            logger.debug(f"Could not check user usage in database '{db.name}': {db_error}")
+                            continue
                     
                     if user_usage_count >= max_usage_per_user:
                         return 0.0, None, f'You have reached the usage limit for this coupon ({user_usage_count}/{max_usage_per_user}).'
@@ -188,12 +228,30 @@ class CouponService:
             if user_email:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
                 if max_usage_per_user > 0:
-                    orders_collection = self.db.orders
-                    user_usage_count = await orders_collection.count_documents({
-                        'userEmail': user_email,
-                        'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
-                        'status': {'$nin': ['cancelled', 'failed']}
-                    })
+                    # Count how many times this user has used this coupon across all databases
+                    user_usage_count = 0
+                    
+                    # Check multiple database locations for orders
+                    databases_to_check = [
+                        self.db,  # Current database
+                        self.db.client.get_database("admin"),  # Admin database  
+                        self.db.client.get_database("monkeyz"),  # MonkeyZ database
+                    ]
+                    
+                    for db in databases_to_check:
+                        try:
+                            orders_collection = db.orders
+                            count = await orders_collection.count_documents({
+                                'userEmail': user_email,
+                                'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
+                                'status': {'$nin': ['cancelled', 'failed']}
+                            })
+                            user_usage_count += count
+                            if count > 0:
+                                logger.info(f"VALIDATION: User {user_email} used coupon {coupon['code']} {count} times in db '{db.name}'")
+                        except Exception as db_error:
+                            logger.debug(f"Could not check user usage in database '{db.name}': {db_error}")
+                            continue
                     
                     if user_usage_count >= max_usage_per_user:
                         return 0.0, None, f'You have reached the usage limit for this coupon ({user_usage_count}/{max_usage_per_user}).'

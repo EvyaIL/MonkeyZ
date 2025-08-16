@@ -16,6 +16,7 @@ from src.routers.keys_router import key_router, admin_key_router # Modified impo
 from src.routers.orders import router as orders_router
 from src.routers.health_router import health_router
 from src.routers.paypal_health import paypal_health_router
+from src.routers.debug_router import debug_router
 from src.models.contact.contact import ContactForm, ContactResponse
 from src.mongodb.mongodb import MongoDb
 from src.mongodb.contacts_collection import ContactCollection
@@ -110,6 +111,7 @@ app.include_router(admin_key_router) # Add admin_key_router
 app.include_router(orders_router, prefix="/api", tags=["orders"])  # Add orders router
 app.include_router(health_router, prefix="/api", tags=["health"])  # Add health router
 app.include_router(paypal_health_router, prefix="/api", tags=["paypal"])  # Add PayPal health router
+app.include_router(debug_router, prefix="/api", tags=["debug"])  # Add debug router for troubleshooting
 
 # CSRF token endpoint
 @app.get("/api/csrf-token", tags=["security"])
