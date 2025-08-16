@@ -1,8 +1,19 @@
 alerts:
 - rule: DEPLOYMENT_FAILED
-- rule: DOMAIN_FAILED
-databases:
-- cluster_name: mongodb1
+- rule: DOMAIN_FAILEDstatic_sites:
+- build_command: npm ci --prefer-offline --no-audit --silent && npm run build
+  environment_slug: node-js
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: EvyaIL/MonkeyZ
+  name: front-end
+  source_dir: frontend/
+  output_dir: build/
+  index_document: index.html
+  error_document: index.html
+  routes:
+  - path: /- cluster_name: mongodb1
   engine: MONGODB
   name: mongodb1
   production: true
@@ -45,6 +56,18 @@ envs:
 - key: REACT_APP_PAYPAL_CLIENT_ID
   scope: RUN_AND_BUILD_TIME
   value: AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF
+- key: NODE_OPTIONS
+  scope: BUILD_TIME
+  value: --max-old-space-size=2048
+- key: GENERATE_SOURCEMAP
+  scope: BUILD_TIME
+  value: "false"
+- key: DISABLE_ESLINT_PLUGIN
+  scope: BUILD_TIME
+  value: "true"
+- key: TSC_COMPILE_ON_ERROR
+  scope: BUILD_TIME
+  value: "true"
 features:
 - buildpack-stack=ubuntu-22
 ingress:
@@ -55,8 +78,8 @@ ingress:
       path: /
 name: monkeyz
 region: fra
-services:
-- build_command: npm install && npm run build
+static_sites:
+- build_command: npm ci --silent && npm run build
   environment_slug: node-js
   github:
     branch: main
@@ -64,7 +87,8 @@ services:
     repo: EvyaIL/MonkeyZ
   name: front-end
   source_dir: frontend/
-  run_command: npm run start:prod
-  http_port: 8080
+  output_dir: build/
+  index_document: index.html
+  error_document: index.html
   routes:
   - path: /
