@@ -88,12 +88,19 @@ export default function Checkout() {
     setCspNonce(nonce);
     
     // Verify PayPal CSP configuration
-    // CSP should work consistently in both development and production
+    // In production, CSP is set via HTTP headers, not meta tags
+    const isProduction = PAYPAL_CONFIG.isDevelopment;
     const cspValid = verifyPayPalCSP();
     
-    // Only show CSP warnings in development, but ensure CSP works in both environments
-    if (!cspValid && PAYPAL_CONFIG.isDevelopment) {
-      console.warn('CSP configuration may need attention for PayPal integration');
+    // Only show CSP error if we're in production AND there's actually a CSP issue
+    // In production, CSP headers are set by the server, so missing meta tag is normal
+    if (!cspValid && isProduction) {
+      // Check if we're actually in a production environment where CSP matters
+      const hasCSPHeaders = document.location.protocol === 'https:';
+      if (hasCSPHeaders) {
+        console.warn('CSP configuration may need attention, but PayPal should still work with server-side CSP headers');
+        // Don't set error - let PayPal try to load, server CSP headers should handle it
+      }
     }
 
     // Create a unique component key to prevent zoid conflicts
@@ -223,19 +230,23 @@ export default function Checkout() {
     // Only load required components for performance
     components: PAYPAL_CONFIG.scriptConfig.components,
     commit: PAYPAL_CONFIG.scriptConfig.commit,
-    // CSP nonce for enhanced security (works in both environments)
-    ...(cspNonce && { "data-csp-nonce": cspNonce }),
+    // CSP nonce for enhanced security (only in development with meta tags)
+    ...(cspNonce && PAYPAL_CONFIG.isDevelopment && { "data-csp-nonce": cspNonce }),
     // Localization for Israeli users
     locale: PAYPAL_CONFIG.locale,
     // Performance optimization: disable unused funding
     "disable-funding": PAYPAL_CONFIG.scriptConfig['disable-funding'],
-    // Buyer country for optimization (only allowed in sandbox mode)
-    // PayPal restriction: This parameter is NOT allowed with live client IDs
-    ...(PAYPAL_CONFIG.isPayPalSandbox && 
+    // Buyer country for optimization (only in development/sandbox - not allowed in production)
+    // Only add buyer-country when using sandbox client ID, NOT with live client ID
+    ...(PAYPAL_CONFIG.isDevelopment && 
+        PAYPAL_CONFIG.clientId && 
+        (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
         { "buyer-country": PAYPAL_CONFIG.scriptConfig['buyer-country'] }),
-    // Debug mode (only for sandbox) - always false to reduce console warnings
-    ...(PAYPAL_CONFIG.isPayPalSandbox && 
-        { debug: false }), // Always false to reduce console warnings
+    // Debug mode in development (only with sandbox) - disabled to reduce console warnings
+    ...(PAYPAL_CONFIG.isDevelopment && 
+        PAYPAL_CONFIG.clientId && 
+        (PAYPAL_CONFIG.clientId.startsWith('sb-') || PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq')) && 
+        { debug: false }), // Set to false to reduce console warnings
     // Add data-namespace to prevent conflicts
     "data-namespace": "MonkeyZPayPal",
     "data-uid": `paypal-checkout-${componentKey}`
@@ -373,8 +384,7 @@ export default function Checkout() {
             </p>
           </div>
 
-          {/* PayPal Buttons - Always show when loaded and configured properly */}
-          {paypalLoaded && PAYPAL_CONFIG.clientId && (
+          {(cspNonce || PAYPAL_CONFIG.isDevelopment || PAYPAL_CONFIG.isProduction) && paypalLoaded && (
             <div key={`paypal-container-${componentKey}`}>
               <PayPalScriptProvider 
                 options={initialOptions}
@@ -707,13 +717,12 @@ export default function Checkout() {
           </PayPalScriptProvider>
             </div>
           )}
-          {/* Loading state - show when PayPal isn't ready yet */}
-          {(!paypalLoaded || !PAYPAL_CONFIG.clientId) && (
+          {!(cspNonce || PAYPAL_CONFIG.isDevelopment) || !paypalLoaded ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-gray-600">Loading secure payment options...</p>
             </div>
-          )}
+          ) : null}
           {processing && (
             <div className="text-center mt-4">
               <div className="inline-flex items-center">

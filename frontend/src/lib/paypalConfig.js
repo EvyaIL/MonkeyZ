@@ -4,20 +4,11 @@ export const PAYPAL_CONFIG = {
   // PayPal Client ID validation
   clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID,
   
-  // Environment detection - More robust detection
+  // Environment detection
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
   
-  // PayPal mode detection based on client ID
-  get isPayPalSandbox() {
-    return this.clientId && (this.clientId.startsWith('sb-') || this.clientId.startsWith('AYbpBUAq'));
-  },
-  
-  get isPayPalLive() {
-    return this.clientId && (this.clientId.startsWith('AXu-') || this.clientId.startsWith('AWqjH') || this.clientId.startsWith('AQkq') || (!this.isPayPalSandbox && this.clientId.length > 50));
-  },
-  
-  // Currency and locale settings - Use consistent settings for both environments
+  // Currency and locale settings
   currency: 'ILS',
   locale: 'en_US', // Changed to English to show "PayPal" instead of Hebrew text
   
@@ -48,19 +39,20 @@ export const PAYPAL_CONFIG = {
     renderStrategy: 'instant' // 'instant' | 'delayed' | 'hidden'
   },
   
-  // PayPal Script Configuration (Performance Optimized) - Consistent for both environments
+  // PayPal Script Configuration (Performance Optimized)
   scriptConfig: {
     // Only load required components
     components: 'buttons',
-    // Consistent debug mode setting
+    // Disable debug mode to reduce console warnings
     debug: false,
-    // Consistent funding options - identical behavior in both environments
+    // Disable unwanted funding sources and separate credit card button
+    // This removes the separate "Pay with Credit Card" button but still allows credit cards through PayPal
     'disable-funding': 'credit,card,venmo,sepa,bancontact,giropay,ideal,eps,sofort,mybank,p24',
     // Intent for immediate capture
     intent: 'capture',
     // Commit for Pay Now button
     commit: true,
-    // Buyer country for optimization - only use in sandbox
+    // Buyer country for optimization
     'buyer-country': 'IL',
     // Disable session warnings
     'disable-warnings': true
@@ -79,14 +71,15 @@ export const buildPayPalScriptURL = () => {
     commit: PAYPAL_CONFIG.scriptConfig.commit
   });
   
-  // Only add buyer-country when using sandbox mode - PayPal restriction
+  // Only add buyer-country in development/sandbox mode  
   // This parameter is NOT allowed in PayPal live/production environment
-  if (PAYPAL_CONFIG.isPayPalSandbox) {
+  const isUsingLiveClient = PAYPAL_CONFIG.clientId && !PAYPAL_CONFIG.clientId.startsWith('sb-') && !PAYPAL_CONFIG.clientId.startsWith('AYbpBUAq');
+  if (PAYPAL_CONFIG.isDevelopment && !isUsingLiveClient) {
     params.append('buyer-country', PAYPAL_CONFIG.scriptConfig['buyer-country']);
   }
   
-  // Add debug parameter only for sandbox - never for live
-  if (PAYPAL_CONFIG.isPayPalSandbox && PAYPAL_CONFIG.scriptConfig.debug) {
+  // Add debug parameter in development only with sandbox
+  if (PAYPAL_CONFIG.isDevelopment && !isUsingLiveClient && PAYPAL_CONFIG.scriptConfig.debug) {
     params.append('debug', 'true');
   }
   
