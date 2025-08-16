@@ -41,7 +41,8 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
 
     for order in orders:
         status = normalize_status(order.get("status"))
-        email = order.get("email")
+        # Check all possible email field variations for compatibility
+        email = order.get("email") or order.get("userEmail") or order.get("customerEmail")
 
         if status in analytics:
             analytics[status] += 1
@@ -62,29 +63,33 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     }
 
     # Update the coupon using case-insensitive search
+    # Use admin database where coupons are stored
+    admin_db = db.client.get_database("admin") if hasattr(db, 'client') else db
+    coupons_collection = admin_db.coupons if hasattr(admin_db, 'coupons') else admin_db.get_collection("coupons")
+    
     # Try both the original and normalized code
-    update_result = await db.coupons.update_one(
+    update_result = await coupons_collection.update_one(
         {"code": {"$regex": f"^{re.escape(coupon_code)}$", "$options": "i"}}, 
         {"$set": update_payload}
     )
     
     # If no match found with original code, try normalized
     if update_result.matched_count == 0:
-        update_result = await db.coupons.update_one(
+        update_result = await coupons_collection.update_one(
             {"code": {"$regex": f"^{re.escape(coupon_code_normalized)}$", "$options": "i"}}, 
             {"$set": update_payload}
         )
     
     # If still no match, try exact matches
     if update_result.matched_count == 0:
-        update_result = await db.coupons.update_one(
+        update_result = await coupons_collection.update_one(
             {"code": coupon_code}, 
             {"$set": update_payload}
         )
     
     # If still no match, try normalized exact match
     if update_result.matched_count == 0:
-        update_result = await db.coupons.update_one(
+        update_result = await coupons_collection.update_one(
             {"code": coupon_code_normalized}, 
             {"$set": update_payload}
         )

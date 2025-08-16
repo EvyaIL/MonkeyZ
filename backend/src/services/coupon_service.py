@@ -18,9 +18,12 @@ class CouponService:
             orders_collection = self.db.orders
             
             # Count orders with this coupon that are not cancelled
-            # Use case-insensitive search for coupon codes
+            # Use case-insensitive search for coupon codes and check both field variations
             count = await orders_collection.count_documents({
-                'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'},
+                '$or': [
+                    {'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'}},
+                    {'coupon_code': {'$regex': f'^{coupon_code}$', '$options': 'i'}}
+                ],
                 'status': {'$nin': ['cancelled', 'failed']}
             })
             
@@ -109,9 +112,14 @@ class CouponService:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
                 if max_usage_per_user > 0:
                     # Count how many times this user has used this coupon
+                    # Check both email field variations for compatibility
                     orders_collection = self.db.orders
                     user_usage_count = await orders_collection.count_documents({
-                        'userEmail': user_email,
+                        '$or': [
+                            {'userEmail': user_email},
+                            {'email': user_email},
+                            {'customerEmail': user_email}
+                        ],
                         'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
                         'status': {'$nin': ['cancelled', 'failed']}
                     })
@@ -188,9 +196,15 @@ class CouponService:
             if user_email:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
                 if max_usage_per_user > 0:
+                    # Count how many times this user has used this coupon
+                    # Check both email field variations for compatibility
                     orders_collection = self.db.orders
                     user_usage_count = await orders_collection.count_documents({
-                        'userEmail': user_email,
+                        '$or': [
+                            {'userEmail': user_email},
+                            {'email': user_email},
+                            {'customerEmail': user_email}
+                        ],
                         'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
                         'status': {'$nin': ['cancelled', 'failed']}
                     })

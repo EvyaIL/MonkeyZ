@@ -1020,8 +1020,11 @@ async def create_paypal_order(
         "originalTotal": original_total,
         "discountAmount": discount,
         "couponCode": coupon_code,
+        "coupon_code": coupon_code,  # Store both field variations for compatibility
         "customerName": customer_name,
         "email": customer_email,
+        "userEmail": customer_email,    # Store both field variations for compatibility
+        "customerEmail": customer_email,  # Store both field variations for compatibility
         "phone": phone,
         "status": StatusEnum.PENDING.value,
         "statusHistory": [{"status": StatusEnum.PENDING.value, "date": now}],
@@ -1142,9 +1145,12 @@ async def capture_paypal_order(
     # Normalize coupon code for analytics and DB
     if coupon_code:
         coupon_code = coupon_code.strip().lower()
-    discount_amount = order_doc.get("discountAmount") or 0.0
-    original_total = order_doc.get("originalTotal") or order_doc.get("total") or 0.0
+    discount_amount = order_doc.get("discountAmount") or order_doc.get("discount_amount") or 0.0
+    original_total = order_doc.get("originalTotal") or order_doc.get("original_total") or order_doc.get("total") or 0.0
     paid_amount = float(cap_resp.result.purchase_units[0].payments.captures[0].amount.value)
+    
+    # Extract customer email from order document - check all possible field variations
+    customer_email = order_doc.get('email') or order_doc.get('userEmail') or order_doc.get('customerEmail')
 
     # Update coupon analytics if completed
     logger.info(f"PayPal Capture: current_order_status={current_order_status}, coupon_code='{coupon_code}'")
@@ -1155,7 +1161,6 @@ async def capture_paypal_order(
         
         # APPLY the coupon (increment usage count) - this was the missing piece!
         coupon_service = CouponService(db)
-        customer_email = order_doc.get('email') or order_doc.get('userEmail')
         
         logger.info(f"PayPal Capture: Applying coupon {coupon_code} for email {customer_email}, amount {original_total}")
         
@@ -1206,7 +1211,9 @@ async def capture_paypal_order(
         "updatedAt": now,
         "capturedAt": now,
         "discountAmount": discount_amount,
+        "discount_amount": discount_amount,  # Store both field variations
         "originalTotal": original_total,
+        "original_total": original_total,    # Store both field variations
         "totalPaid": paid_amount,
         "items": [item.model_dump() for item in order_items],
     }
@@ -1214,6 +1221,11 @@ async def capture_paypal_order(
     if coupon_code:
         update_fields["couponCode"] = coupon_code
         update_fields["coupon_code"] = coupon_code
+    # Ensure email fields are consistent
+    if customer_email:
+        update_fields["email"] = customer_email
+        update_fields["userEmail"] = customer_email
+        update_fields["customerEmail"] = customer_email
     await db.orders.update_one({"_id": order_id}, {"$set": update_fields})
 
     # Send confirmation email if completed
