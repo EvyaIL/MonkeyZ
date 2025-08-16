@@ -79,9 +79,16 @@ export default function Checkout() {
       return false;
     };
     
-    // Clean and validate cart items when checkout page loads
+    // Only clean cart items when checkout page loads (fix structure issues)
+    // but don't validate against server to prevent aggressive removal
     cleanCartItems();
-    validateCartItems();
+    
+    // Don't validate cart items on checkout page load to prevent
+    // aggressive removal when user logs in and goes to checkout
+    
+    return () => {
+      clearTimeout(validateTimer);
+    };
     
     // Initialize CSP nonce and PayPal performance optimization with cleanup
     const nonce = getCurrentNonce();

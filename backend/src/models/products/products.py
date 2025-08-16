@@ -22,6 +22,7 @@ class CDKeysAddRequest(BaseModel):
     # If keys are added as strings, they will be converted to CDKey objects in the endpoint.
 
 class Product(Document):
+    id: Optional[PydanticObjectId] = Field(None, alias="_id")
     name: dict  # {\'en\': str, \'he\': str}
     description: dict  # {\'en\': str, \'he\': str}
     price: int # Assuming price is an integer (e.g., cents) or float
@@ -40,6 +41,11 @@ class Product(Document):
 
     class Settings:
         name = "Product" # Changed from "products" to "Product" to match MongoDB
+        
+    class Config:
+        # Ensure the id field is included in serialization
+        populate_by_name = True
+        use_enum_values = True
 
 class AddKeysRequest(BaseModel):
     keys: List[str] # This is good for adding new keys by string value

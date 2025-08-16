@@ -333,12 +333,24 @@ const GlobalProvider = React.memo(({ children }) => {
 
   /**
    * Validate cart items against current products and remove deleted/unavailable items
+   * Rate limited to prevent too many API calls
    */
   const validateCartItems = useCallback(async () => {
     const cartItemIds = Object.keys(cartItems);
     if (cartItemIds.length === 0) return;
 
+    // Rate limiting: Only validate once every 5 minutes
+    const lastValidation = localStorage.getItem('lastCartValidation');
+    const now = Date.now();
+    if (lastValidation && (now - parseInt(lastValidation)) < 5 * 60 * 1000) {
+      console.log('Cart validation skipped - rate limited (5min cooldown)');
+      return;
+    }
+
     try {
+      console.log('Validating cart items against server...');
+      localStorage.setItem('lastCartValidation', now.toString());
+      
       // Get all current products to validate against
       const { data: allProducts } = await apiService.get('/product/all');
       
@@ -347,16 +359,38 @@ const GlobalProvider = React.memo(({ children }) => {
         return;
       }
 
-      const validProductIds = new Set(allProducts.map(p => p.id));
+      // Create valid product IDs set using both id and _id fields as fallbacks
+      const validProductIds = new Set();
+      allProducts.forEach(p => {
+        // Try id field first, then _id field as fallback, then convert to string
+        const productId = p.id || p._id;
+        if (productId) {
+          validProductIds.add(String(productId));
+        }
+      });
+
+      console.log(`Found ${validProductIds.size} valid products for validation`);
+
+      // If no valid product IDs found, don't remove anything (API issue)
+      if (validProductIds.size === 0) {
+        console.warn('No valid product IDs found - skipping cart validation to prevent data loss');
+        return;
+      }
+
       const itemsToRemove = [];
 
       // Check each cart item
       cartItemIds.forEach(cartItemId => {
-        if (!validProductIds.has(cartItemId)) {
+        if (!validProductIds.has(String(cartItemId))) {
           const cartItem = cartItems[cartItemId];
           // Only remove if product is definitely deleted (not just a temporary API issue)
-          if (cartItem && cartItem.lastValidated && (Date.now() - cartItem.lastValidated > 24 * 60 * 60 * 1000)) {
+          // AND it's been invalid for more than 7 days (increased from 24h)
+          if (cartItem && cartItem.lastValidated && (Date.now() - cartItem.lastValidated > 7 * 24 * 60 * 60 * 1000)) {
+            console.log(`Removing cart item ${cartItemId} - invalid for >7 days`);
             itemsToRemove.push(cartItemId);
+          } else {
+            // Mark as potentially invalid but don't remove yet
+            console.log(`Cart item ${cartItemId} not found in products but keeping (grace period)`);
           }
         } else {
           // Mark as validated if product exists
@@ -366,8 +400,9 @@ const GlobalProvider = React.memo(({ children }) => {
         }
       });
 
-      // Remove invalid items only after 24 hours of being invalid
+      // Remove invalid items only after 7 days of being invalid
       if (itemsToRemove.length > 0) {
+        console.log(`Removing ${itemsToRemove.length} cart items that have been invalid >7 days`);
         setCartItems((prev) => {
           const newCart = { ...prev };
           itemsToRemove.forEach(id => {
@@ -416,10 +451,15 @@ const GlobalProvider = React.memo(({ children }) => {
           cleanCartItems();
         }, 1000); // Clean after 1 second
         
-        // Validate cart items after a longer delay to allow API to be ready and avoid aggressive validation
+        // Validate cart items after a much longer delay and only if user hasn't validated recently
         const validateTimer = setTimeout(() => {
-          validateCartItems();
-        }, 10000); // Increased from 2 seconds to 10 seconds
+          const lastValidation = localStorage.getItem('lastCartValidation');
+          const now = Date.now();
+          // Only validate if it's been more than 30 minutes since last validation
+          if (!lastValidation || (now - parseInt(lastValidation)) > 30 * 60 * 1000) {
+            validateCartItems();
+          }
+        }, 30000); // Increased from 10 seconds to 30 seconds
         
         return () => {
           clearTimeout(cleanTimer);
@@ -433,15 +473,20 @@ const GlobalProvider = React.memo(({ children }) => {
     }
   }, [cleanCartItems]); // Include cleanCartItems dependency
 
-  // Validate cart items periodically when cart is not empty
+  // Validate cart items very infrequently when cart is not empty
   useEffect(() => {
     const cartItemCount = Object.keys(cartItems).length;
     if (cartItemCount === 0) return;
 
-    // Validate cart items less frequently when cart is not empty
+    // Validate cart items much less frequently when cart is not empty
     const validationInterval = setInterval(() => {
-      validateCartItems();
-    }, 15 * 60 * 1000); // Increased from 5 minutes to 15 minutes
+      const lastValidation = localStorage.getItem('lastCartValidation');
+      const now = Date.now();
+      // Only validate if it's been more than 1 hour since last validation
+      if (!lastValidation || (now - parseInt(lastValidation)) > 60 * 60 * 1000) {
+        validateCartItems();
+      }
+    }, 60 * 60 * 1000); // Validate only once per hour
 
     return () => clearInterval(validationInterval);
   }, [Object.keys(cartItems).length]); // Only re-run when cart item count changes
