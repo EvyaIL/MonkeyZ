@@ -55,24 +55,16 @@ ingress:
       path: /
 name: monkeyz
 region: fra
-static_sites:
-- name: monkeyz-frontend
+services:
+- build_command: npm install && npm run build
+  environment_slug: node-js
   github:
-    repo: EvyaIL/MonkeyZ
     branch: main
     deploy_on_push: true
+    repo: EvyaIL/MonkeyZ
+  name: front-end
   source_dir: frontend/
-  output_dir: build/
-  
-  # Ultra-fast optimized build command
-  build_command: npm ci --silent --no-audit --no-fund && GENERATE_SOURCEMAP=false CI=true npm run build:fast
-  
-  # Route configuration
+  run_command: npm run start:prod
+  http_port: 8080
   routes:
   - path: /
-  
-  # Error document for SPA routing (React Router)
-  error_document: index.html
-  
-  # Index document
-  index_document: index.html
