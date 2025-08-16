@@ -7,7 +7,7 @@ import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspN
 import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
 
 export default function Checkout() {
-  const { cartItems, validateCartItems, cleanCartItems, user } = useGlobalProvider();
+  const { cartItems, validateCartItems, cleanCartItems, clearCart, user } = useGlobalProvider();
   const { t, i18n } = useTranslation();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -89,7 +89,7 @@ export default function Checkout() {
     
     // Verify PayPal CSP configuration
     // In production, CSP is set via HTTP headers, not meta tags
-    const isProduction = !PAYPAL_CONFIG.isDevelopment;
+    const isProduction = PAYPAL_CONFIG.isDevelopment;
     const cspValid = verifyPayPalCSP();
     
     // Only show CSP error if we're in production AND there's actually a CSP issue
@@ -631,6 +631,9 @@ export default function Checkout() {
                   const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/capture`);
                   
                   console.log("PayPal order captured successfully:", response.data);
+                  
+                  // Clear the cart after successful payment
+                  clearCart();
                   
                   // Redirect to success page
                   window.location.href = "/success";

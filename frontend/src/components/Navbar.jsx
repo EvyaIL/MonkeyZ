@@ -23,9 +23,11 @@ const Navbar = memo(() => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   
   const cartRef = useRef(null);
   const mobileMenuRef = useRef(null);
+  const userMenuRef = useRef(null);
 
   // Handle clicks outside the cart and validate cart items when opened
   useEffect(() => {
@@ -77,12 +79,36 @@ const Navbar = memo(() => {
     };
   }, [mobileMenuOpen]);
 
+  // Handle clicks outside user menu
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    
+    const handleClickOutside = (event) => {
+      // Don't close if clicking on the user menu button itself
+      const userMenuButton = event.target.closest('#user-menu-button');
+      if (userMenuButton) return;
+      
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    
+    // Use a small delay to avoid immediate closing when menu opens
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }, 100);
+    
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [userMenuOpen]);
+
   // Close user menu when route changes
   useEffect(() => {
-    const userDropdown = document.getElementById('user-dropdown');
-    if (userDropdown) {
-      userDropdown.classList.add('hidden');
-    }
+    setUserMenuOpen(false);
   }, [navigate]);
 
   // Memoize cart calculations to prevent unnecessary re-renders
@@ -167,26 +193,27 @@ const Navbar = memo(() => {
 
             {/* Auth / User Menu */}
             {user ? (
-              <div className="relative">
+              <div className="relative" ref={userMenuRef}>
                 <button 
                   id="user-menu-button"
                   className="gap-2 cursor-pointer rounded-full border-2 border-accent/30 dark:border-accent/50 p-2 hover:bg-accent/10 dark:hover:bg-accent/20 transition-all duration-200 flex items-center"
                   aria-label="User menu"
-                  aria-expanded="false"
-                  onClick={() => document.getElementById('user-dropdown').classList.toggle('hidden')}
+                  aria-expanded={userMenuOpen}
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
                 >
                   <span className="font-medium text-primary dark:text-accent text-sm truncate max-w-24 md:max-w-none">
                     {`${t("welcome_prefix", "Welcome")}${user.username ? `, ${user.username}` : ""}!`}
                   </span>
                 </button>
 
-                {/* User Dropdown Menu - Using click toggle instead of hover */}
-                <div 
-                  id="user-dropdown"
-                  className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 hidden z-50 transform origin-top-right transition-all duration-150 ease-in-out"
-                >                  <Link 
+                {/* User Dropdown Menu - Using state instead of hidden class */}
+                {userMenuOpen && (
+                  <div 
+                    className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 z-50 transform origin-top-right transition-all duration-150 ease-in-out"
+                  >                  <Link 
                     to="/account" 
                     className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
+                    onClick={() => setUserMenuOpen(false)}
                   >
                     {t("profile")}
                   </Link>
@@ -194,17 +221,22 @@ const Navbar = memo(() => {
                     <Link 
                       to="/dashboard/admin" 
                       className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
+                      onClick={() => setUserMenuOpen(false)}
                     >
                       {t("admin")}
                     </Link>
                   )}
                   <button 
-                    onClick={logout} 
+                    onClick={() => {
+                      logout();
+                      setUserMenuOpen(false);
+                    }} 
                     className="block w-full text-left px-4 py-2 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-accent/10 rounded-md rtl:text-right"
                   >
                     {t("logout")}
                   </button>
-                </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="hidden md:flex gap-2">
