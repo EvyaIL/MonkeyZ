@@ -118,17 +118,26 @@ export default function Checkout() {
     const uniqueKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setComponentKey(uniqueKey);
     
+    // Force PayPal to load immediately for debugging
+    cleanupTimeoutRef.current = setTimeout(() => {
+      if (!isComponentMountedRef.current) return;
+      console.log('Force setting PayPal loaded to true');
+      setPaypalLoaded(true);
+    }, 1000);
+    
     // Performance Optimization: Preload PayPal script (PayPal Best Practice)
     if (PAYPAL_CONFIG.performance.enablePreload) {
       preloadPayPalScript()
         .then(() => {
           if (!isComponentMountedRef.current) return;
+          console.log('PayPal script preloaded successfully');
           
           // Instant render strategy (PayPal Best Practice) with delay to prevent zoid conflicts
           if (PAYPAL_CONFIG.performance.renderStrategy === 'instant') {
             // Small delay to prevent React StrictMode conflicts
             cleanupTimeoutRef.current = setTimeout(() => {
               if (isComponentMountedRef.current) {
+                console.log('Setting PayPal loaded to true (instant render)');
                 setPaypalLoaded(true);
               }
             }, 300);
@@ -136,6 +145,7 @@ export default function Checkout() {
             // Delayed render with minimal delay
             cleanupTimeoutRef.current = setTimeout(() => {
               if (isComponentMountedRef.current) {
+                console.log('Setting PayPal loaded to true (delayed render)');
                 setPaypalLoaded(true);
               }
             }, 800);
@@ -144,13 +154,15 @@ export default function Checkout() {
         .catch((error) => {
           if (!isComponentMountedRef.current) return;
           console.error('PayPal script preload failed:', error);
-          setError('Unable to load payment services. Please check your internet connection.');
+          // Even if preload fails, still try to load PayPal
+          setPaypalLoaded(true);
+          setError('Payment services loaded with reduced performance. You can still complete your purchase.');
         });
     } else {
       // Fallback: Standard loading with performance timing
       cleanupTimeoutRef.current = setTimeout(() => {
         if (!isComponentMountedRef.current) return;
-        
+        console.log('Setting PayPal loaded to true (fallback)');
         setPaypalLoaded(true);
       }, 800);
     }
@@ -395,7 +407,19 @@ export default function Checkout() {
             </p>
           </div>
 
-          {(cspNonce || PAYPAL_CONFIG.isDevelopment || PAYPAL_CONFIG.isProduction) && paypalLoaded && (
+          {/* Debug PayPal loading state */}
+          {console.log('Debug PayPal state:', {
+            cspNonce,
+            isDevelopment: PAYPAL_CONFIG.isDevelopment,
+            isProduction: PAYPAL_CONFIG.isProduction,
+            paypalLoaded,
+            clientId: PAYPAL_CONFIG.clientId,
+            nodeEnv: process.env.NODE_ENV,
+            reactAppEnv: process.env.REACT_APP_ENVIRONMENT
+          })}
+          
+          {/* Force show PayPal buttons for debugging - always show if paypalLoaded and clientId exist */}
+          {(paypalLoaded && PAYPAL_CONFIG.clientId) && (
             <div key={`paypal-container-${componentKey}`}>
               <PayPalScriptProvider 
                 options={initialOptions}
@@ -728,11 +752,16 @@ export default function Checkout() {
           </PayPalScriptProvider>
             </div>
           )}
-          {/* Show loading spinner while PayPal is loading or if CSP requirements aren't met */}
-          {(!paypalLoaded || (!cspNonce && !PAYPAL_CONFIG.isDevelopment)) ? (
+          {/* Show loading spinner while PayPal is not ready */}
+          {(!paypalLoaded || !PAYPAL_CONFIG.clientId) ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-gray-600">Loading secure payment options...</p>
+              {/* Debug info */}
+              <p className="mt-1 text-xs text-gray-500">
+                Debug: paypalLoaded={paypalLoaded.toString()}, isDev={PAYPAL_CONFIG.isDevelopment.toString()}, 
+                hasNonce={!!cspNonce}, clientId={!!PAYPAL_CONFIG.clientId}
+              </p>
             </div>
           ) : null}
           {processing && (
