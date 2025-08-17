@@ -4,9 +4,9 @@ export const PAYPAL_CONFIG = {
   // PayPal Client ID validation
   clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID,
   
-  // Environment detection
-  isDevelopment: process.env.NODE_ENV === 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  // Environment detection - handle custom localhost-like production setup
+  isDevelopment: process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENVIRONMENT === 'development',
+  isProduction: process.env.NODE_ENV === 'production' && process.env.REACT_APP_ENVIRONMENT !== 'development',
   
   // Currency and locale settings
   currency: 'ILS',

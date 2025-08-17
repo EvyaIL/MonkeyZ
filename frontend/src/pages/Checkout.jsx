@@ -27,6 +27,7 @@ export default function Checkout() {
   const paypalPerformanceRef = useRef(null);
   const cleanupTimeoutRef = useRef(null);
   const isComponentMountedRef = useRef(true);
+  const validateTimerRef = useRef(null); // Fix: Add missing validateTimer ref
 
   // Performance monitoring instance with cleanup tracking
   if (!paypalPerformanceRef.current) {
@@ -87,7 +88,10 @@ export default function Checkout() {
     // aggressive removal when user logs in and goes to checkout
     
     return () => {
-      clearTimeout(validateTimer);
+      if (validateTimerRef.current) {
+        clearTimeout(validateTimerRef.current);
+        validateTimerRef.current = null;
+      }
     };
     
     // Initialize CSP nonce and PayPal performance optimization with cleanup
@@ -724,7 +728,8 @@ export default function Checkout() {
           </PayPalScriptProvider>
             </div>
           )}
-          {!(cspNonce || PAYPAL_CONFIG.isDevelopment) || !paypalLoaded ? (
+          {/* Show loading spinner while PayPal is loading or if CSP requirements aren't met */}
+          {(!paypalLoaded || (!cspNonce && !PAYPAL_CONFIG.isDevelopment)) ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-gray-600">Loading secure payment options...</p>

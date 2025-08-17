@@ -67,6 +67,36 @@ class ApiService {  constructor() {
       },
       (error) => Promise.reject(error),
     );
+
+    // Add response interceptor to handle token expiration
+    this.httpClient.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          const errorMessage = error.response.data?.detail || error.response.data?.message || '';
+          
+          // Check if it's specifically a token expiration
+          if (errorMessage.includes('Signature has expired') || 
+              errorMessage.includes('token has expired') ||
+              errorMessage.includes('Could not validate credentials')) {
+            console.warn('Token expired, clearing stored tokens');
+            
+            // Clear all possible token storage locations
+            localStorage.removeItem('token');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user_data');
+            sessionStorage.removeItem('authToken');
+            
+            this.token = null;
+            
+            // Trigger a global logout event
+            window.dispatchEvent(new CustomEvent('tokenExpired'));
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   /**

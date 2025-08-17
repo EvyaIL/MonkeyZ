@@ -22,13 +22,12 @@ let currentNonce = null;
 
 export const getCurrentNonce = () => {
   if (!currentNonce) {
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENVIRONMENT === 'development';
+    const isProduction = process.env.NODE_ENV === 'production' && process.env.REACT_APP_ENVIRONMENT !== 'development';
     
-    // In production, CSP nonce is typically handled by server headers
-    // We still generate a nonce for PayPal SDK compatibility
-    if (isProduction) {
-      // Generate a nonce for PayPal compatibility even in production
+    // In production or localhost-like production, generate a nonce for PayPal compatibility
+    if (isProduction || (!isDevelopment && process.env.NODE_ENV === 'production')) {
+      // Generate a nonce for PayPal compatibility
       currentNonce = generateNonce();
       return currentNonce;
     }

@@ -44,6 +44,24 @@ const GlobalProvider = React.memo(({ children }) => {
     if (!token) {
       setUser(null);
     }
+    
+    // Listen for token expiration events from API interceptor
+    const handleTokenExpired = () => {
+      console.warn('Token expired - automatically logging out user');
+      setToken(null);
+      setUser(null);
+      // Show a user-friendly notification
+      setNotification({
+        message: "Your session has expired. Please log in again.",
+        type: "warning"
+      });
+    };
+    
+    window.addEventListener('tokenExpired', handleTokenExpired);
+    
+    return () => {
+      window.removeEventListener('tokenExpired', handleTokenExpired);
+    };
   }, [token]);
 
   const logout = async () => {
@@ -440,6 +458,9 @@ const GlobalProvider = React.memo(({ children }) => {
 
   // Load cart from localStorage on initial load and validate items
   useEffect(() => {
+    let cleanTimer = null;
+    let validateTimer = null;
+    
     try {
       const savedCart = localStorage.getItem('cart');
       if (savedCart) {
@@ -447,12 +468,12 @@ const GlobalProvider = React.memo(({ children }) => {
         setCartItems(parsedCart);
         
         // Clean cart items after loading to ensure proper structure
-        const cleanTimer = setTimeout(() => {
+        cleanTimer = setTimeout(() => {
           cleanCartItems();
         }, 1000); // Clean after 1 second
         
         // Validate cart items after a much longer delay and only if user hasn't validated recently
-        const validateTimer = setTimeout(() => {
+        validateTimer = setTimeout(() => {
           const lastValidation = localStorage.getItem('lastCartValidation');
           const now = Date.now();
           // Only validate if it's been more than 30 minutes since last validation
@@ -460,17 +481,17 @@ const GlobalProvider = React.memo(({ children }) => {
             validateCartItems();
           }
         }, 30000); // Increased from 10 seconds to 30 seconds
-        
-        return () => {
-          clearTimeout(cleanTimer);
-          clearTimeout(validateTimer);
-        };
       }
     } catch (e) {
       console.error('Error loading cart from localStorage', e);
       // Clear corrupted cart data
       localStorage.removeItem('cart');
     }
+    
+    return () => {
+      if (cleanTimer) clearTimeout(cleanTimer);
+      if (validateTimer) clearTimeout(validateTimer);
+    };
   }, [cleanCartItems]); // Include cleanCartItems dependency
 
   // Validate cart items very infrequently when cart is not empty
