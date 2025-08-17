@@ -395,7 +395,7 @@ export default function Checkout() {
             </p>
           </div>
 
-          {(cspNonce || PAYPAL_CONFIG.isDevelopment || PAYPAL_CONFIG.isProduction) && paypalLoaded && (
+          {(PAYPAL_CONFIG.clientId) && (
             <div key={`paypal-container-${componentKey}`}>
               <PayPalScriptProvider 
                 options={initialOptions}
@@ -405,7 +405,6 @@ export default function Checkout() {
                 }}
                 onError={(err) => {
                   if (!isComponentMountedRef.current) return;
-                  
                   console.error("PayPal script load error:", err);
                   const errorInfo = getPayPalErrorMessage(err);
                   setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
@@ -416,16 +415,14 @@ export default function Checkout() {
                   layout: "vertical",
                   color: "gold",
                   shape: "pill",
-                  height: 50, // Increased height for better icon visibility
-                  label: "paypal", // Use "paypal" label to show just "PayPal"
-                  tagline: false, // Remove PayPal tagline
+                  height: 50,
+                  label: "paypal",
+                  tagline: false,
                 }}
                 disabled={processing || !email || !name || !phone || cartArray.length === 0}
                 onInit={(data, actions) => {
                   if (!isComponentMountedRef.current) return;
                   console.log("PayPal buttons initialized");
-                  
-                  // Disable buttons until form is complete
                   if (!email || !name || !phone || cartArray.length === 0) {
                     actions.disable();
                   } else {
@@ -433,316 +430,220 @@ export default function Checkout() {
                   }
                 }}
                 onClick={(data, actions) => {
-                  // Validate form before allowing PayPal popup
                   if (!email || !name || !phone) {
                     setError("Please fill in all required fields before proceeding with payment.");
                     return actions.reject();
                   }
-                  
                   if (cartArray.length === 0) {
                     setError("Your cart is empty. Please add items before proceeding.");
                     return actions.reject();
                   }
-                  
-                  // Clear any previous errors
                   setError("");
                   return actions.resolve();
                 }}
-              createOrder={async () => {
-                if (!isComponentMountedRef.current) return Promise.reject(new Error("Component unmounted"));
-                
-                setProcessing(true);
-                setError("");
-                
-                try {
-                  // Validate required fields
-                  if (!email || !name || !phone) {
-                    throw new Error("Please fill in all required fields (email, name, phone)");
-                  }
-                  
-                  if (cartArray.length === 0) {
-                    throw new Error("Your cart is empty");
-                  }
-                  
-                  // Debug: Log cart structure for troubleshooting
-                  console.log("Cart debugging info:", {
-                    cartItems: cartItems,
-                    cartArray: cartArray,
-                    cartItemsKeys: Object.keys(cartItems),
-                    cartArrayLength: cartArray.length
-                  });
-                  
-                  // Validate cart items before sending
-                  const validatedCart = cartArray
-                    .map((i, index) => {
-                      // Try multiple ways to get the product ID
-                      const productId = i.id || i.productId || i._id || Object.keys(cartItems)[index];
-                      
-                      // Check if productId is valid (not undefined, null, empty string, etc.)
-                      if (!productId || productId === 'undefined' || productId === 'null' || productId.toString().trim() === '') {
-                        console.error(`Cart item at position ${index + 1} has invalid product ID:`, productId, i);
-                        return null; // Mark for filtering
-                      }
-                      
-                      // Ensure we have a valid price
-                      const itemPrice = typeof i.price === 'number' ? i.price : 0;
-                      if (itemPrice <= 0) {
-                        console.error(`Cart item at position ${index + 1} has invalid price:`, itemPrice, i);
-                        return null; // Mark for filtering
-                      }
-
-                      // Ensure we have a valid quantity
-                      const quantity = i.count || i.quantity || 1;
-                      if (quantity <= 0) {
-                        console.error(`Cart item at position ${index + 1} has invalid quantity:`, quantity, i);
-                        return null; // Mark for filtering
-                      }
-                      
-                      return {
-                        productId: productId.toString(), // Backend expects productId as string
-                        id: productId.toString(), // Also send id for redundancy
-                        name: typeof i.name === "object" ? i.name.en : i.name,
-                        quantity: quantity,
-                        price: itemPrice
-                      };
-                    })
-                    .filter(item => item !== null); // Remove invalid items
-
-                  // Check if we have any valid items left
-                  if (validatedCart.length === 0) {
-                    console.error("No valid items in cart after validation:", cartArray);
-                    throw new Error("Your cart contains no valid items. Please refresh the page and add items again.");
-                  }
-
-                  // Final safety check - ensure no 'undefined' productIds made it through
-                  const finalValidatedCart = validatedCart.filter(item => {
-                    if (!item.productId || item.productId === 'undefined' || item.productId === 'null') {
-                      console.error("Removing cart item with invalid productId in final check:", item);
-                      return false;
+                createOrder={async () => {
+                  if (!isComponentMountedRef.current) return Promise.reject(new Error("Component unmounted"));
+                  setProcessing(true);
+                  setError("");
+                  try {
+                    if (!email || !name || !phone) {
+                      throw new Error("Please fill in all required fields (email, name, phone)");
                     }
-                    return true;
-                  });
-
-                  if (finalValidatedCart.length === 0) {
-                    console.error("No valid items in cart after final validation:", validatedCart);
-                    throw new Error("Cart validation failed. Please refresh the page and try again.");
-                  }
-
-                  // Double-check coupon validity before creating order if a coupon is applied
-                  if (coupon && discount > 0) {
-                    try {
-                      const couponValidation = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/coupons/validate`, {
-                        code: coupon,
-                        amount: subtotal,
-                        email: email || user?.email || null,
-                      });
-                      
-                      // If coupon is no longer valid, clear it and throw error
-                      if (couponValidation.data.valid === false || couponValidation.data.error || !couponValidation.data.discount) {
+                    if (cartArray.length === 0) {
+                      throw new Error("Your cart is empty");
+                    }
+                    const validatedCart = cartArray
+                      .map((i, index) => {
+                        const productId = i.id || i.productId || i._id || Object.keys(cartItems)[index];
+                        if (!productId || productId === 'undefined' || productId === 'null' || productId.toString().trim() === '') {
+                          console.error(`Cart item at position ${index + 1} has invalid product ID:`, productId, i);
+                          return null;
+                        }
+                        const itemPrice = typeof i.price === 'number' ? i.price : 0;
+                        if (itemPrice <= 0) {
+                          console.error(`Cart item at position ${index + 1} has invalid price:`, itemPrice, i);
+                          return null;
+                        }
+                        const quantity = i.count || i.quantity || 1;
+                        if (quantity <= 0) {
+                          console.error(`Cart item at position ${index + 1} has invalid quantity:`, quantity, i);
+                          return null;
+                        }
+                        return {
+                          productId: productId.toString(),
+                          id: productId.toString(),
+                          name: typeof i.name === "object" ? i.name.en : i.name,
+                          quantity: quantity,
+                          price: itemPrice
+                        };
+                      })
+                      .filter(item => item !== null);
+                    if (validatedCart.length === 0) {
+                      console.error("No valid items in cart after validation:", cartArray);
+                      throw new Error("Your cart contains no valid items. Please refresh the page and add items again.");
+                    }
+                    const finalValidatedCart = validatedCart.filter(item => {
+                      if (!item.productId || item.productId === 'undefined' || item.productId === 'null') {
+                        console.error("Removing cart item with invalid productId in final check:", item);
+                        return false;
+                      }
+                      return true;
+                    });
+                    if (finalValidatedCart.length === 0) {
+                      console.error("No valid items in cart after final validation:", validatedCart);
+                      throw new Error("Cart validation failed. Please refresh the page and try again.");
+                    }
+                    if (coupon && discount > 0) {
+                      try {
+                        const couponValidation = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/coupons/validate`, {
+                          code: coupon,
+                          amount: subtotal,
+                          email: email || user?.email || null,
+                        });
+                        if (couponValidation.data.valid === false || couponValidation.data.error || !couponValidation.data.discount) {
+                          setDiscount(0);
+                          setCouponMsg(couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid");
+                          throw new Error("Coupon validation failed: " + (couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid"));
+                        }
+                        if (couponValidation.data.discount !== discount) {
+                          setDiscount(couponValidation.data.discount);
+                          setCouponMsg(`Coupon applied - ₪${couponValidation.data.discount.toFixed(2)} off`);
+                        }
+                      } catch (couponErr) {
+                        console.error("Coupon re-validation failed:", couponErr);
                         setDiscount(0);
-                        setCouponMsg(couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid");
-                        throw new Error("Coupon validation failed: " + (couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid"));
+                        setCouponMsg("Coupon validation failed");
+                        throw new Error("Coupon validation failed. Please remove the coupon and try again.");
                       }
-                      
-                      // Update discount if it changed
-                      if (couponValidation.data.discount !== discount) {
-                        setDiscount(couponValidation.data.discount);
-                        setCouponMsg(`Coupon applied - ₪${couponValidation.data.discount.toFixed(2)} off`);
+                    }
+                    console.log("Creating PayPal order with data:", {
+                      cart: finalValidatedCart,
+                      couponCode: coupon,
+                      customerEmail: email,
+                      customerName: name,
+                      phone: phone,
+                    });
+                    const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders`, {
+                      cart: finalValidatedCart,
+                      couponCode: coupon,
+                      customerEmail: email,
+                      customerName: name,
+                      phone: phone,
+                    });
+                    const orderId = response.data?.id;
+                    if (!orderId) {
+                      console.error("No order ID returned from server:", response.data);
+                      throw new Error("Invalid response from payment service");
+                    }
+                    console.log("PayPal order created successfully:", orderId);
+                    setOrderID(orderId);
+                    return orderId;
+                  } catch (err) {
+                    console.error("PayPal createOrder error:", err);
+                    setProcessing(false);
+                    let errorMessage = "Failed to create order";
+                    if (err.response?.data?.detail) {
+                      errorMessage = err.response.data.detail;
+                      if (errorMessage.toLowerCase().includes('coupon') || 
+                          errorMessage.toLowerCase().includes('usage limit') ||
+                          errorMessage.toLowerCase().includes('max uses') ||
+                          errorMessage.toLowerCase().includes('exceed') ||
+                          errorMessage.toLowerCase().includes('invalid')) {
+                        setDiscount(0);
+                        setCouponMsg(errorMessage);
+                        errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
                       }
-                    } catch (couponErr) {
-                      console.error("Coupon re-validation failed:", couponErr);
-                      setDiscount(0);
-                      setCouponMsg("Coupon validation failed");
-                      throw new Error("Coupon validation failed. Please remove the coupon and try again.");
+                    } else if (err.response?.data?.message) {
+                      errorMessage = err.response.data.message;
+                      if (errorMessage.toLowerCase().includes('coupon') || 
+                          errorMessage.toLowerCase().includes('usage limit') ||
+                          errorMessage.toLowerCase().includes('max uses') ||
+                          errorMessage.toLowerCase().includes('exceed') ||
+                          errorMessage.toLowerCase().includes('invalid')) {
+                        setDiscount(0);
+                        setCouponMsg(errorMessage);
+                        errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
+                      }
+                    } else if (err.message) {
+                      errorMessage = err.message;
+                      if (errorMessage.toLowerCase().includes('coupon')) {
+                        errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
+                      }
                     }
+                    setError(errorMessage);
+                    return Promise.reject(new Error(errorMessage));
                   }
-
-                  console.log("Creating PayPal order with data:", {
-                    cart: finalValidatedCart,
-                    couponCode: coupon,
-                    customerEmail: email,
-                    customerName: name,
-                    phone: phone,
-                  });
-
-                  const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders`, {
-                    cart: finalValidatedCart,
-                    couponCode: coupon,
-                    customerEmail: email,
-                    customerName: name,
-                    phone: phone,
-                  });
-                  
-                  const orderId = response.data?.id;
-                  if (!orderId) {
-                    console.error("No order ID returned from server:", response.data);
-                    throw new Error("Invalid response from payment service");
-                  }
-                  
-                  console.log("PayPal order created successfully:", orderId);
-                  setOrderID(orderId);
-                  return orderId;
-                  
-                } catch (err) {
-                  console.error("PayPal createOrder error:", err);
-                  setProcessing(false);
-                  
-                  let errorMessage = "Failed to create order";
-                  if (err.response?.data?.detail) {
-                    errorMessage = err.response.data.detail;
-                    
-                    // Check if this is a coupon validation error
-                    if (errorMessage.toLowerCase().includes('coupon') || 
-                        errorMessage.toLowerCase().includes('usage limit') ||
-                        errorMessage.toLowerCase().includes('max uses') ||
-                        errorMessage.toLowerCase().includes('exceed') ||
-                        errorMessage.toLowerCase().includes('invalid')) {
-                      // Clear the discount and update coupon message
-                      setDiscount(0);
-                      setCouponMsg(errorMessage);
-                      errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
-                    }
-                  } else if (err.response?.data?.message) {
-                    errorMessage = err.response.data.message;
-                    
-                    // Check if this is a coupon validation error
-                    if (errorMessage.toLowerCase().includes('coupon') || 
-                        errorMessage.toLowerCase().includes('usage limit') ||
-                        errorMessage.toLowerCase().includes('max uses') ||
-                        errorMessage.toLowerCase().includes('exceed') ||
-                        errorMessage.toLowerCase().includes('invalid')) {
-                      // Clear the discount and update coupon message
-                      setDiscount(0);
-                      setCouponMsg(errorMessage);
-                      errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
-                    }
-                  } else if (err.message) {
-                    errorMessage = err.message;
-                    
-                    // Check if this is a coupon validation error from our frontend validation
-                    if (errorMessage.toLowerCase().includes('coupon')) {
-                      // The discount and coupon message should already be cleared by the validation code above
-                      // Just show a user-friendly message
-                      errorMessage = "Coupon validation failed. Please try again without the coupon or use a different coupon.";
-                    }
-                  }
-                  
-                  setError(errorMessage);
-                  
-                  // Return a rejected promise so PayPal knows the order creation failed
-                  return Promise.reject(new Error(errorMessage));
-                }
-              }}
-              onApprove={async (data) => {
-                if (!isComponentMountedRef.current) return;
-                
-                try {
-                  console.log("PayPal payment approved, capturing order:", data.orderID);
-                  
-                  const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/capture`);
-                  
-                  console.log("PayPal order captured successfully:", response.data);
-                  
-                  // Clear the cart after successful payment
-                  clearCart();
-                  
-                  // Redirect to success page
-                  window.location.href = "/success";
-                } catch (err) {
-                  console.error("PayPal capture error:", err);
-                  
+                }}
+                onApprove={async (data) => {
                   if (!isComponentMountedRef.current) return;
-                  
-                  let errorMessage = "Payment capture failed";
-                  if (err.response?.data?.detail) {
-                    errorMessage = err.response.data.detail;
-                  } else if (err.response?.data?.message) {
-                    errorMessage = err.response.data.message;
+                  try {
+                    console.log("PayPal payment approved, capturing order:", data.orderID);
+                    const response = await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/capture`);
+                    console.log("PayPal order captured successfully:", response.data);
+                    clearCart();
+                    window.location.href = "/success";
+                  } catch (err) {
+                    console.error("PayPal capture error:", err);
+                    if (!isComponentMountedRef.current) return;
+                    let errorMessage = "Payment capture failed";
+                    if (err.response?.data?.detail) {
+                      errorMessage = err.response.data.detail;
+                    } else if (err.response?.data?.message) {
+                      errorMessage = err.response.data.message;
+                    }
+                    setError(errorMessage);
+                    try {
+                      await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/cancel`);
+                    } catch (cancelErr) {
+                      console.warn("Failed to cancel order:", cancelErr);
+                    }
+                    setTimeout(() => {
+                      window.location.href = "/fail";
+                    }, 2000);
+                  } finally {
+                    if (isComponentMountedRef.current) {
+                      setProcessing(false);
+                    }
                   }
-                  
-                  setError(errorMessage);
-                  
-                  // Try to cancel the order
+                }}
+                onCancel={async (data) => {
+                  if (!isComponentMountedRef.current) return;
+                  console.log("PayPal payment cancelled by user:", data.orderID);
                   try {
                     await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/cancel`);
                   } catch (cancelErr) {
                     console.warn("Failed to cancel order:", cancelErr);
                   }
-                  
-                  // Redirect to failure page after a short delay
-                  setTimeout(() => {
-                    window.location.href = "/fail";
-                  }, 2000);
-                } finally {
-                  if (isComponentMountedRef.current) {
-                    setProcessing(false);
+                  window.location.href = "/fail";
+                }}
+                onError={async (err) => {
+                  if (!isComponentMountedRef.current) return;
+                  console.error("PayPal payment error:", err);
+                  const errorInfo = getPayPalErrorMessage(err);
+                  let errorMessage = `Payment failed: ${errorInfo.message}`;
+                  if (err.toString().includes("Expected an order id to be passed")) {
+                    errorMessage = "Payment setup failed. Please refresh the page and try again.";
+                  } else if (err.toString().includes("INSTRUMENT_DECLINED")) {
+                    errorMessage = "Your payment method was declined. Please try a different payment method.";
+                  } else if (err.toString().includes("INSUFFICIENT_FUNDS")) {
+                    errorMessage = "Insufficient funds. Please try a different payment method.";
                   }
-                }
-              }}
-              onCancel={async (data) => {
-                if (!isComponentMountedRef.current) return;
-                
-                console.log("PayPal payment cancelled by user:", data.orderID);
-                
-                // Mark order as cancelled when user aborts
-                try {
-                  await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${data.orderID}/cancel`);
-                } catch (cancelErr) {
-                  console.warn("Failed to cancel order:", cancelErr);
-                }
-                
-                window.location.href = "/fail";
-              }}
-              onError={async (err) => {
-                if (!isComponentMountedRef.current) return;
-                
-                console.error("PayPal payment error:", err);
-                const errorInfo = getPayPalErrorMessage(err);
-                
-                let errorMessage = `Payment failed: ${errorInfo.message}`;
-                
-                // Handle specific PayPal error codes
-                if (err.toString().includes("Expected an order id to be passed")) {
-                  errorMessage = "Payment setup failed. Please refresh the page and try again.";
-                } else if (err.toString().includes("INSTRUMENT_DECLINED")) {
-                  errorMessage = "Your payment method was declined. Please try a different payment method.";
-                } else if (err.toString().includes("INSUFFICIENT_FUNDS")) {
-                  errorMessage = "Insufficient funds. Please try a different payment method.";
-                }
-                
-                setError(errorMessage);
-                
-                // Cancel order if one exists
-                if (orderID) {
-                  try {
-                    await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${orderID}/cancel`);
-                  } catch (cancelErr) {
-                    console.error("Failed to cancel order:", cancelErr);
+                  setError(errorMessage);
+                  if (orderID) {
+                    try {
+                      await axios.post(`${process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il'}/api/paypal/orders/${orderID}/cancel`);
+                    } catch (cancelErr) {
+                      console.error("Failed to cancel order:", cancelErr);
+                    }
                   }
-                }
-                
-                // Reset processing state
-                setProcessing(false);
-              }}
-            />
-          </PayPalScriptProvider>
+                  setProcessing(false);
+                }}
+              />
+            </PayPalScriptProvider>
             </div>
           )}
           {/* Show loading spinner while PayPal is loading or if CSP requirements aren't met */}
-          {(!paypalLoaded || (!cspNonce && !PAYPAL_CONFIG.isDevelopment)) ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading secure payment options...</p>
-            </div>
-          ) : null}
-          {processing && (
-            <div className="text-center mt-4">
-              <div className="inline-flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                <p className="text-blue-600">Processing payment…</p>
-              </div>
-            </div>
-          )}
+  
         </div>
       </div>
     </div>
