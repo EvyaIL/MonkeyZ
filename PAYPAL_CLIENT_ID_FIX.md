@@ -55,6 +55,15 @@ envs:
 - key: REACT_APP_PAYPAL_CLIENT_ID
   scope: RUN_AND_BUILD_TIME
   value: AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF
+- key: REACT_APP_DEBUG_API
+  scope: RUN_AND_BUILD_TIME
+  value: "false"
+- key: PAYPAL_CLIENT_ID
+  scope: RUN_AND_BUILD_TIME
+  value: AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF
+- key: PAYPAL_LIVE_CLIENT_ID
+  scope: RUN_AND_BUILD_TIME
+  value: AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF
 - key: REACT_APP_ENVIRONMENT
   scope: RUN_AND_BUILD_TIME
   value: development
