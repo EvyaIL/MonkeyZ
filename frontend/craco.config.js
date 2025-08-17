@@ -22,7 +22,7 @@ module.exports = {
             // React core libraries - highest priority
             react: {
               test: /[\\/]node_modules[\\/](react|react-dom|react-router)[\\/]/,
-              name: 'react',
+              name: 'react-vendor',
               priority: 40,
               reuseExistingChunk: true,
               enforce: true,
@@ -30,21 +30,21 @@ module.exports = {
             // PayPal SDK - separate chunk for payment functionality
             paypal: {
               test: /[\\/]node_modules[\\/](@paypal)[\\/]/,
-              name: 'paypal',
+              name: 'paypal-sdk',
               priority: 35,
               reuseExistingChunk: true,
             },
             // UI libraries - Material-UI, Heroicons, etc.
             ui: {
               test: /[\\/]node_modules[\\/](@mui|@heroicons|@headlessui)[\\/]/,
-              name: 'ui',
+              name: 'ui-libs',
               priority: 30,
               reuseExistingChunk: true,
             },
             // Charts - Chart.js and react-chartjs-2
             charts: {
               test: /[\\/]node_modules[\\/](chart\.js|react-chartjs-2)[\\/]/,
-              name: 'charts',
+              name: 'chart-libs',
               priority: 25,
               reuseExistingChunk: true,
             },
@@ -88,6 +88,13 @@ module.exports = {
       
       // Enable module concatenation for better minification
       config.optimization.concatenateModules = true;
+      
+      // Stable chunk naming to prevent 404 errors
+      config.output = {
+        ...config.output,
+        filename: 'static/js/[name].[contenthash:8].js',
+        chunkFilename: 'static/js/[name].[contenthash:8].chunk.js',
+      };
       
       // Add performance hints and budgets
       config.performance = {
