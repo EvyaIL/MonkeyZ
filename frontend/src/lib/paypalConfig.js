@@ -1,19 +1,8 @@
 ﻿// PayPal Environment Configuration and Performance Optimization
 
-// Debug environment variables
-console.log('PayPal Config Debug:', {
-  NODE_ENV: process.env.NODE_ENV,
-  REACT_APP_ENVIRONMENT: process.env.REACT_APP_ENVIRONMENT,
-  REACT_APP_PAYPAL_CLIENT_ID: process.env.REACT_APP_PAYPAL_CLIENT_ID ? 'Set' : 'Missing',
-  REACT_APP_PAYPAL_CLIENT_ID_value: process.env.REACT_APP_PAYPAL_CLIENT_ID,
-  allEnvVars: Object.keys(process.env).filter(key => key.startsWith('REACT_APP_'))
-});
-
 export const PAYPAL_CONFIG = {
-  // PayPal Client ID validation with fallback
-  clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID || 
-           // Fallback for your production client ID if env var fails
-           'AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF',
+  // PayPal Client ID validation
+  clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID,
   
   // Environment detection - handle custom localhost-like production setup
   isDevelopment: process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENVIRONMENT === 'development',
@@ -69,14 +58,6 @@ export const PAYPAL_CONFIG = {
     'disable-warnings': true
   }
 };
-
-// Debug final config
-console.log('Final PayPal Config:', {
-  clientId: PAYPAL_CONFIG.clientId,
-  isDevelopment: PAYPAL_CONFIG.isDevelopment,
-  hasClientId: !!PAYPAL_CONFIG.clientId,
-  clientIdLength: PAYPAL_CONFIG.clientId ? PAYPAL_CONFIG.clientId.length : 0
-});
 
 // Performance-optimized script URL builder
 export const buildPayPalScriptURL = () => {
