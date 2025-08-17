@@ -1,8 +1,20 @@
 ﻿// PayPal Environment Configuration and Performance Optimization
 
+// Debug environment variables
+console.log('PayPal Config Debug:', {
+  NODE_ENV: process.env.NODE_ENV,
+  REACT_APP_ENVIRONMENT: process.env.REACT_APP_ENVIRONMENT,
+  REACT_APP_PAYPAL_CLIENT_ID: process.env.REACT_APP_PAYPAL_CLIENT_ID ? 'Set' : 'Missing',
+  allEnvVars: Object.keys(process.env).filter(key => key.startsWith('REACT_APP_'))
+});
+
 export const PAYPAL_CONFIG = {
-  // PayPal Client ID validation
-  clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID,
+  // PayPal Client ID validation with fallback
+  clientId: process.env.REACT_APP_PAYPAL_CLIENT_ID || 
+           // Fallback for your production client ID if env var fails
+           (process.env.NODE_ENV === 'production' ? 
+            'AXu-4q2i_746jXHFnUbYUSDxSHZF5og7QtErtmy9eJHkzBpumtDFLpJz6OQollNpRDFlqP2w3rg7DiCF' : 
+            null),
   
   // Environment detection - handle custom localhost-like production setup
   isDevelopment: process.env.NODE_ENV === 'development' || process.env.REACT_APP_ENVIRONMENT === 'development',

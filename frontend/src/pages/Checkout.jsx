@@ -752,8 +752,20 @@ export default function Checkout() {
           </PayPalScriptProvider>
             </div>
           )}
-          {/* Show loading spinner while PayPal is not ready */}
-          {(!paypalLoaded || !PAYPAL_CONFIG.clientId) ? (
+          {/* Debug info and error handling */}
+          {!PAYPAL_CONFIG.clientId ? (
+            <div className="text-center py-8 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-red-600 mb-2">⚠️ Payment Configuration Error</div>
+              <p className="text-red-700">PayPal Client ID is missing from environment configuration.</p>
+              <p className="text-sm text-red-600 mt-1">
+                Please add REACT_APP_PAYPAL_CLIENT_ID to your deployment environment.
+              </p>
+              <p className="text-xs text-gray-600 mt-2">
+                Current env: NODE_ENV={process.env.NODE_ENV}, 
+                REACT_APP_ENVIRONMENT={process.env.REACT_APP_ENVIRONMENT || 'not set'}
+              </p>
+            </div>
+          ) : (!paypalLoaded) ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-gray-600">Loading secure payment options...</p>
