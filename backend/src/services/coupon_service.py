@@ -112,21 +112,49 @@ class CouponService:
             if user_email:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
                 if max_usage_per_user > 0:
-                    # Count how many times this user has used this coupon
-                    # Check both email field variations for compatibility
-                    orders_collection = self.db.orders
-                    user_usage_count = await orders_collection.count_documents({
-                        '$or': [
-                            {'userEmail': user_email},
-                            {'email': user_email},
-                            {'customerEmail': user_email}
-                        ],
-                        'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
-                        'status': {'$nin': ['cancelled', 'failed']}
-                    })
+                    # ENHANCED: Use the same robust checking as validate_coupon
+                    user_email_lower = user_email.lower().strip()
                     
-                    if user_usage_count >= max_usage_per_user:
-                        return 0.0, None, f'You have reached the usage limit for this coupon ({user_usage_count}/{max_usage_per_user}).'
+                    # Method 1: Check userUsages field
+                    user_usages = coupon.get('userUsages', {})
+                    usage_from_coupon = 0
+                    
+                    for email_key in [user_email, user_email_lower]:
+                        if email_key in user_usages:
+                            usage_from_coupon = user_usages[email_key]
+                            break
+                    
+                    # Method 2: Query orders collection
+                    orders_collection = self.db.orders
+                    query = {
+                        '$and': [
+                            {
+                                '$or': [
+                                    {'userEmail': {'$regex': f'^{user_email}$', '$options': 'i'}},
+                                    {'email': {'$regex': f'^{user_email}$', '$options': 'i'}},
+                                    {'customerEmail': {'$regex': f'^{user_email}$', '$options': 'i'}}
+                                ]
+                            },
+                            {
+                                '$or': [
+                                    {'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'}},
+                                    {'coupon_code': {'$regex': f'^{coupon["code"]}$', '$options': 'i'}}
+                                ]
+                            },
+                            {
+                                'status': {'$nin': ['cancelled', 'failed']}
+                            }
+                        ]
+                    }
+                    
+                    usage_from_orders = await orders_collection.count_documents(query)
+                    
+                    # Use maximum for safety
+                    actual_usage_count = max(usage_from_coupon, usage_from_orders)
+                    logger.info(f"APPLY_COUPON: User {user_email} usage check - coupon field: {usage_from_coupon}, orders: {usage_from_orders}, final: {actual_usage_count}")
+                    
+                    if actual_usage_count >= max_usage_per_user:
+                        return 0.0, None, f'You have reached the usage limit for this coupon ({actual_usage_count}/{max_usage_per_user}).'
 
             # --- Calculate Discount ---
             discount_type = coupon.get('discountType', 'percentage')
@@ -199,35 +227,56 @@ class CouponService:
                 logger.info(f"VALIDATE_COUPON: Checking per-user limit for {user_email}: maxUsagePerUser={max_usage_per_user}")
                 
                 if max_usage_per_user > 0:
-                    # First try to use the userUsages field if it exists (more reliable)
+                    # ENHANCED: Always check both userUsages field AND orders collection for maximum accuracy
+                    user_email_lower = user_email.lower().strip()  # Normalize email for comparison
+                    
+                    # Method 1: Check userUsages field (more reliable if properly maintained)
                     user_usages = coupon.get('userUsages', {})
-                    user_usage_count = user_usages.get(user_email, 0)
-                    logger.info(f"VALIDATE_COUPON: From coupon.userUsages: {user_email} has used {user_usage_count} times")
+                    usage_from_coupon = 0
                     
-                    # If userUsages is empty or not found, fall back to querying orders
-                    if user_usage_count == 0 and not user_usages:
-                        logger.info(f"VALIDATE_COUPON: userUsages field empty, falling back to order query")
-                        # Count how many times this user has used this coupon
-                        # Check both email field variations for compatibility
-                        orders_collection = self.db.orders
-                        
-                        # Query for successful orders (exclude cancelled/failed)
-                        query = {
-                            '$or': [
-                                {'userEmail': user_email},
-                                {'email': user_email},
-                                {'customerEmail': user_email}
-                            ],
-                            'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
-                            'status': {'$nin': ['cancelled', 'failed']}
-                        }
-                        
-                        user_usage_count = await orders_collection.count_documents(query)
-                        logger.info(f"VALIDATE_COUPON: From orders query: {user_email} has used {user_usage_count} times")
+                    # Check for the email in userUsages (try both original and normalized)
+                    for email_key in [user_email, user_email_lower]:
+                        if email_key in user_usages:
+                            usage_from_coupon = user_usages[email_key]
+                            break
                     
-                    if user_usage_count >= max_usage_per_user:
-                        logger.warning(f"VALIDATE_COUPON: Per-user limit exceeded for {user_email}: {user_usage_count}/{max_usage_per_user}")
-                        return 0.0, None, f'You have reached the usage limit for this coupon ({user_usage_count}/{max_usage_per_user}).'
+                    logger.info(f"VALIDATE_COUPON: From coupon.userUsages: {user_email} has used {usage_from_coupon} times")
+                    
+                    # Method 2: Always query orders collection as backup/verification
+                    orders_collection = self.db.orders
+                    
+                    # Enhanced query with more variations and case-insensitive matching
+                    query = {
+                        '$and': [
+                            {
+                                '$or': [
+                                    {'userEmail': {'$regex': f'^{user_email}$', '$options': 'i'}},
+                                    {'email': {'$regex': f'^{user_email}$', '$options': 'i'}},
+                                    {'customerEmail': {'$regex': f'^{user_email}$', '$options': 'i'}}
+                                ]
+                            },
+                            {
+                                '$or': [
+                                    {'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'}},
+                                    {'coupon_code': {'$regex': f'^{coupon["code"]}$', '$options': 'i'}}
+                                ]
+                            },
+                            {
+                                'status': {'$nin': ['cancelled', 'failed']}
+                            }
+                        ]
+                    }
+                    
+                    usage_from_orders = await orders_collection.count_documents(query)
+                    logger.info(f"VALIDATE_COUPON: From orders query: {user_email} has used {usage_from_orders} times")
+                    
+                    # Use the MAXIMUM of both methods for safety (prevents bypass)
+                    actual_usage_count = max(usage_from_coupon, usage_from_orders)
+                    logger.info(f"VALIDATE_COUPON: Final usage count (max of both methods): {actual_usage_count}")
+                    
+                    if actual_usage_count >= max_usage_per_user:
+                        logger.warning(f"VALIDATE_COUPON: Per-user limit exceeded for {user_email}: {actual_usage_count}/{max_usage_per_user}")
+                        return 0.0, None, f'You have reached the usage limit for this coupon ({actual_usage_count}/{max_usage_per_user}).'
 
             # --- Calculate Discount ---
             discount_type = coupon.get('discountType', 'percentage')
