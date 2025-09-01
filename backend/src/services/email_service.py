@@ -5,12 +5,20 @@ from typing import List
 # Email configuration from environment
 def get_email_config():
     """Get email configuration with defaults for missing env vars"""
+    
+    # Support both old and new environment variable names for compatibility
+    mail_username = os.getenv("MAIL_USERNAME") or os.getenv("SMTP_USER", "")
+    mail_password = os.getenv("MAIL_PASSWORD") or os.getenv("SMTP_PASS", "")
+    mail_from = os.getenv("MAIL_FROM") or os.getenv("SMTP_FROM", "noreply@monkeyz.co.il")
+    mail_server = os.getenv("MAIL_SERVER") or os.getenv("SMTP_HOST", "smtp.gmail.com")
+    mail_port = int(os.getenv("MAIL_PORT") or os.getenv("SMTP_PORT", 587))
+    
     return ConnectionConfig(
-        MAIL_USERNAME=os.getenv("SMTP_USER", ""),
-        MAIL_PASSWORD=os.getenv("SMTP_PASS", ""),
-        MAIL_FROM=os.getenv("SMTP_FROM", "noreply@monkeyz.co.il"),
-        MAIL_PORT=int(os.getenv("SMTP_PORT", 587)),
-        MAIL_SERVER=os.getenv("SMTP_HOST", "smtp.gmail.com"),
+        MAIL_USERNAME=mail_username,
+        MAIL_PASSWORD=mail_password,
+        MAIL_FROM=mail_from,
+        MAIL_PORT=mail_port,
+        MAIL_SERVER=mail_server,
         MAIL_STARTTLS=True,
         MAIL_SSL_TLS=False,
         USE_CREDENTIALS=True
@@ -19,13 +27,26 @@ def get_email_config():
 # Only create config if environment variables are present
 try:
     conf = get_email_config()
-    EMAIL_ENABLED = bool(os.getenv("SMTP_USER") and os.getenv("SMTP_PASS"))
+    # Check for email credentials using both old and new variable names
+    has_credentials = bool(
+        (os.getenv("MAIL_USERNAME") or os.getenv("SMTP_USER")) and 
+        (os.getenv("MAIL_PASSWORD") or os.getenv("SMTP_PASS"))
+    )
+    EMAIL_ENABLED = has_credentials
+    
+    if EMAIL_ENABLED:
+        import logging
+        logging.info(f"Email service enabled - SMTP: {conf.MAIL_SERVER}:{conf.MAIL_PORT}, From: {conf.MAIL_FROM}")
+    else:
+        import logging
+        logging.warning("Email service disabled - missing MAIL_USERNAME/MAIL_PASSWORD or SMTP_USER/SMTP_PASS")
+        
 except Exception as e:
     EMAIL_ENABLED = False
     conf = None
     import logging
     logging.warning(f"Email configuration failed: {e}")
-    logging.warning("Email services will be disabled. Set SMTP_* environment variables to enable.")
+    logging.warning("Email services will be disabled. Set MAIL_* or SMTP_* environment variables to enable.")
 
 class EmailService:
     async def send_order_email(
