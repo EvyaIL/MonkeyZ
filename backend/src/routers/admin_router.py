@@ -1309,11 +1309,34 @@ async def validate_coupon(request: Request):
     # Add coupon usage information to the response
     coupon_info = None
     if coupon:
+        # Check if this email has used this coupon before
+        user_has_used_coupon = False
+        max_usage_per_user = coupon.get("maxUsagePerUser", 0)
+        user_usage_count = 0
+        
+        if user_email and max_usage_per_user > 0:
+            # Count how many times this user has used this coupon
+            orders_collection = db.orders
+            user_usage_count = await orders_collection.count_documents({
+                '$or': [
+                    {'userEmail': user_email},
+                    {'email': user_email},
+                    {'customerEmail': user_email}
+                ],
+                'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
+                'status': {'$nin': ['cancelled', 'failed']}
+            })
+            
+            user_has_used_coupon = user_usage_count > 0
+        
+        # Include this information in the response
         coupon_info = {
             "code": coupon.get("code", ""),
             "usageCount": coupon.get("usageCount", 0),
             "maxUses": coupon.get("maxUses", None),
-            "maxUsagePerUser": coupon.get("maxUsagePerUser", 0),
+            "maxUsagePerUser": max_usage_per_user,
+            "userUsageCount": user_usage_count,
+            "userHasUsedCoupon": user_has_used_coupon,
             "discountType": coupon.get("discountType", ""),
             "discountValue": coupon.get("discountValue", 0)
         }

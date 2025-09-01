@@ -363,6 +363,24 @@ async def create_order(
     
     if not all_items_have_keys:
         current_order_status = StatusEnum.AWAITING_STOCK
+        
+        # Send pending stock email to notify the customer
+        try:
+            email_service = EmailService()
+            recipient = order_data.email
+            if recipient:
+                products_for_email = [
+                    {"name": item.name, "id": item.productId, "quantity": item.quantity}
+                    for item in order_data.items
+                ]
+                await email_service.send_pending_stock_email(
+                    to=recipient,
+                    order_id=str(order_data.id),
+                    products=products_for_email
+                )
+                logger.info("Successfully sent pending stock email to customer: %s", recipient)
+        except Exception as email_err:
+            logger.error("Failed to send pending stock email: %s", email_err)
     else:
         current_order_status = StatusEnum.COMPLETED
 
@@ -579,6 +597,34 @@ async def retry_failed_orders_internal(db: Database, product_collection: Product
                     logger.warning(f"Failed to update order {order.id} - no documents modified")
                 else:
                     logger.info(f"Successfully updated order {order.id}")
+                    
+                    # Send email with newly assigned keys if there are any
+                    if assigned_keys_for_email and products_for_email and all_items_processed_successfully:
+                        # Send email with keys to the customer
+                        try:
+                            email_service = EmailService()
+                            # Find the customer email in the order - check all possible field names
+                            recipient = order.email
+                            if not recipient:
+                                # If email not in order object, try looking in the raw doc
+                                order_doc = await db.orders.find_one({"_id": original_id})
+                                recipient = order_doc.get("email") or order_doc.get("customerEmail") or order_doc.get("userEmail")
+                            
+                            if recipient:
+                                success = await email_service.send_order_email(
+                                    to=recipient,
+                                    subject=f"Your MonkeyZ Order Keys ({order.id}) - Now Available",
+                                    products=products_for_email,
+                                    keys=assigned_keys_for_email
+                                )
+                                if success:
+                                    logger.info(f"Stock replenishment email sent to {recipient} for order {order.id}")
+                                else:
+                                    logger.error(f"Failed to send stock replenishment email for order {order.id}")
+                            else:
+                                logger.error(f"Could not find email address for order {order.id}")
+                        except Exception as e:
+                            logger.error(f"Error sending stock replenishment email for order {order.id}: {e}")
                 
                 # Send email with assigned keys if any keys were assigned
                 if assigned_keys_for_email and order.email:
@@ -1137,6 +1183,24 @@ async def capture_paypal_order(
 
     if not all_items_have_keys:
         current_order_status = StatusEnum.AWAITING_STOCK
+        
+        # Send pending stock email to notify the customer for PayPal orders
+        try:
+            email_service = EmailService()
+            recipient = order_doc.get("email") or order_doc.get("customerEmail") or order_doc.get("userEmail")
+            if recipient:
+                products_for_email = [
+                    {"name": item.name, "id": item.productId, "quantity": item.quantity}
+                    for item in order_items
+                ]
+                await email_service.send_pending_stock_email(
+                    to=recipient,
+                    order_id=order_id,
+                    products=products_for_email
+                )
+                logger.info("Successfully sent pending stock email to PayPal customer: %s", recipient)
+        except Exception as email_err:
+            logger.error("Failed to send pending stock email for PayPal order: %s", email_err)
     else:
         current_order_status = StatusEnum.COMPLETED
 

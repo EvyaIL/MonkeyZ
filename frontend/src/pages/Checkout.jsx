@@ -219,6 +219,11 @@ export default function Checkout() {
         const errorMessage = res.data.message || res.data.error || "Invalid coupon";
         setCouponMsg(errorMessage);
         setDiscount(0);
+        
+        // Explicitly display a message about user-specific usage limits
+        if (res.data.alreadyUsed) {
+          setCouponMsg(`You have already used this coupon (max ${res.data.maxUsagePerUser || 1} use(s) per user).`);
+        }
         return;
       }
       
@@ -228,19 +233,33 @@ export default function Checkout() {
         
         // Check if coupon is near its usage limit
         if (res.data.coupon) {
-          const { usageCount, maxUses } = res.data.coupon;
+          const { usageCount, maxUses, userHasUsedCoupon, maxUsagePerUser, userUsageCount } = res.data.coupon;
+          
+          // Check for global usage limits
           if (maxUses && usageCount && maxUses > 0) {
             const remainingUses = maxUses - usageCount;
             const usagePercentage = (usageCount / maxUses) * 100;
             
             // Show notification when coupon is over 70% used
             if (usagePercentage >= 70) {
-              setCouponMsg(prev => `${prev} (${remainingUses} uses left)`);
+              setCouponMsg(prev => `${prev} (${remainingUses} global uses left)`);
             }
             
             // Show warning when coupon is almost fully used (over 90%)
             if (usagePercentage >= 90) {
               setCouponMsg(prev => `${prev} - This coupon is almost fully used!`);
+            }
+          }
+          
+          // Check for per-user usage limits
+          if (maxUsagePerUser > 0 && userUsageCount > 0) {
+            const remainingUserUses = maxUsagePerUser - userUsageCount;
+            
+            if (remainingUserUses <= 0) {
+              setCouponMsg(`You've already used this coupon ${userUsageCount} time(s). No additional discounts available.`);
+              setDiscount(0); // No discount if user has exceeded their limit
+            } else if (remainingUserUses === 1) {
+              setCouponMsg(prev => `${prev} (This is your last use of this coupon)`);
             }
           }
         }
