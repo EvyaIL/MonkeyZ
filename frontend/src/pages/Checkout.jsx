@@ -21,6 +21,7 @@ export default function Checkout() {
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const [cspNonce, setCspNonce] = useState(null);
   const [performanceMetrics, setPerformanceMetrics] = useState(null);
+  const [couponValidating, setCouponValidating] = useState(false);
   const [componentKey, setComponentKey] = useState(0); // Key for PayPal component isolation
 
   // Refs for cleanup
@@ -189,18 +190,29 @@ export default function Checkout() {
   const total = subtotal - discount;
 
   // Apply coupon
-  const handleCoupon = async () => {
+  const handleCoupon = async (skipEmailCheck = false) => {
     setCouponMsg("");
     setDiscount(0);
-    if (!coupon) return setCouponMsg("Enter a coupon code");
-    
-    // Debug logging for environment differences
-    const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
-    console.log('Coupon validation - API URL:', apiUrl);
-    console.log('Coupon validation - Environment:', process.env.NODE_ENV);
-    console.log('Coupon validation - Current host:', window.location.host);
+    setCouponValidating(true);
     
     try {
+      if (!coupon) {
+        setCouponMsg("Enter a coupon code");
+        return;
+      }
+      
+      // Check if email is required but missing (unless explicitly skipped)
+      if (!skipEmailCheck && !email && !user?.email) {
+        setCouponMsg("Please enter your email address first");
+        return;
+      }
+    
+      // Debug logging for environment differences
+      const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
+      console.log('Coupon validation - API URL:', apiUrl);
+      console.log('Coupon validation - Environment:', process.env.NODE_ENV);
+      console.log('Coupon validation - Current host:', window.location.host);
+      
       const requestData = {
         code: coupon,
         amount: subtotal,
@@ -214,7 +226,11 @@ export default function Checkout() {
       console.log('Coupon validation response:', res.data);
       
       // Check if coupon validation was successful
-      if (res.data.valid === false || res.data.error) {
+      // Handle both old format (discount only) and new format (valid field)
+      const isValid = res.data.valid !== false && !res.data.error && res.data.discount > 0;
+      const hasError = res.data.valid === false || res.data.error;
+      
+      if (hasError) {
         // Handle specific error cases
         const errorMessage = res.data.message || res.data.error || "Invalid coupon";
         setCouponMsg(errorMessage);
@@ -222,30 +238,33 @@ export default function Checkout() {
         return;
       }
       
+      // Check for valid discount (works with both old and new API format)
       if (res.data.discount && res.data.discount > 0) {
         setDiscount(res.data.discount);
         setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
         
-        // Check if coupon is near its usage limit
+        // Check if coupon is near its usage limit (if coupon object is provided)
         if (res.data.coupon) {
           const { usageCount, maxUses } = res.data.coupon;
-          if (maxUses && usageCount && maxUses > 0) {
+          if (maxUses && usageCount !== undefined && maxUses > 0) {
             const remainingUses = maxUses - usageCount;
             const usagePercentage = (usageCount / maxUses) * 100;
             
             // Show notification when coupon is over 70% used
-            if (usagePercentage >= 70) {
+            if (usagePercentage >= 70 && remainingUses > 0) {
               setCouponMsg(prev => `${prev} (${remainingUses} uses left)`);
             }
             
             // Show warning when coupon is almost fully used (over 90%)
-            if (usagePercentage >= 90) {
+            if (usagePercentage >= 90 && remainingUses > 0) {
               setCouponMsg(prev => `${prev} - This coupon is almost fully used!`);
             }
           }
         }
       } else {
-        setCouponMsg(res.data.message || "Coupon is not applicable");
+        // Handle case where discount is 0 but no explicit error
+        const message = res.data.message || "Coupon is not applicable";
+        setCouponMsg(message);
         setDiscount(0);
       }
     } catch (err) {
@@ -253,9 +272,18 @@ export default function Checkout() {
       console.error('Error response:', err.response?.data);
       console.error('Error status:', err.response?.status);
       
-      const errorMessage = err.response?.data?.message || err.response?.data?.error || "Invalid coupon";
+      // Extract error message from response
+      let errorMessage = "Invalid coupon";
+      if (err.response?.data) {
+        errorMessage = err.response.data.message || err.response.data.error || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setCouponMsg(errorMessage);
       setDiscount(0);
+    } finally {
+      setCouponValidating(false);
     }
   };
 
@@ -342,9 +370,14 @@ export default function Checkout() {
               />
               <button
                 onClick={handleCoupon}
-                className="bg-blue-600 text-white px-4 rounded-r hover:bg-blue-700"
+                disabled={couponValidating}
+                className={`px-4 rounded-r transition-colors ${
+                  couponValidating 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                Apply
+                {couponValidating ? 'Validating...' : 'Apply'}
               </button>
             </div>
             {couponMsg && (
@@ -373,7 +406,7 @@ export default function Checkout() {
                     clearTimeout(validateTimerRef.current);
                   }
                   validateTimerRef.current = setTimeout(() => {
-                    handleCoupon();
+                    handleCoupon(false); // Don't skip email check since email just changed
                   }, 1000);
                 }
               }}
@@ -539,11 +572,20 @@ export default function Checkout() {
                           amount: subtotal,
                           email: email || user?.email || null,
                         });
-                        if (couponValidation.data.valid === false || couponValidation.data.error || !couponValidation.data.discount) {
+                        
+                        // Handle both old and new API response formats
+                        const isValid = couponValidation.data.valid !== false && 
+                                      !couponValidation.data.error && 
+                                      couponValidation.data.discount > 0;
+                        const hasError = couponValidation.data.valid === false || couponValidation.data.error;
+                        
+                        if (hasError || !couponValidation.data.discount || couponValidation.data.discount <= 0) {
                           setDiscount(0);
                           setCouponMsg(couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid");
                           throw new Error("Coupon validation failed: " + (couponValidation.data.message || couponValidation.data.error || "Coupon is no longer valid"));
                         }
+                        
+                        // Update discount if it changed
                         if (couponValidation.data.discount !== discount) {
                           setDiscount(couponValidation.data.discount);
                           setCouponMsg(`Coupon applied - ₪${couponValidation.data.discount.toFixed(2)} off`);

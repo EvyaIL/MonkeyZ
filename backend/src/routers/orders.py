@@ -183,8 +183,10 @@ async def validate_coupon_public(request: Request):
         if not code:
             logger.warning("No coupon code provided in request")
             return JSONResponse({
+                "valid": False,
                 "discount": 0, 
-                "message": "No coupon code provided"
+                "message": "No coupon code provided",
+                "error": "No coupon code provided"
             }, status_code=200)
         
         logger.info(f"Attempting to validate coupon: code={code}, amount={amount}, email={user_email}")
@@ -217,8 +219,10 @@ async def validate_coupon_public(request: Request):
         except Exception as service_error:
             logger.error(f"CouponService initialization failed: {service_error}")
             return JSONResponse({
+                "valid": False,
                 "discount": 0, 
-                "message": "Service initialization error"
+                "message": "Service initialization error",
+                "error": "Service initialization error"
             }, status_code=200)
         
         # Validate coupon
@@ -229,30 +233,50 @@ async def validate_coupon_public(request: Request):
         except Exception as validation_error:
             logger.error(f"Coupon validation exception: {validation_error}", exc_info=True)
             return JSONResponse({
+                "valid": False,
                 "discount": 0, 
-                "message": f"Validation error: {str(validation_error)}"
+                "message": f"Validation error: {str(validation_error)}",
+                "error": f"Validation error: {str(validation_error)}"
             }, status_code=200)
         
         if error:
             logger.warning(f"Coupon validation failed: {error}")
             return JSONResponse({
+                "valid": False,
                 "discount": 0, 
-                "message": error
+                "message": error,
+                "error": error
             }, status_code=200)  # Return 200 to match production behavior
             
         logger.info(f"Coupon validation successful: discount={discount}")
         
-        # Return simple format like production (without valid/error fields)
-        return JSONResponse({
+        # Return comprehensive format that frontend expects
+        response_data = {
+            "valid": True,
             "discount": discount, 
-            "message": "Coupon valid!"
-        }, status_code=200)
+            "message": "Coupon valid!" if discount > 0 else "Coupon applied successfully",
+        }
+        
+        # Include coupon object if available for usage tracking
+        if coupon:
+            response_data["coupon"] = {
+                "code": coupon.get("code"),
+                "usageCount": coupon.get("usageCount", 0),
+                "maxUses": coupon.get("maxUses"),
+                "maxUsagePerUser": coupon.get("maxUsagePerUser"),
+                "discountType": coupon.get("discountType"),
+                "discountValue": coupon.get("discountValue")
+            }
+        
+        return JSONResponse(response_data, status_code=200)
         
     except Exception as e:
         logger.error(f"Error validating coupon: {str(e)}", exc_info=True)
         return JSONResponse({
+            "valid": False,
             "discount": 0, 
-            "message": f"Internal server error: {str(e)}"
+            "message": f"Internal server error: {str(e)}",
+            "error": f"Internal server error: {str(e)}"
         }, status_code=200)
 
 # Customer: fetch authenticated user's own orders

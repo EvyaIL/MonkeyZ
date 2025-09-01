@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import logging
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from .coupon_validation_tracker import CouponValidationTracker
 
 logger = logging.getLogger(__name__)
 
@@ -195,21 +196,37 @@ class CouponService:
             # --- Per-User Usage Limit Check ---
             if user_email:
                 max_usage_per_user = coupon.get('maxUsagePerUser', 0)
+                logger.info(f"VALIDATE_COUPON: Checking per-user limit for {user_email}: maxUsagePerUser={max_usage_per_user}")
+                
                 if max_usage_per_user > 0:
-                    # Count how many times this user has used this coupon
-                    # Check both email field variations for compatibility
-                    orders_collection = self.db.orders
-                    user_usage_count = await orders_collection.count_documents({
-                        '$or': [
-                            {'userEmail': user_email},
-                            {'email': user_email},
-                            {'customerEmail': user_email}
-                        ],
-                        'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
-                        'status': {'$nin': ['cancelled', 'failed']}
-                    })
+                    # First try to use the userUsages field if it exists (more reliable)
+                    user_usages = coupon.get('userUsages', {})
+                    user_usage_count = user_usages.get(user_email, 0)
+                    logger.info(f"VALIDATE_COUPON: From coupon.userUsages: {user_email} has used {user_usage_count} times")
+                    
+                    # If userUsages is empty or not found, fall back to querying orders
+                    if user_usage_count == 0 and not user_usages:
+                        logger.info(f"VALIDATE_COUPON: userUsages field empty, falling back to order query")
+                        # Count how many times this user has used this coupon
+                        # Check both email field variations for compatibility
+                        orders_collection = self.db.orders
+                        
+                        # Query for successful orders (exclude cancelled/failed)
+                        query = {
+                            '$or': [
+                                {'userEmail': user_email},
+                                {'email': user_email},
+                                {'customerEmail': user_email}
+                            ],
+                            'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
+                            'status': {'$nin': ['cancelled', 'failed']}
+                        }
+                        
+                        user_usage_count = await orders_collection.count_documents(query)
+                        logger.info(f"VALIDATE_COUPON: From orders query: {user_email} has used {user_usage_count} times")
                     
                     if user_usage_count >= max_usage_per_user:
+                        logger.warning(f"VALIDATE_COUPON: Per-user limit exceeded for {user_email}: {user_usage_count}/{max_usage_per_user}")
                         return 0.0, None, f'You have reached the usage limit for this coupon ({user_usage_count}/{max_usage_per_user}).'
 
             # --- Calculate Discount ---
