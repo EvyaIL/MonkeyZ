@@ -1295,8 +1295,48 @@ async def validate_coupon(request: Request):
     coupon_service = CouponService(db)
     discount, coupon, error = await coupon_service.validate_and_apply_coupon(code, amount, user_email=user_email)
     if error:
+        # Check if the error is related to per-user usage limits
+        if user_email and error and ("usage limit" in error.lower() or "reached" in error.lower()):
+            # User has already used this coupon
+            return JSONResponse({
+                "discount": 0, 
+                "message": error,
+                "alreadyUsed": True,
+                "userEmail": user_email
+            }, status_code=400)
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
-    return {"discount": discount, "message": "Coupon valid!", "coupon": coupon}
+    
+    # Add coupon usage information to the response
+    coupon_info = None
+    if coupon:
+        coupon_info = {
+            "code": coupon.get("code", ""),
+            "usageCount": coupon.get("usageCount", 0),
+            "maxUses": coupon.get("maxUses", None),
+            "maxUsagePerUser": coupon.get("maxUsagePerUser", 0),
+            "discountType": coupon.get("discountType", ""),
+            "discountValue": coupon.get("discountValue", 0)
+        }
+    
+    # Mark in the user's record that they've used this coupon
+    if user_email and code:
+        try:
+            # Update user's coupon usage record
+            users_collection = db.users
+            await users_collection.update_one(
+                {"email": user_email},
+                {"$addToSet": {"usedCoupons": code.strip().lower()}},
+                upsert=True
+            )
+        except Exception as e:
+            import logging
+            logging.error(f"Error updating user's coupon usage: {e}")
+    
+    return {
+        "discount": discount, 
+        "message": "Coupon valid!", 
+        "coupon": coupon_info
+    }
 
 @admin_router.get("/api/coupons/info")
 async def get_coupon_info(

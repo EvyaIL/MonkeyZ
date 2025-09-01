@@ -80,12 +80,19 @@ export default function Checkout() {
       return false;
     };
     
-    // Only clean cart items when checkout page loads (fix structure issues)
-    // but don't validate against server to prevent aggressive removal
+    // Just clean cart items structure without removing items
+    // This ensures the checkout page can be directly navigated to or refreshed
     cleanCartItems();
     
-    // Don't validate cart items on checkout page load to prevent
-    // aggressive removal when user logs in and goes to checkout
+    // Set user email if available from context
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+    
+    // Set user name if available from context
+    if (user?.name && !name) {
+      setName(user.name);
+    }
     
     return () => {
       if (validateTimerRef.current) {
@@ -218,6 +225,25 @@ export default function Checkout() {
       if (res.data.discount && res.data.discount > 0) {
         setDiscount(res.data.discount);
         setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
+        
+        // Check if coupon is near its usage limit
+        if (res.data.coupon) {
+          const { usageCount, maxUses } = res.data.coupon;
+          if (maxUses && usageCount && maxUses > 0) {
+            const remainingUses = maxUses - usageCount;
+            const usagePercentage = (usageCount / maxUses) * 100;
+            
+            // Show notification when coupon is over 70% used
+            if (usagePercentage >= 70) {
+              setCouponMsg(prev => `${prev} (${remainingUses} uses left)`);
+            }
+            
+            // Show warning when coupon is almost fully used (over 90%)
+            if (usagePercentage >= 90) {
+              setCouponMsg(prev => `${prev} - This coupon is almost fully used!`);
+            }
+          }
+        }
       } else {
         setCouponMsg(res.data.message || "Coupon is not applicable");
         setDiscount(0);
@@ -337,7 +363,20 @@ export default function Checkout() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                
+                // If coupon is already applied, re-validate with new email
+                if (coupon && discount > 0) {
+                  // Re-validate after short delay to avoid too many API calls
+                  if (validateTimerRef.current) {
+                    clearTimeout(validateTimerRef.current);
+                  }
+                  validateTimerRef.current = setTimeout(() => {
+                    handleCoupon();
+                  }, 1000);
+                }
+              }}
               placeholder="you@example.com"
               className="w-full border p-2 rounded"
             />
@@ -410,25 +449,25 @@ export default function Checkout() {
                   setError(`PayPal Error: ${errorInfo.message}. ${errorInfo.solution}`);
                 }}
               >
-              <PayPalButtons
-                style={{
-                  layout: "vertical",
-                  color: "gold",
-                  shape: "pill",
-                  height: 50,
-                  label: "paypal",
-                  tagline: false,
-                }}
-                disabled={processing || !email || !name || !phone || cartArray.length === 0}
-                onInit={(data, actions) => {
-                  if (!isComponentMountedRef.current) return;
-                  console.log("PayPal buttons initialized");
-                  if (!email || !name || !phone || cartArray.length === 0) {
-                    actions.disable();
-                  } else {
-                    actions.enable();
-                  }
-                }}
+                <PayPalButtons
+                  style={{
+                    layout: "vertical",
+                    color: "gold",
+                    shape: "pill",
+                    height: 50,
+                    label: "paypal",
+                    tagline: false,
+                  }}
+                  disabled={processing || !email || !name || !phone || cartArray.length === 0}
+                  onInit={(data, actions) => {
+                    if (!isComponentMountedRef.current) return;
+                    console.log("PayPal buttons initialized");
+                    if (!email || !name || !phone || cartArray.length === 0) {
+                      actions.disable();
+                    } else {
+                      actions.enable();
+                    }
+                  }}
                 onClick={(data, actions) => {
                   if (!email || !name || !phone) {
                     setError("Please fill in all required fields before proceeding with payment.");
@@ -639,11 +678,9 @@ export default function Checkout() {
                   setProcessing(false);
                 }}
               />
-            </PayPalScriptProvider>
+              </PayPalScriptProvider>
             </div>
           )}
-          {/* Show loading spinner while PayPal is loading or if CSP requirements aren't met */}
-  
         </div>
       </div>
     </div>

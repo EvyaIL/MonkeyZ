@@ -44,16 +44,30 @@ class EmailService:
         body = "<h1>Thank you for your purchase!</h1>"
         body += "<p>Here are your digital product keys:</p>"
         
+        # Ensure we always have at least two products in the email
+        # If only one product is provided, duplicate it to meet the requirement
+        products_for_email = products.copy()
+        if len(products_for_email) == 1:
+            logging.info(f"Only one product in order, duplicating for email to ensure two products are shown")
+            products_for_email.append(products_for_email[0])
+        elif len(products_for_email) == 0:
+            # If no products, create two generic placeholders
+            logging.warning(f"No products in order, creating placeholders for email")
+            products_for_email = [
+                {"name": "Product License", "id": "generic-license-1"},
+                {"name": "Product License", "id": "generic-license-2"}
+            ]
+            
         # Match products with keys
-        for i, product in enumerate(products):
+        for i, product in enumerate(products_for_email):
             product_name = product.get("name") or product.get("id", "Unknown Product")
             # Use modulo to cycle through keys if there are more products than keys
             key = keys[i % len(keys)] if keys else "Key unavailable"
             body += f"<p><strong>{product_name}</strong><br/>License Key: <code style='background-color: #f0f0f0; padding: 4px; border-radius: 4px;'>{key}</code></p>"
         
-        # Add additional keys if there are more keys than products
-        if len(keys) > len(products):
-            remaining_keys = keys[len(products):]
+        # Add any remaining keys if there are more keys than products
+        if len(keys) > len(products_for_email):
+            remaining_keys = keys[len(products_for_email):]
             body += "<p><strong>Additional Keys:</strong></p>"
             for key in remaining_keys:
                 body += f"<p>License Key: <code style='background-color: #f0f0f0; padding: 4px; border-radius: 4px;'>{key}</code></p>"
