@@ -97,22 +97,60 @@ class EmailService:
     async def send_pending_stock_email(
         self,
         to: str,
-        order_id: str
+        order_id: str,
+        partial_fulfillment_items: list = None,
+        pending_items: list = None
     ):
         if not EMAIL_ENABLED or not conf:
             import logging
             logging.warning(f"Email service disabled - cannot send pending stock email to {to}")
             return False
             
-        # Notify customer that order is awaiting stock
-        from fastapi_mail import MessageSchema, FastMail
-        subject = f"Order {order_id} Awaiting Stock"
-        body = (
-            f"<h1>Order {order_id} Pending</h1>"
-            "<p>Your digital product is currently out of stock. "
-            "We will send your license keys within 1 to 24 hours once they become available.</p>"
-        )
+        # Create email content based on fulfillment status
+        if partial_fulfillment_items and len(partial_fulfillment_items) > 0:
+            # Partial fulfillment scenario
+            subject = f"Order {order_id} - Partial Delivery Complete"
+            body = f"""
+            <h1>Order {order_id} - Partial Delivery</h1>
+            <p>Great news! We've delivered part of your order immediately. Here's what's been processed:</p>
+            
+            <h3>✅ Delivered Now:</h3>
+            <ul>
+            {"".join([f"<li><strong>{item['productName']}</strong> - {item['assigned']} of {item['total']} items</li>" for item in partial_fulfillment_items])}
+            </ul>
+            
+            <h3>⏳ Coming Soon:</h3>
+            <ul>
+            {"".join([f"<li><strong>{item['productName']}</strong> - {item['pending']} remaining items</li>" for item in partial_fulfillment_items if item['pending'] > 0])}
+            {"".join([f"<li><strong>{item['productName']}</strong> - {item['pending']} items</li>" for item in (pending_items or [])])}
+            </ul>
+            
+            <p>The remaining items are currently out of stock. We'll send your additional license keys within <strong>1 to 24 hours</strong> once they become available.</p>
+            <p>Check your email for the keys you've already received!</p>
+            """
+        else:
+            # Complete stock shortage scenario
+            subject = f"Order {order_id} Awaiting Stock"
+            body = f"""
+            <h1>Order {order_id} - Awaiting Stock</h1>
+            <p>Your digital products are currently out of stock, but don't worry!</p>
+            
+            <h3>📦 Your Order:</h3>
+            <ul>
+            {"".join([f"<li><strong>{item['productName']}</strong> - {item['pending']} items</li>" for item in (pending_items or [])])}
+            </ul>
+            
+            <p>We will send your license keys within <strong>1 to 24 hours</strong> once they become available.</p>
+            <p>You'll receive an email with your keys as soon as they're ready!</p>
+            """
+        
+        body += """
+        <hr>
+        <p><small>Thank you for your patience and for choosing MonkeyZ!</small></p>
+        """
+        
         try:
+            from fastapi_mail import MessageSchema, FastMail
             message = MessageSchema(
                 subject=subject,
                 recipients=[to],

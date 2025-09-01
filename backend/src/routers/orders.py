@@ -350,6 +350,8 @@ async def create_order(
 
     current_order_status = StatusEnum.PENDING
     all_items_have_keys = True
+    partial_fulfillment_items = []  # Track items that are partially fulfilled
+    pending_items = []  # Track items waiting for stock
 
     for item_index, item in enumerate(order_data.items):
         if item.quantity <= 0:
@@ -364,29 +366,66 @@ async def create_order(
             # Use Beanie model for updating and saving
             product_doc = await ProductModel.get(product.id)
             available_keys = [k for k in product_doc.cdKeys if not k.isUsed]
-            if len(available_keys) < item.quantity:
+            
+            # NEW LOGIC: Always assign what's available, track what's pending
+            available_count = len(available_keys)
+            requested_count = item.quantity
+            
+            if available_count < requested_count:
                 all_items_have_keys = False
+                # Log the insufficient stock
                 await db.Product.update_one(
                     {"_id": product.id},
                     {"$inc": {"failed_key_assignments": 1}}
                 )
-                logger.warning(f"Order {order_data.id}, Item {item.productId}: Not enough available keys. Marked for AWAITING_STOCK.")
-            else:
-                for i in range(item.quantity):
-                    key_obj = available_keys[i]
-                    key_obj.isUsed = True
-                    key_obj.usedAt = datetime.now(timezone.utc)
-                    key_obj.orderId = order_data.id
-                    assigned_keys.append(key_obj.key)
-                # Save the updated product with used keys
+                logger.warning(f"Order {order_data.id}, Item {item.productId}: Requested {requested_count}, available {available_count}. Partial fulfillment.")
+                
+                # Track partial fulfillment details
+                if available_count > 0:
+                    partial_fulfillment_items.append({
+                        "productId": item.productId,
+                        "productName": item.name,
+                        "assigned": available_count,
+                        "pending": requested_count - available_count,
+                        "total": requested_count
+                    })
+                else:
+                    pending_items.append({
+                        "productId": item.productId,
+                        "productName": item.name,
+                        "pending": requested_count,
+                        "total": requested_count
+                    })
+            
+            # Assign all available keys (even if partial)
+            keys_to_assign = min(available_count, requested_count)
+            for i in range(keys_to_assign):
+                key_obj = available_keys[i]
+                key_obj.isUsed = True
+                key_obj.usedAt = datetime.now(timezone.utc)
+                key_obj.orderId = order_data.id
+                assigned_keys.append(key_obj.key)
+            
+            # Save the updated product with used keys (only if we assigned any)
+            if keys_to_assign > 0:
                 await product_doc.save()
+            
             item.assigned_keys = assigned_keys
-            # item.assigned_key = assigned_key_to_item # This is now a list, so not needed
-            # key_updated_in_product = True
-            # break
+            # Add fulfillment metadata to the item
+            item.fulfillment_status = {
+                "assigned": keys_to_assign,
+                "pending": requested_count - keys_to_assign,
+                "total_requested": requested_count
+            }
     
+    # Determine order status based on fulfillment
     if not all_items_have_keys:
-        current_order_status = StatusEnum.AWAITING_STOCK
+        # Check if we have any fulfilled items
+        has_fulfilled_items = any(len(item.assigned_keys) > 0 for item in order_data.items if hasattr(item, 'assigned_keys'))
+        if has_fulfilled_items:
+            current_order_status = StatusEnum.PARTIALLY_FULFILLED  # New status we'll add
+        else:
+            current_order_status = StatusEnum.AWAITING_STOCK
     else:
         current_order_status = StatusEnum.COMPLETED
 
@@ -437,9 +476,12 @@ async def create_order(
     if created_order and isinstance(created_order.get('_id'), ObjectId):
         created_order['_id'] = str(created_order['_id'])
 
-    # Send CD key(s) by email and SMS/WhatsApp if order is completed and keys assigned
+    # Send appropriate emails based on order status
+    user_email = created_order.get('email')
+    order_id = created_order.get('_id')
+    
     if created_order.get('status') == StatusEnum.COMPLETED:
-        user_email = created_order.get('email')
+        # Full fulfillment - send complete order email with all keys
         assigned_keys = []
         products = []
         for item in created_order.get('items', []):
@@ -447,19 +489,66 @@ async def create_order(
                 assigned_keys.extend(item['assigned_keys'])
                 products.append({"name": item.get("name", "Product"), "id": item.get("productId")})
         
-        # Send email to customer
         if assigned_keys:
             try:
                 email_service = EmailService()
                 await email_service.send_order_email(
                     to=user_email,
-                    subject=f"Your Order {created_order.get('_id')} - CD Key(s)",
+                    subject=f"Your Order {order_id} - CD Key(s)",
                     products=products,
                     keys=assigned_keys
                 )
-                logger.info("Successfully sent order confirmation email to customer: %s", user_email)
+                logger.info("Successfully sent complete order email to customer: %s", user_email)
             except Exception as e:
                 logger.error("Failed to send CD key email: %s", e)
+    
+    elif created_order.get('status') == StatusEnum.PARTIALLY_FULFILLED:
+        # Partial fulfillment - send immediate keys + notify about pending
+        assigned_keys = []
+        products = []
+        for item in created_order.get('items', []):
+            if 'assigned_keys' in item and item['assigned_keys']:
+                assigned_keys.extend(item['assigned_keys'])
+                products.append({"name": item.get("name", "Product"), "id": item.get("productId")})
+        
+        try:
+            email_service = EmailService()
+            
+            # Send immediate keys first
+            if assigned_keys:
+                await email_service.send_order_email(
+                    to=user_email,
+                    subject=f"Your Order {order_id} - Partial Delivery (Keys Inside)",
+                    products=products,
+                    keys=assigned_keys
+                )
+                logger.info("Successfully sent partial fulfillment keys to customer: %s", user_email)
+            
+            # Send pending stock notification
+            await email_service.send_pending_stock_email(
+                to=user_email,
+                order_id=order_id,
+                partial_fulfillment_items=partial_fulfillment_items,
+                pending_items=pending_items
+            )
+            logger.info("Successfully sent pending stock notification to customer: %s", user_email)
+            
+        except Exception as e:
+            logger.error("Failed to send partial fulfillment emails: %s", e)
+    
+    elif created_order.get('status') == StatusEnum.AWAITING_STOCK:
+        # Complete stock shortage - send pending notification only
+        try:
+            email_service = EmailService()
+            await email_service.send_pending_stock_email(
+                to=user_email,
+                order_id=order_id,
+                partial_fulfillment_items=None,
+                pending_items=pending_items
+            )
+            logger.info("Successfully sent awaiting stock notification to customer: %s", user_email)
+        except Exception as e:
+            logger.error("Failed to send awaiting stock email: %s", e)
         
         # Send notification to admin (support@monkeyz.co.il)
         try:
@@ -512,11 +601,11 @@ async def create_order(
 
 async def retry_failed_orders_internal(db: Database, product_collection: ProductCollection):
     """
-    Internal function to retry assigning keys to orders in 'AWAITING_STOCK' or 'FAILED' status.
+    Internal function to retry assigning keys to orders in 'AWAITING_STOCK', 'FAILED', or 'PARTIALLY_FULFILLED' status.
     This would typically be called by a scheduled task or after a stock update.
     """
     email_service = EmailService()
-    orders_to_retry_cursor = db.orders.find({"status": {"$in": [StatusEnum.AWAITING_STOCK, StatusEnum.FAILED]}})
+    orders_to_retry_cursor = db.orders.find({"status": {"$in": [StatusEnum.AWAITING_STOCK, StatusEnum.FAILED, StatusEnum.PARTIALLY_FULFILLED]}})
     
     async for order_doc in orders_to_retry_cursor:
         try:
@@ -529,62 +618,92 @@ async def retry_failed_orders_internal(db: Database, product_collection: Product
                 order_doc['_id'] = str(order_doc['_id'])
             
             order = Order(**order_doc)
-            all_items_processed_successfully = True
+            all_items_fully_fulfilled = True
             needs_update = False
             assigned_keys_for_email = []
             products_for_email = []
+            partial_fulfillment_items = []
+            pending_items = []
 
             for item in order.items:
-                # Check both assigned_key and assigned_keys (list)
-                already_assigned = False
-                if hasattr(item, 'assigned_keys') and item.assigned_keys:
-                    already_assigned = True
-                if hasattr(item, 'assigned_key') and item.assigned_key:
-                    already_assigned = True
-                if already_assigned:
-                    continue
-
+                # Check current fulfillment status
+                currently_assigned = len(item.assigned_keys) if hasattr(item, 'assigned_keys') and item.assigned_keys else 0
+                still_needed = item.quantity - currently_assigned
+                
+                if still_needed <= 0:
+                    continue  # Item is already fully fulfilled
+                
                 product = await product_collection.get_product_by_id(item.productId)
                 if product and product.manages_cd_keys:
-                    # Assign as many keys as needed for the quantity
-                    assigned_keys = []
+                    # Try to fulfill remaining quantity
+                    new_assigned_keys = []
                     available_keys = [k for k in product.cdKeys if not k.isUsed]
-                    if len(available_keys) >= item.quantity:
-                        for i in range(item.quantity):
+                    available_count = len(available_keys)
+                    keys_to_assign = min(available_count, still_needed)
+                    
+                    if keys_to_assign > 0:
+                        # Assign available keys
+                        for i in range(keys_to_assign):
                             key_obj = available_keys[i]
                             key_obj.isUsed = True
                             key_obj.usedAt = datetime.now(timezone.utc)
                             key_obj.orderId = order.id
-                            assigned_keys.append(key_obj.key)
+                            new_assigned_keys.append(key_obj.key)
                         
                         # Save the updated product with used keys
                         await product.save()
-                        item.assigned_keys = assigned_keys
+                        
+                        # Update item's assigned keys
+                        if not hasattr(item, 'assigned_keys') or not item.assigned_keys:
+                            item.assigned_keys = []
+                        item.assigned_keys.extend(new_assigned_keys)
                         needs_update = True
                         
                         # Collect data for email
-                        assigned_keys_for_email.extend(assigned_keys)
+                        assigned_keys_for_email.extend(new_assigned_keys)
                         products_for_email.append({
                             "name": item.name,
                             "id": item.productId,
-                            "quantity": item.quantity
+                            "quantity": keys_to_assign
                         })
                         
-                        logger.info("Retry successful: Keys assigned to item %s in order %s", item.productId, order.id)
-                    else:
-                        all_items_processed_successfully = False
-                        logger.warning("Retry failed: Not enough keys for item %s in order %s", item.productId, order.id)
-                        break
+                        logger.info("Retry: Assigned %d additional keys to item %s in order %s", keys_to_assign, item.productId, order.id)
+                    
+                    # Update fulfillment tracking
+                    total_assigned_now = len(item.assigned_keys) if hasattr(item, 'assigned_keys') and item.assigned_keys else 0
+                    remaining_needed = item.quantity - total_assigned_now
+                    
+                    if remaining_needed > 0:
+                        all_items_fully_fulfilled = False
+                        if total_assigned_now > 0:
+                            # Partial fulfillment
+                            partial_fulfillment_items.append({
+                                "productId": item.productId,
+                                "productName": item.name,
+                                "assigned": total_assigned_now,
+                                "pending": remaining_needed,
+                                "total": item.quantity
+                            })
+                        else:
+                            # Still completely pending
+                            pending_items.append({
+                                "productId": item.productId,
+                                "productName": item.name,
+                                "pending": remaining_needed,
+                                "total": item.quantity
+                            })
 
             if needs_update: # If any key was assigned in this retry attempt
-                if all_items_processed_successfully:
-                    new_status = StatusEnum.PROCESSING # Or COMPLETED, depending on your flow
-                    order.statusHistory.append(StatusHistoryEntry(status=new_status, date=datetime.now(timezone.utc), note="Keys assigned on retry - order processing."))
+                # Determine new status
+                if all_items_fully_fulfilled:
+                    new_status = StatusEnum.COMPLETED
+                    order.statusHistory.append(StatusHistoryEntry(status=new_status, date=datetime.now(timezone.utc), note="All items fulfilled on retry - order completed."))
+                elif any(partial_fulfillment_items):
+                    new_status = StatusEnum.PARTIALLY_FULFILLED
+                    order.statusHistory.append(StatusHistoryEntry(status=new_status, date=datetime.now(timezone.utc), note="Additional keys assigned on retry - partial fulfillment."))
                 else:
-                    # If some items got keys but others didn't, it remains in AWAITING_STOCK or FAILED
-                    # Or you could introduce a new status like PARTIALLY_FULFILLED
-                    new_status = order.status # Keep current status if not all items fulfilled
-                    order.statusHistory.append(StatusHistoryEntry(status=order.status, date=datetime.now(timezone.utc), note="Partial key assignment on retry."))
+                    new_status = StatusEnum.AWAITING_STOCK
+                    order.statusHistory.append(StatusHistoryEntry(status=new_status, date=datetime.now(timezone.utc), note="Some keys assigned on retry - still awaiting stock."))
 
                 # Use the original ID for database update (handles both ObjectId and string IDs)
                 update_filter = {"_id": original_id}
@@ -602,28 +721,40 @@ async def retry_failed_orders_internal(db: Database, product_collection: Product
                 if update_result.modified_count == 0:
                     logger.warning(f"Failed to update order {order.id} - no documents modified")
                 else:
-                    logger.info(f"Successfully updated order {order.id}")
+                    logger.info(f"Successfully updated order {order.id} to status {new_status}")
                 
-                # Send email with assigned keys if any keys were assigned
+                # Send appropriate emails based on new status
                 if assigned_keys_for_email and order.email:
                     try:
-                        success = await email_service.send_order_email(
-                            to=order.email,
-                            subject=f"Your MonkeyZ Order Keys - Order #{order.id}",
-                            products=products_for_email,
-                            keys=assigned_keys_for_email
-                        )
-                        if success:
-                            logger.info("Email sent successfully to %s for order %s with %d keys", order.email, order.id, len(assigned_keys_for_email))
+                        if new_status == StatusEnum.COMPLETED:
+                            # Send complete fulfillment email
+                            success = await email_service.send_order_email(
+                                to=order.email,
+                                subject=f"Order {order.id} - Final Keys Delivered!",
+                                products=products_for_email,
+                                keys=assigned_keys_for_email
+                            )
+                            logger.info("Sent completion email to %s for order %s", order.email, order.id)
                         else:
-                            logger.warning("Failed to send email to %s for order %s", order.email, order.id)
+                            # Send new keys + status update
+                            success = await email_service.send_order_email(
+                                to=order.email,
+                                subject=f"Order {order.id} - Additional Keys Delivered",
+                                products=products_for_email,
+                                keys=assigned_keys_for_email
+                            )
+                            if success:
+                                # Also send updated pending notification if still partially fulfilled
+                                if new_status == StatusEnum.PARTIALLY_FULFILLED or new_status == StatusEnum.AWAITING_STOCK:
+                                    await email_service.send_pending_stock_email(
+                                        to=order.email,
+                                        order_id=order.id,
+                                        partial_fulfillment_items=partial_fulfillment_items if partial_fulfillment_items else None,
+                                        pending_items=pending_items if pending_items else None
+                                    )
+                            logger.info("Sent additional keys email to %s for order %s", order.email, order.id)
                     except Exception as e:
-                        logger.error("Error sending email to %s for order %s: %s", order.email, order.id, str(e))
-                else:
-                    if not order.email:
-                        logger.warning("No email address found for order %s - cannot send keys", order.id)
-                    if not assigned_keys_for_email:
-                        logger.info("No new keys assigned for order %s - no email sent", order.id)
+                        logger.error("Error sending retry emails to %s for order %s: %s", order.email, order.id, str(e))
         
         except Exception as e:
             logger.error(f"Error processing order {order_doc.get('_id', 'unknown')}: {str(e)}")

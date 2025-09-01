@@ -10,6 +10,7 @@ class OrderItem(BaseModel):
     quantity: int
     price: float
     assigned_keys: Optional[List[str]] = Field(default_factory=list, description="The CD keys assigned to this item if applicable")
+    fulfillment_status: Optional[dict] = Field(default=None, description="Tracks assigned/pending quantities for partial fulfillment")
 
 class StatusHistoryEntry(BaseModel):
     status: str
@@ -52,6 +53,7 @@ class StatusEnum(str, Enum):
     CANCELLED = "cancelled"
     FAILED = "failed"
     AWAITING_STOCK = "awaiting_stock"
+    PARTIALLY_FULFILLED = "partially_fulfilled"
 
 def normalize_status(status: str) -> str:
     """Normalizes a status string to a valid StatusEnum value or a default."""
@@ -67,6 +69,8 @@ def normalize_status(status: str) -> str:
         return StatusEnum.CANCELLED.value
     if s in ["awaiting_stock", "backordered", "out_of_stock"]:
         return StatusEnum.AWAITING_STOCK.value
+    if s in ["partially_fulfilled", "partial", "partial_delivery"]:
+        return StatusEnum.PARTIALLY_FULFILLED.value
     
     # Fallback to enum members
     for member in StatusEnum:
