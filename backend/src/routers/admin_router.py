@@ -1293,6 +1293,21 @@ async def validate_coupon(request: Request):
     user_email = data.get("email")
     db = await MongoDb().get_db()
     coupon_service = CouponService(db)
+    
+    # First, explicitly check if user has exceeded their limit
+    if user_email and code:
+        user_usage_count, max_per_user, is_limit_exceeded = await coupon_service.get_user_coupon_usage(code, user_email)
+        if is_limit_exceeded:
+            return JSONResponse({
+                "discount": 0, 
+                "message": f"You've already used this coupon {user_usage_count} time(s). Maximum allowed is {max_per_user}.",
+                "alreadyUsed": True,
+                "userEmail": user_email,
+                "userUsageCount": user_usage_count,
+                "maxUsagePerUser": max_per_user
+            }, status_code=200)  # Return 200 but with 0 discount
+            
+    # Proceed with normal validation if no user limit exceeded
     discount, coupon, error = await coupon_service.validate_and_apply_coupon(code, amount, user_email=user_email)
     if error:
         # Check if the error is related to per-user usage limits
@@ -1303,7 +1318,7 @@ async def validate_coupon(request: Request):
                 "message": error,
                 "alreadyUsed": True,
                 "userEmail": user_email
-            }, status_code=400)
+            }, status_code=200)  # Return 200 but with 0 discount
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
     
     # Add coupon usage information to the response

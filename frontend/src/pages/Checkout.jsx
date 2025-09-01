@@ -190,6 +190,7 @@ export default function Checkout() {
 
   // Apply coupon
   const handleCoupon = async () => {
+    // Reset discount and message first
     setCouponMsg("");
     setDiscount(0);
     if (!coupon) return setCouponMsg("Enter a coupon code");
@@ -227,11 +228,19 @@ export default function Checkout() {
         return;
       }
       
+      // Check if the response explicitly has discount set to 0 (could be due to user limit)
+      if (res.data.discount === 0) {
+        setDiscount(0);
+        setCouponMsg(res.data.message || "Coupon cannot be applied");
+        return;
+      }
+      
       // Check if this user has exceeded their usage limit
       if (res.data.coupon && res.data.coupon.userLimitExceeded) {
         // User has exceeded their limit - ensure no discount is applied
         setDiscount(0);
         setCouponMsg(`You've already used this coupon ${res.data.coupon.userUsageCount} time(s). Maximum allowed is ${res.data.coupon.maxUsagePerUser}.`);
+        return; // Exit early to prevent any further processing
       } 
       // Normal discount handling if limit not exceeded and discount is positive
       else if (res.data.discount && res.data.discount > 0) {
