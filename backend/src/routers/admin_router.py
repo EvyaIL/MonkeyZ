@@ -1293,21 +1293,6 @@ async def validate_coupon(request: Request):
     user_email = data.get("email")
     db = await MongoDb().get_db()
     coupon_service = CouponService(db)
-    
-    # First, explicitly check if user has exceeded their limit
-    if user_email and code:
-        user_usage_count, max_per_user, is_limit_exceeded = await coupon_service.get_user_coupon_usage(code, user_email)
-        if is_limit_exceeded:
-            return JSONResponse({
-                "discount": 0, 
-                "message": f"You've already used this coupon {user_usage_count} time(s). Maximum allowed is {max_per_user}.",
-                "alreadyUsed": True,
-                "userEmail": user_email,
-                "userUsageCount": user_usage_count,
-                "maxUsagePerUser": max_per_user
-            }, status_code=200)  # Return 200 but with 0 discount
-            
-    # Proceed with normal validation if no user limit exceeded
     discount, coupon, error = await coupon_service.validate_and_apply_coupon(code, amount, user_email=user_email)
     if error:
         # Check if the error is related to per-user usage limits
@@ -1318,43 +1303,17 @@ async def validate_coupon(request: Request):
                 "message": error,
                 "alreadyUsed": True,
                 "userEmail": user_email
-            }, status_code=200)  # Return 200 but with 0 discount
+            }, status_code=400)
         return JSONResponse({"discount": 0, "message": error}, status_code=400)
     
     # Add coupon usage information to the response
     coupon_info = None
     if coupon:
-        # Check if this email has used this coupon before
-        user_has_used_coupon = False
-        max_usage_per_user = coupon.get("maxUsagePerUser", 0)
-        user_usage_count = 0
-        user_limit_exceeded = False
-        
-        if user_email and max_usage_per_user > 0:
-            # Count how many times this user has used this coupon
-            orders_collection = db.orders
-            user_usage_count = await orders_collection.count_documents({
-                '$or': [
-                    {'userEmail': user_email},
-                    {'email': user_email},
-                    {'customerEmail': user_email}
-                ],
-                'couponCode': {'$regex': f'^{coupon["code"]}$', '$options': 'i'},
-                'status': {'$nin': ['cancelled', 'failed']}
-            })
-            
-            user_has_used_coupon = user_usage_count > 0
-            user_limit_exceeded = user_usage_count >= max_usage_per_user
-        
-        # Include this information in the response
         coupon_info = {
             "code": coupon.get("code", ""),
             "usageCount": coupon.get("usageCount", 0),
             "maxUses": coupon.get("maxUses", None),
-            "maxUsagePerUser": max_usage_per_user,
-            "userUsageCount": user_usage_count,
-            "userHasUsedCoupon": user_has_used_coupon,
-            "userLimitExceeded": user_limit_exceeded,
+            "maxUsagePerUser": coupon.get("maxUsagePerUser", 0),
             "discountType": coupon.get("discountType", ""),
             "discountValue": coupon.get("discountValue", 0)
         }
@@ -1373,12 +1332,9 @@ async def validate_coupon(request: Request):
             import logging
             logging.error(f"Error updating user's coupon usage: {e}")
     
-    # Set discount to 0 if user has exceeded their limit
-    final_discount = 0 if (user_email and coupon_info and coupon_info["userLimitExceeded"]) else discount
-    
     return {
-        "discount": final_discount, 
-        "message": "Coupon valid!" if final_discount > 0 else "You've reached your usage limit for this coupon.", 
+        "discount": discount, 
+        "message": "Coupon valid!", 
         "coupon": coupon_info
     }
 

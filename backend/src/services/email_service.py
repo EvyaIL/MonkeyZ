@@ -97,8 +97,7 @@ class EmailService:
     async def send_pending_stock_email(
         self,
         to: str,
-        order_id: str,
-        products: List[dict] = None
+        order_id: str
     ):
         if not EMAIL_ENABLED or not conf:
             import logging
@@ -108,23 +107,11 @@ class EmailService:
         # Notify customer that order is awaiting stock
         from fastapi_mail import MessageSchema, FastMail
         subject = f"Order {order_id} Awaiting Stock"
-        
-        # Build a more detailed email with product information
-        body = f"<h1>Order {order_id} Pending</h1>"
-        body += "<p>Thank you for your purchase! One or more of your digital products are currently out of stock.</p>"
-        body += "<p>We will send your license keys within 1 to 24 hours once they become available.</p>"
-        
-        # Add product details if available
-        if products and len(products) > 0:
-            body += "<h2>Order Details:</h2><ul>"
-            for product in products:
-                product_name = product.get("name") or product.get("id", "Unknown Product")
-                quantity = product.get("quantity", 1)
-                body += f"<li><strong>{product_name}</strong> x {quantity}</li>"
-            body += "</ul>"
-            
-        body += "<p>If you don't receive your keys within 24 hours, please contact our support.</p>"
-        body += "<p>Best regards,<br/>MonkeyZ Team</p>"
+        body = (
+            f"<h1>Order {order_id} Pending</h1>"
+            "<p>Your digital product is currently out of stock. "
+            "We will send your license keys within 1 to 24 hours once they become available.</p>"
+        )
         try:
             message = MessageSchema(
                 subject=subject,

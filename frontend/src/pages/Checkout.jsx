@@ -190,7 +190,6 @@ export default function Checkout() {
 
   // Apply coupon
   const handleCoupon = async () => {
-    // Reset discount and message first
     setCouponMsg("");
     setDiscount(0);
     if (!coupon) return setCouponMsg("Enter a coupon code");
@@ -220,59 +219,28 @@ export default function Checkout() {
         const errorMessage = res.data.message || res.data.error || "Invalid coupon";
         setCouponMsg(errorMessage);
         setDiscount(0);
-        
-        // Explicitly display a message about user-specific usage limits
-        if (res.data.alreadyUsed) {
-          setCouponMsg(`You have already used this coupon (max ${res.data.maxUsagePerUser || 1} use(s) per user).`);
-        }
         return;
       }
       
-      // Check if the response explicitly has discount set to 0 (could be due to user limit)
-      if (res.data.discount === 0) {
-        setDiscount(0);
-        setCouponMsg(res.data.message || "Coupon cannot be applied");
-        return;
-      }
-      
-      // Check if this user has exceeded their usage limit
-      if (res.data.coupon && res.data.coupon.userLimitExceeded) {
-        // User has exceeded their limit - ensure no discount is applied
-        setDiscount(0);
-        setCouponMsg(`You've already used this coupon ${res.data.coupon.userUsageCount} time(s). Maximum allowed is ${res.data.coupon.maxUsagePerUser}.`);
-        return; // Exit early to prevent any further processing
-      } 
-      // Normal discount handling if limit not exceeded and discount is positive
-      else if (res.data.discount && res.data.discount > 0) {
+      if (res.data.discount && res.data.discount > 0) {
         setDiscount(res.data.discount);
         setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
         
         // Check if coupon is near its usage limit
         if (res.data.coupon) {
-          const { usageCount, maxUses, userHasUsedCoupon, maxUsagePerUser, userUsageCount } = res.data.coupon;
-          
-          // Check for global usage limits
+          const { usageCount, maxUses } = res.data.coupon;
           if (maxUses && usageCount && maxUses > 0) {
             const remainingUses = maxUses - usageCount;
             const usagePercentage = (usageCount / maxUses) * 100;
             
             // Show notification when coupon is over 70% used
             if (usagePercentage >= 70) {
-              setCouponMsg(prev => `${prev} (${remainingUses} global uses left)`);
+              setCouponMsg(prev => `${prev} (${remainingUses} uses left)`);
             }
             
             // Show warning when coupon is almost fully used (over 90%)
             if (usagePercentage >= 90) {
               setCouponMsg(prev => `${prev} - This coupon is almost fully used!`);
-            }
-          }
-          
-          // Check for per-user usage limits for approaching limits
-          if (maxUsagePerUser > 0 && userUsageCount > 0) {
-            const remainingUserUses = maxUsagePerUser - userUsageCount;
-            
-            if (remainingUserUses === 1) {
-              setCouponMsg(prev => `${prev} (This is your last use of this coupon)`);
             }
           }
         }
@@ -285,16 +253,9 @@ export default function Checkout() {
       console.error('Error response:', err.response?.data);
       console.error('Error status:', err.response?.status);
       
-      // Always ensure discount is reset to 0 on any error
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || "Invalid coupon";
+      setCouponMsg(errorMessage);
       setDiscount(0);
-      
-      // Check if error is specifically about user limits
-      if (err.response?.data?.alreadyUsed) {
-        setCouponMsg(`You've already used this coupon ${err.response?.data?.userUsageCount || ''} time(s). No additional discounts available.`);
-      } else {
-        const errorMessage = err.response?.data?.message || err.response?.data?.error || "Invalid coupon";
-        setCouponMsg(errorMessage);
-      }
     }
   };
 

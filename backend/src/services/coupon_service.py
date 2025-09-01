@@ -233,59 +233,8 @@ class CouponService:
         except Exception as e:
             return 0.0, None, f'Error validating coupon: {str(e)}' 
 
-    async def get_user_coupon_usage(self, coupon_code, user_email):
-        """
-        Get detailed information about a user's coupon usage.
-        Returns a tuple of (usage_count, max_usage_per_user, is_limit_exceeded)
-        """
-        if not user_email or not coupon_code:
-            return 0, 0, False
-            
-        try:
-            # Get the coupon details
-            admin_db = self.db.client.get_database("admin")
-            collection = admin_db.get_collection("coupons")
-            code = coupon_code.strip().lower()
-            
-            coupon = await collection.find_one({'code': {'$regex': f'^{code}$', '$options': 'i'}, 'active': True})
-            if not coupon:
-                return 0, 0, False
-                
-            max_usage_per_user = coupon.get('maxUsagePerUser', 0)
-            if max_usage_per_user <= 0:
-                return 0, 0, False  # No per-user limit
-                
-            # Count user's usage
-            orders_collection = self.db.orders
-            user_usage_count = await orders_collection.count_documents({
-                '$or': [
-                    {'userEmail': user_email},
-                    {'email': user_email},
-                    {'customerEmail': user_email}
-                ],
-                'couponCode': {'$regex': f'^{coupon_code}$', '$options': 'i'},
-                'status': {'$nin': ['cancelled', 'failed']}
-            })
-            
-            # Check if limit exceeded
-            is_limit_exceeded = user_usage_count >= max_usage_per_user
-            
-            return user_usage_count, max_usage_per_user, is_limit_exceeded
-            
-        except Exception as e:
-            logger.error(f"Error checking user coupon usage: {e}")
-            return 0, 0, False
-    
     async def validate_and_apply_coupon(self, coupon_code, total, user_email=None):
         """
-        Enhanced version that properly handles per-user limits.
-        Use this for the API endpoint to ensure proper discount handling.
+        DEPRECATED: Use apply_coupon() instead for real usage, validate_coupon() for preview.
         """
-        # First, check for per-user limits if email provided
-        if user_email and coupon_code:
-            user_usage_count, max_per_user, is_limit_exceeded = await self.get_user_coupon_usage(coupon_code, user_email)
-            if is_limit_exceeded:
-                return 0.0, None, f'You have reached the usage limit for this coupon ({user_usage_count}/{max_per_user}).'
-        
-        # If no per-user limit issues, proceed with normal validation
         return await self.validate_coupon(coupon_code, total, user_email)
