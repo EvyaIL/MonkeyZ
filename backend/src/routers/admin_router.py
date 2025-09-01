@@ -1313,6 +1313,7 @@ async def validate_coupon(request: Request):
         user_has_used_coupon = False
         max_usage_per_user = coupon.get("maxUsagePerUser", 0)
         user_usage_count = 0
+        user_limit_exceeded = False
         
         if user_email and max_usage_per_user > 0:
             # Count how many times this user has used this coupon
@@ -1328,6 +1329,7 @@ async def validate_coupon(request: Request):
             })
             
             user_has_used_coupon = user_usage_count > 0
+            user_limit_exceeded = user_usage_count >= max_usage_per_user
         
         # Include this information in the response
         coupon_info = {
@@ -1337,6 +1339,7 @@ async def validate_coupon(request: Request):
             "maxUsagePerUser": max_usage_per_user,
             "userUsageCount": user_usage_count,
             "userHasUsedCoupon": user_has_used_coupon,
+            "userLimitExceeded": user_limit_exceeded,
             "discountType": coupon.get("discountType", ""),
             "discountValue": coupon.get("discountValue", 0)
         }
@@ -1355,9 +1358,12 @@ async def validate_coupon(request: Request):
             import logging
             logging.error(f"Error updating user's coupon usage: {e}")
     
+    # Set discount to 0 if user has exceeded their limit
+    final_discount = 0 if (user_email and coupon_info and coupon_info["userLimitExceeded"]) else discount
+    
     return {
-        "discount": discount, 
-        "message": "Coupon valid!", 
+        "discount": final_discount, 
+        "message": "Coupon valid!" if final_discount > 0 else "You've reached your usage limit for this coupon.", 
         "coupon": coupon_info
     }
 
