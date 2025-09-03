@@ -256,13 +256,28 @@ class CouponService:
             max_uses = coupon.get('maxUses')
             # CRITICAL FIX: Properly handle maxUses = 0 (unlimited)
             if max_uses is not None and max_uses > 0:
-                current_usage = await self.get_real_usage_count(coupon['code'])
+                # PRIORITY CHECK: Use stored usageCount from coupon (most reliable)
+                stored_usage = coupon.get('usageCount', 0)
+                logger.info(f"🔍 STORED usage count: {stored_usage}")
+                
+                # FALLBACK: Database query as secondary verification
+                db_usage = await self.get_real_usage_count(coupon['code'])
+                logger.info(f"🔍 DATABASE usage count: {db_usage}")
+                
+                # Use the higher of the two counts (stored is usually more accurate)
+                current_usage = max(stored_usage, db_usage)
+                logger.info(f"🎯 FINAL USAGE COUNT: {current_usage} (stored: {stored_usage}, db: {db_usage})")
+                
                 logger.info(f"APPLY_COUPON: Max usage check for '{coupon['code']}': {current_usage}/{max_uses}")
                 
                 # STRICT CHECK: If current usage equals or exceeds max uses, block immediately
                 if current_usage >= max_uses:
-                    logger.warning(f"APPLY_COUPON: Overall usage limit exceeded for '{coupon_code}': {current_usage}/{max_uses}")
+                    logger.warning(f"🚨 BLOCKED: Overall usage limit exceeded for '{coupon_code}': {current_usage}/{max_uses}")
                     return 0.0, None, f'This coupon has reached its maximum usage limit ({current_usage}/{max_uses}). Please try a different coupon.'
+                else:
+                    logger.info(f"✅ PASSED: Overall usage check: {current_usage}/{max_uses}")
+            else:
+                logger.info("ℹ️ No overall usage limit set (unlimited) or limit is 0")
 
             # --- FIXED: Per-User Usage Limit Check ---
             max_usage_per_user = coupon.get('maxUsagePerUser', 0)
@@ -416,13 +431,28 @@ class CouponService:
             max_uses = coupon.get('maxUses')
             # CRITICAL FIX: Properly handle maxUses = 0 (unlimited)
             if max_uses is not None and max_uses > 0:
-                current_usage = await self.get_real_usage_count(coupon['code'])
+                # PRIORITY CHECK: Use stored usageCount from coupon (most reliable)
+                stored_usage = coupon.get('usageCount', 0)
+                logger.info(f"🔍 STORED usage count: {stored_usage}")
+                
+                # FALLBACK: Database query as secondary verification
+                db_usage = await self.get_real_usage_count(coupon['code'])
+                logger.info(f"🔍 DATABASE usage count: {db_usage}")
+                
+                # Use the higher of the two counts (stored is usually more accurate)
+                current_usage = max(stored_usage, db_usage)
+                logger.info(f"🎯 FINAL USAGE COUNT: {current_usage} (stored: {stored_usage}, db: {db_usage})")
+                
                 logger.info(f"VALIDATE_COUPON: Max usage check for '{coupon['code']}': {current_usage}/{max_uses}")
                 
                 # STRICT CHECK: If current usage equals or exceeds max uses, block immediately
                 if current_usage >= max_uses:
-                    logger.warning(f"VALIDATE_COUPON: Overall usage limit exceeded for '{coupon_code}': {current_usage}/{max_uses}")
+                    logger.warning(f"🚨 BLOCKED: Overall usage limit exceeded for '{coupon_code}': {current_usage}/{max_uses}")
                     return 0.0, None, f'This coupon has reached its maximum usage limit ({current_usage}/{max_uses}). Please try a different coupon.'
+                else:
+                    logger.info(f"✅ PASSED: Overall usage check: {current_usage}/{max_uses}")
+            else:
+                logger.info("ℹ️ No overall usage limit set (unlimited) or limit is 0")
 
             # --- Calculate Discount ---
             discount_type = coupon.get('discountType', 'percentage')
