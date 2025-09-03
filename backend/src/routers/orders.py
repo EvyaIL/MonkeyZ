@@ -308,9 +308,14 @@ async def validate_coupon_public(request: Request):
         
         # Validate coupon
         try:
-            logger.info(f"Calling validate_coupon with: code={code}, amount={amount}, email={user_email}")
+            logger.info(f"🎯 CALLING validate_coupon with: code={code}, amount={amount}, email={user_email}")
             discount, coupon, error = await coupon_service.validate_coupon(code, amount, user_email=user_email)
-            logger.info(f"validate_coupon returned: discount={discount}, coupon={coupon is not None}, error={error}")
+            logger.info(f"🎯 validate_coupon returned: discount={discount}, coupon={coupon is not None}, error='{error}'")
+            
+            # CRITICAL DEBUG: Log the exact coupon details if found
+            if coupon:
+                logger.info(f"🎯 Coupon details: maxUsagePerUser={coupon.get('maxUsagePerUser')}, maxUses={coupon.get('maxUses')}")
+            
         except Exception as validation_error:
             logger.error(f"Coupon validation exception: {validation_error}", exc_info=True)
             return JSONResponse({
@@ -321,7 +326,7 @@ async def validate_coupon_public(request: Request):
             }, status_code=200)
         
         if error:
-            logger.warning(f"Coupon validation failed: {error}")
+            logger.warning(f"🚨 Coupon validation FAILED: {error}")
             return JSONResponse({
                 "valid": False,
                 "discount": 0, 
@@ -329,7 +334,7 @@ async def validate_coupon_public(request: Request):
                 "error": error
             }, status_code=200)  # Return 200 to match production behavior
             
-        logger.info(f"Coupon validation successful: discount={discount}")
+        logger.info(f"✅ Coupon validation SUCCESSFUL: discount={discount}")
         
         # Return comprehensive format that frontend expects
         response_data = {
