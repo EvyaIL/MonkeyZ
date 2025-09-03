@@ -34,6 +34,9 @@ const AdminCoupons = React.lazy(() => import("./pages/dashboard/admin/AdminCoupo
 const AdminStock = React.lazy(() => import("./pages/dashboard/admin/AdminStock"));
 const AdminOrderCreate = React.lazy(() => import("./pages/dashboard/admin/AdminOrderCreate"));
 
+// Phase 2: Modern UX Demo (Development only)
+const Phase2Demo = React.lazy(() => import("./pages/Phase2Demo"));
+
 function AppRouter() {
   const location = useLocation();
 
@@ -138,6 +141,11 @@ function AppRouter() {
         
         {/* Analytics test - Disabled for production */}
         {/* <Route path="/analytics-test" element={<AnalyticsTest />} /> */}
+        
+        {/* Phase 2: Modern UX Demo - Development only */}
+        {process.env.NODE_ENV === 'development' && (
+          <Route path="/phase2-demo" element={<Phase2Demo />} />
+        )}
         
         {/* Payment routes */}
         <Route path="/checkout" element={<Checkout />} />

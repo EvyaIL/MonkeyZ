@@ -43,6 +43,14 @@ export {
   LoadingCard 
 } from './Loading'
 
+// Phase 2: Advanced Loading Components
+export { 
+  default as LoadingBarAdvanced, 
+  IndeterminateLoadingBar, 
+  CircularProgress, 
+  StepProgress 
+} from './LoadingBar'
+
 // Interactive Components
 export {
   Dropdown,

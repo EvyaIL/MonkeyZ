@@ -11,10 +11,42 @@ import { initPerformanceOptimizations } from './lib/performanceOptimizer';
 import './lib/reactWarningSuppress'; // Suppress React warnings in development
 import './styles/globals.css'; // Import our design system CSS
 
+// React Query imports for Phase 2
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ToastProvider } from './components/ui/Toast';
+import GlobalLoadingIndicator from './components/GlobalLoadingIndicator';
+
 // Lazy load ThemeToggle to improve initial bundle size
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+// Create React Query client with optimized configuration for Phase 2
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors
+        if (error?.status >= 400 && error?.status < 500) {
+          return false
+        }
+        return failureCount < 3
+      },
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always'
+    },
+    mutations: {
+      retry: 1,
+      onError: (error) => {
+        console.error('Mutation error:', error)
+        // Toast notifications will be handled by individual mutations
+      }
+    }
+  }
+});
 
 // Debug Google OAuth configuration in development
 if (process.env.NODE_ENV === 'development') {
@@ -78,6 +110,7 @@ const UnifiedAppStructure = () => {
 
   return (
     <div className="min-h-screen transition-colors duration-300">
+      <GlobalLoadingIndicator />
       <AppContent />
       <React.Suspense fallback={<div>Loading...</div>}>
         <ThemeToggle />
@@ -99,15 +132,23 @@ const App = () => {
   }
   
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <HelmetProvider>
-        <GlobalProvider>
-          <ErrorBoundary>
-            <UnifiedAppStructure />
-          </ErrorBoundary>
-        </GlobalProvider>
-      </HelmetProvider>
-    </GoogleOAuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <HelmetProvider>
+          <GlobalProvider>
+            <ToastProvider>
+              <ErrorBoundary>
+                <UnifiedAppStructure />
+                {/* React Query Devtools - only in development */}
+                {process.env.NODE_ENV === 'development' && (
+                  <ReactQueryDevtools initialIsOpen={false} />
+                )}
+              </ErrorBoundary>
+            </ToastProvider>
+          </GlobalProvider>
+        </HelmetProvider>
+      </GoogleOAuthProvider>
+    </QueryClientProvider>
   );
 };
 
