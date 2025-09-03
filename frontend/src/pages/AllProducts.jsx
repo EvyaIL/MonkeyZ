@@ -8,6 +8,7 @@ import PrimaryInput from "../components/inputs/PrimaryInput";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
+import "./AllProducts.css";
 
 const AllProducts = React.memo(() => {
   const { search } = useLocation();
@@ -193,20 +194,27 @@ const AllProducts = React.memo(() => {
   // Render filters component
   const renderFilters = useCallback(() => {
     return (
-      <>
-        <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
-          <PrimaryInput
+      <div className="filters-content">
+        <h2 className="filters-title">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
+          </svg>
+          {t("filters")}
+        </h2>
+        
+        <PrimaryInput
           type="search"
           title={t("search")}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("search_products_placeholder")}
           value={searchQuery}
-          otherStyle="mb-6"
+          otherStyle="search-input"
           aria-label={t("search_products")}
         />
         
-        <div className="mb-6">          <label
-            className="block text-gray-900 dark:text-white text-sm font-medium mb-2"
+        <div className="price-range-section">
+          <label
+            className="price-range-label"
             htmlFor="price-range"
           >
             {t("price_range")}: {lang === "he" ? `₪${filterPriceRange.max} - ₪${filterPriceRange.min}` : `₪${filterPriceRange.min} - ₪${filterPriceRange.max}`}
@@ -222,14 +230,15 @@ const AllProducts = React.memo(() => {
           )}
         </div>
         
-        <div className="mb-6">
-          <h3 className="text-accent text-lg font-semibold mb-4">{t("categories")}</h3>
-          <div className="flex flex-wrap gap-3">
+        <div className="categories-section">
+          <h3 className="categories-title">
+            {t("categories")}
+          </h3>
+          <div className="categories-grid">
             {categories.map((category) => (
               <label 
                 key={category} 
-                className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-200 dark:hover:bg-gray-700/50'}`}
-                style={{ minWidth: '100px' }}
+                className={`category-checkbox ${selectedCategories.includes(category) ? 'selected' : ''}`}
               >
                 <input 
                   type="checkbox"
@@ -238,21 +247,22 @@ const AllProducts = React.memo(() => {
                   onChange={() => handleCategoryChange(category)}
                   aria-labelledby={`category-label-${category}`}
                 />
-                <span id={`category-label-${category}`} className="font-medium text-sm select-none">{category}</span>
+                <span id={`category-label-${category}`}>{category}</span>
               </label>
             ))}
           </div>
         </div>
-          <div className="pt-4 border-t border-gray-300 dark:border-gray-700">          <PrimaryButton
-            title={t("clear_filters", "Clear Filters")}
+        
+        <button
           onClick={clearFilters}
-          otherStyle="w-full bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
-          ariaLabel={t("clear_all_filters", "Clear all filters")}
-        />
+          className="clear-filters-btn"
+          aria-label={t("clear_all_filters", "Clear all filters")}
+        >
+          {t("clear_filters", "Clear Filters")}
+        </button>
       </div>
-    </>
-  );
-  }, [t, searchQuery, setSearchQuery, filterPriceRange, setFilterPriceRange, categories, selectedCategories, handleCategoryChange, clearFilters]);
+    );
+  }, [t, searchQuery, setSearchQuery, filterPriceRange, setFilterPriceRange, categories, selectedCategories, handleCategoryChange, clearFilters, lang]);
 
   // Removed unused getDemoCategories function
 

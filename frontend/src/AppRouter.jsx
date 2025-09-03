@@ -37,6 +37,11 @@ const AdminOrderCreate = React.lazy(() => import("./pages/dashboard/admin/AdminO
 // Phase 2: Modern UX Demo (Development only)
 const Phase2Demo = React.lazy(() => import("./pages/Phase2Demo"));
 
+// Modern Pages with Advanced UX
+const ModernHome = React.lazy(() => import("./pages/ModernHome"));
+const ModernAuth = React.lazy(() => import("./pages/ModernAuth"));
+const ModernProducts = React.lazy(() => import("./pages/ModernProducts"));
+
 function AppRouter() {
   const location = useLocation();
 
@@ -57,6 +62,12 @@ function AppRouter() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />
+          
+          {/* Modern pages with advanced UX */}
+          <Route path="/modern" element={<ModernHome />} />
+          <Route path="/modern-auth" element={<ModernAuth />} />
+          <Route path="/modern-products" element={<ModernProducts />} />
+          
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/sign-up" element={<SignUp />} />
           <Route path="/reset-password" element={<ResetPassword />} />
