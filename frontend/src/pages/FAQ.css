@@ -97,16 +97,16 @@
   align-items: center;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   transition: var(--transition-normal);
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: var(--border-radius-lg);
+  background: rgba(255, 255, 255, 0.98);
+  border: 2px solid rgba(37, 99, 235, 0.15);
+  border-radius: var(--border-radius-xl);
   margin-bottom: var(--spacing-3);
   backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .faq-question::before {
@@ -168,8 +168,12 @@
   color: var(--color-text-primary);
   line-height: var(--line-height-relaxed);
   font-size: var(--font-size-base);
-  padding-top: var(--spacing-4);
-  border-top: 1px solid rgba(37, 99, 235, 0.1);
+  padding: var(--spacing-6);
+  margin-top: var(--spacing-3);
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .faq-search {
@@ -302,20 +306,32 @@
   }
 }
 
-/* Dark mode support would go here if needed */
+/* Light theme optimization - better contrast */
 @media (prefers-color-scheme: dark) {
+  .faq-container {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  }
+  
   .faq-item {
-    background: rgba(30, 41, 59, 0.95);
-    border-color: rgba(37, 99, 235, 0.2);
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(37, 99, 235, 0.15);
+  }
+  
+  .faq-question {
+    background: rgba(255, 255, 255, 0.98);
+    color: var(--color-text-primary);
+    border-color: rgba(37, 99, 235, 0.15);
   }
   
   .faq-answer-content {
-    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--color-text-primary);
+    border-color: rgba(37, 99, 235, 0.1);
   }
   
   .faq-search-input {
-    background: rgba(30, 41, 59, 0.95);
-    color: #e2e8f0;
-    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(255, 255, 255, 0.98);
+    color: var(--color-text-primary);
+    border-color: rgba(37, 99, 235, 0.2);
   }
 }

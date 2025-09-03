@@ -301,5 +301,22 @@
   "share_post": "שתף פוסט",
   "post_not_found": "הפוסט לא נמצא",
   "post_not_found_message": "הפוסט שאתה מחפש לא קיים או שהוסר.",
-  "monkeyz_team": "צוות MonkeyZ"
+  "monkeyz_team": "צוות MonkeyZ",
+  "customer_information": "פרטי לקוח",
+  "full_name": "שם מלא",
+  "enter_full_name": "הכנס את השם המלא שלך",
+  "enter_email": "הכנס את כתובת האימייל שלך",
+  "enter_phone": "הכנס את מספר הטלפון שלך",
+  "order_summary": "סיכום הזמנה",
+  "enter_coupon_code": "הכנס קוד קופון",
+  "apply": "החל",
+  "remove": "הסר",
+  "validating": "מאמת...",
+  "subtotal": "סכום ביניים",
+  "discount": "הנחה",
+  "secure_payment": "תשלום מאובטח",
+  "add_items_to_checkout": "הוסף פריטים לעגלה כדי לבצע רכישה",
+  "loading_payment": "טוען תשלום מאובטח...",
+  "secure_ssl": "מאובטח SSL",
+  "money_back_guarantee": "ערבות החזר כספי"
 }
