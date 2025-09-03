@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class CouponService:
     def __init__(self, db):
         self.db = db
-        # Try to determine if this is admin or main database
+        # Try to determine if this is an admin database by checking for the coupons collection
         self.is_admin_db = hasattr(db, 'name') and db.name == 'admin'
         
     async def _get_coupons_collection(self):

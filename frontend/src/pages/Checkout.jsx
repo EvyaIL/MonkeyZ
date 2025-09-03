@@ -250,11 +250,14 @@ export default function Checkout() {
       
       console.log('Coupon validation response:', res.data);
       
+      // CRITICAL FIX: Always clear discount first, then set based on validation result
+      setDiscount(0);
+      
       // Enhanced error handling - check for explicit failure first
       if (res.data.valid === false || res.data.error) {
         const errorMessage = res.data.message || res.data.error || "Invalid coupon";
         setCouponMsg(errorMessage);
-        setDiscount(0);
+        setDiscount(0); // Ensure discount stays 0
         
         // If error mentions email requirement, ensure email check isn't skipped next time
         if (errorMessage.toLowerCase().includes('email')) {
@@ -263,8 +266,8 @@ export default function Checkout() {
         return;
       }
       
-      // Check for valid discount
-      if (res.data.discount && res.data.discount > 0) {
+      // Check for valid discount - ONLY set discount if explicitly valid
+      if (res.data.valid === true && res.data.discount && res.data.discount > 0) {
         setDiscount(res.data.discount);
         setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
         
@@ -286,15 +289,11 @@ export default function Checkout() {
             }
           }
         }
-      } else if (res.data.valid !== false) {
-        // Handle case where coupon exists but gives no discount
-        const message = res.data.message || "Coupon gives no discount for this order";
-        setCouponMsg(message);
-        setDiscount(0);
       } else {
-        // Default case for invalid coupons
-        setCouponMsg("Invalid coupon code");
-        setDiscount(0);
+        // Handle case where coupon exists but gives no discount or is invalid
+        const message = res.data.message || "Invalid coupon code";
+        setCouponMsg(message);
+        setDiscount(0); // Explicitly ensure no discount
       }
     } catch (err) {
       console.error('Coupon validation error:', err);
@@ -446,26 +445,36 @@ export default function Checkout() {
               type="email"
               value={email}
               onChange={(e) => {
-                setEmail(e.target.value);
+                const newEmail = e.target.value;
+                setEmail(newEmail);
                 
-                // If coupon is already applied, clear discount immediately and re-validate with new email
+                // If coupon is already applied, handle re-validation properly
                 if (coupon && discount > 0) {
-                  // Clear discount immediately to avoid showing stale discount
+                  // CRITICAL FIX: Clear discount and message immediately
                   setDiscount(0);
                   setCouponMsg("Validating coupon with new email...");
+                  setCouponValidating(true);
                   
                   // Clear previous timer to avoid multiple API calls
                   if (validateTimerRef.current) {
                     clearTimeout(validateTimerRef.current);
                   }
                   
-                  // Re-validate after user stops typing
-                  validateTimerRef.current = setTimeout(() => {
-                    // Only re-validate if component is still mounted and coupon is still entered
-                    if (isComponentMountedRef.current && coupon) {
-                      handleCoupon(false);
-                    }
-                  }, 1000);
+                  // Only re-validate if email looks valid (basic check)
+                  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (emailPattern.test(newEmail)) {
+                    // Re-validate immediately for complete emails
+                    validateTimerRef.current = setTimeout(() => {
+                      if (isComponentMountedRef.current && coupon) {
+                        handleCoupon(false);
+                      }
+                    }, 300); // Shorter delay for complete emails
+                  } else {
+                    // For incomplete emails, clear coupon state but don't validate
+                    setDiscount(0);
+                    setCouponMsg("Complete your email to validate coupon");
+                    setCouponValidating(false);
+                  }
                 }
               }}
               placeholder="you@example.com"
