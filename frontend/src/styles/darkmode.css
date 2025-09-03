@@ -1,0 +1,359 @@
+/* =================================================================
+   COMPREHENSIVE DARK MODE STYLES FOR MONKEYZ PLATFORM
+   ================================================================= */
+
+/* Root Variables for Theme Colors */
+:root {
+  /* Light mode colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --accent-color: #3182ce;
+  --accent-hover: #2c5282;
+  --card-shadow: rgba(0, 0, 0, 0.1);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* Dark mode colors */
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --border-color: #475569;
+  --accent-color: #3b82f6;
+  --accent-hover: #60a5fa;
+  --card-shadow: rgba(0, 0, 0, 0.3);
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+}
+
+/* Global Dark Mode Styles */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Typography in Dark Mode */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: var(--text-primary);
+}
+
+.dark p, .dark span, .dark div {
+  color: var(--text-secondary);
+}
+
+.dark .text-muted {
+  color: var(--text-muted);
+}
+
+/* Card Components */
+.dark .card,
+.dark .product-card,
+.dark .feature-card {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  box-shadow: 0 4px 6px -1px var(--card-shadow);
+}
+
+.dark .card:hover,
+.dark .product-card:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* Form Elements */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-color)33;
+  background-color: var(--bg-tertiary);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Button Styles */
+.dark .btn-primary {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.dark .btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.dark .btn-secondary {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.dark .btn-secondary:hover {
+  background-color: var(--bg-secondary);
+}
+
+/* Navigation & Header */
+.dark .navbar,
+.dark .header {
+  background-color: var(--bg-secondary);
+  border-bottom-color: var(--border-color);
+}
+
+.dark .nav-link {
+  color: var(--text-secondary);
+}
+
+.dark .nav-link:hover,
+.dark .nav-link.active {
+  color: var(--accent-color);
+}
+
+/* Sidebar & Menu */
+.dark .sidebar {
+  background-color: var(--bg-secondary);
+  border-right-color: var(--border-color);
+}
+
+.dark .menu-item {
+  color: var(--text-secondary);
+}
+
+.dark .menu-item:hover,
+.dark .menu-item.active {
+  background-color: var(--bg-tertiary);
+  color: var(--accent-color);
+}
+
+/* Tables */
+.dark table {
+  background-color: var(--bg-secondary);
+}
+
+.dark th {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-bottom-color: var(--border-color);
+}
+
+.dark td {
+  border-bottom-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.dark tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Modal & Overlay */
+.dark .modal-overlay {
+  background-color: var(--overlay-bg);
+}
+
+.dark .modal-content {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+/* Dropdown & Popover */
+.dark .dropdown-menu,
+.dark .popover {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  box-shadow: 0 10px 15px -3px var(--card-shadow);
+}
+
+/* Toast & Notifications */
+.dark .toast {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark .toast.success {
+  background-color: #059669;
+  color: white;
+}
+
+.dark .toast.error {
+  background-color: #dc2626;
+  color: white;
+}
+
+.dark .toast.warning {
+  background-color: #d97706;
+  color: white;
+}
+
+/* Loading & Skeleton */
+.dark .skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+}
+
+.dark .spinner {
+  border-color: var(--border-color);
+  border-top-color: var(--accent-color);
+}
+
+/* Image & Media */
+.dark img {
+  filter: brightness(0.9);
+}
+
+.dark .image-overlay {
+  background: linear-gradient(to bottom, transparent, var(--bg-primary));
+}
+
+/* Badges & Tags */
+.dark .badge {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dark .badge.primary {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+/* Progress & Indicators */
+.dark .progress-bar {
+  background-color: var(--bg-tertiary);
+}
+
+.dark .progress-fill {
+  background-color: var(--accent-color);
+}
+
+/* Borders & Dividers */
+.dark .border,
+.dark .border-t,
+.dark .border-b,
+.dark .border-l,
+.dark .border-r {
+  border-color: var(--border-color);
+}
+
+.dark .divider {
+  background-color: var(--border-color);
+}
+
+/* Code & Pre */
+.dark code {
+  background-color: var(--bg-tertiary);
+  color: var(--accent-color);
+}
+
+.dark pre {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Special Page-Specific Styles */
+.dark .hero-section {
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.dark .feature-grid {
+  background-color: var(--bg-secondary);
+}
+
+.dark .pricing-card {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.dark .pricing-card.featured {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 20px var(--accent-color)33;
+}
+
+.dark .testimonial-card {
+  background-color: var(--bg-secondary);
+  border-left-color: var(--accent-color);
+}
+
+/* Animation & Transitions */
+.dark * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Scrollbar Styling for Dark Mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color);
+}
+
+/* Focus States */
+.dark *:focus {
+  outline-color: var(--accent-color);
+}
+
+.dark .focus\:ring-2:focus {
+  box-shadow: 0 0 0 3px var(--accent-color)33;
+}
+
+/* Print Styles for Dark Mode */
+@media print {
+  .dark {
+    color-scheme: light;
+  }
+  
+  .dark body {
+    background-color: white !important;
+    color: black !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .dark {
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --border-color: #ffffff;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .dark * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

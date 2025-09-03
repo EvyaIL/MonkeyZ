@@ -10,6 +10,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { initPerformanceOptimizations } from './lib/performanceOptimizer';
 import './lib/reactWarningSuppress'; // Suppress React warnings in development
 import './styles/globals.css'; // Import our design system CSS
+import './styles/darkmode.css'; // Import comprehensive dark mode styles
 
 // React Query imports for Phase 2
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

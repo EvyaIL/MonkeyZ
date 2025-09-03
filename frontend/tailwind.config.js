@@ -21,6 +21,26 @@ module.exports = {
         success: '#16A34A',       // Success green
         info: '#12c2e9',         // Info blue
         warning: '#ffd803',       // Warning yellow
+        
+        // Dark mode color palette
+        dark: {
+          'primary': '#0f172a',      // Dark slate
+          'secondary': '#1e293b',    // Slate 800
+          'tertiary': '#334155',     // Slate 700
+          'surface': '#475569',      // Slate 600
+          'accent': '#3b82f6',       // Blue 500
+          'accent-dark': '#1d4ed8',  // Blue 700
+          'accent-light': '#60a5fa', // Blue 400
+          'text-primary': '#f8fafc', // Slate 50
+          'text-secondary': '#e2e8f0', // Slate 200
+          'text-muted': '#94a3b8',   // Slate 400
+          'border': '#475569',       // Slate 600
+          'divider': '#374151',      // Gray 700
+          'success': '#10b981',      // Emerald 500
+          'error': '#ef4444',        // Red 500
+          'warning': '#f59e0b',      // Amber 500
+          'info': '#06b6d4',         // Cyan 500
+        }
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
