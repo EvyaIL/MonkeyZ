@@ -1,9 +1,30 @@
-/* Modern Product Page Styles */
+/* Modern Product Page Styles with RTL and Hebrew Support */
 .product-page-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, rgba(255, 255, 255, 0.05) 100%);
   padding: var(--spacing-6);
   font-family: var(--font-family-sans);
+  position: relative;
+  overflow: hidden;
+}
+
+/* RTL Support */
+.product-page-container.rtl {
+  direction: rtl;
+  font-family: var(--font-hebrew);
+}
+
+.product-page-container.ltr {
+  direction: ltr;
+}
+
+/* Light/Dark mode adjustments */
+[data-theme="light"] .product-page-container {
+  background: linear-gradient(135deg, var(--bg-light) 0%, rgba(255, 255, 255, 0.9) 100%);
+}
+
+[data-theme="dark"] .product-page-container {
+  background: linear-gradient(135deg, var(--bg-dark) 0%, rgba(20, 20, 20, 0.9) 100%);
 }
 
 .product-page-content {

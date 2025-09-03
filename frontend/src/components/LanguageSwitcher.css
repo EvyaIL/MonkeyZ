@@ -1,0 +1,122 @@
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.875rem;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  min-width: 120px;
+  justify-content: center;
+}
+
+.language-switcher:hover {
+  background: var(--glass-hover);
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.language-switcher:active {
+  transform: translateY(0);
+}
+
+.language-switcher:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.language-switcher-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.3s ease;
+}
+
+.language-switcher.animating .language-switcher-inner {
+  transform: scale(0.95);
+}
+
+.current-lang {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.switch-arrow {
+  color: var(--accent-color);
+  font-size: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.language-switcher:hover .switch-arrow {
+  transform: translateX(2px);
+}
+
+.next-lang {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* RTL support */
+[dir="rtl"] .language-switcher .switch-arrow {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .language-switcher:hover .switch-arrow {
+  transform: scaleX(-1) translateX(2px);
+}
+
+/* Compact version */
+.language-switcher.compact {
+  min-width: auto;
+  padding: 0.375rem 0.75rem;
+}
+
+.language-switcher.compact .language-switcher-inner {
+  gap: 0.25rem;
+}
+
+/* Light mode adjustments */
+[data-theme="light"] .language-switcher {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--border-light);
+}
+
+[data-theme="light"] .language-switcher:hover {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .language-switcher {
+  background: rgba(30, 30, 30, 0.8);
+  border-color: var(--border-dark);
+}
+
+[data-theme="dark"] .language-switcher:hover {
+  background: rgba(30, 30, 30, 0.95);
+}
+
+/* Hebrew font support */
+.lang-he .language-switcher {
+  font-family: 'Heebo', 'Assistant', system-ui, sans-serif;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .language-switcher {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+    min-width: 100px;
+  }
+  
+  .language-switcher .next-lang {
+    display: none;
+  }
+}

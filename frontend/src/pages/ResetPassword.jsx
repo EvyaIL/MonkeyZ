@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../lib/apiService';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
+import "./ResetPassword.css";
 
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();

@@ -10,6 +10,8 @@ import imagePreloadService from "../lib/imagePreloadService";
 import { usePerformanceMonitoring, trackRoutePerformance } from "../hooks/usePerformanceMonitoring";
 import { ProductGridSkeleton } from "../components/SkeletonLoaders";
 import LazyImage from "../components/LazyImage";
+import { isRTL, formatTextDirection } from "../utils/language";
+import './Home.css';
 
 const Home = React.memo(() => {
   // Only use performance monitoring in development for debugging
@@ -128,48 +130,63 @@ const Home = React.memo(() => {
         <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
-          {t("home")}
-        </h1>
+      <div className={`home-container ${isRTL() ? 'rtl' : 'ltr'}`}>
+        <div className="home-content">
+          <div className="home-hero">
+            <h1 className="home-title" tabIndex={0}>
+              <span className="home-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="home-icon-svg">
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+              </span>
+              {formatTextDirection(t("home"))}
+            </h1>
+          </div>
 
-        <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
-          {loadingBest ? (
-            <ProductGridSkeleton count={8} />
-          ) : errorBest ? (
-            <p className="text-error text-center bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700" role="alert">
-              {errorBest}
-            </p>
-          ) : bestSellers.length > 0 ? (
-            <ProductShowcase products={bestSellers} title={t("best_sellers")} />
-          ) : null}
-        </section>
+          <section className="home-section home-section-showcase" aria-label={t("best_sellers")}>
+            {loadingBest ? (
+              <div className="home-skeleton-container">
+                <ProductGridSkeleton count={8} />
+              </div>
+            ) : errorBest ? (
+              <div className="home-error-message" role="alert">
+                {errorBest}
+              </div>
+            ) : bestSellers.length > 0 ? (
+              <ProductShowcase products={bestSellers} title={formatTextDirection(t("best_sellers"))} />
+            ) : null}
+          </section>
 
-        <section
-          className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-12 backdrop-blur-sm"
-          aria-label={t("featured_products")}
-        >
-          <h2 className="text-center text-accent font-bold text-3xl mb-8">
-            {t("featured_products")}
-          </h2>
-          {loadingHome ? (
-            <ProductGridSkeleton count={12} />
-          ) : errorHome ? (
-            <p className="text-error text-center text-lg p-4" role="alert">
-              {errorHome}
-            </p>
-          ) : homeProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {homeProducts.map((product) => (
-                <ProductCard key={product.id || product._id} product={product} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-600 dark:text-gray-400 py-8">
-              {t("no_products_available")}
-            </p>
-          )}
-        </section>
+          <section className="home-section home-section-featured" aria-label={t("featured_products")}>
+            <h2 className="home-section-title">
+              {formatTextDirection(t("featured_products"))}
+            </h2>
+            {loadingHome ? (
+              <div className="home-skeleton-container">
+                <ProductGridSkeleton count={12} />
+              </div>
+            ) : errorHome ? (
+              <div className="home-error-message" role="alert">
+                {errorHome}
+              </div>
+            ) : homeProducts.length > 0 ? (
+              <div className="home-products-grid">
+                {homeProducts.map((product) => (
+                  <ProductCard key={product.id || product._id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="home-no-products">
+                <div className="home-no-products-icon">
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="no-products-svg">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                  </svg>
+                </div>
+                <p>{formatTextDirection(t("no_products_available"))}</p>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </>
   );

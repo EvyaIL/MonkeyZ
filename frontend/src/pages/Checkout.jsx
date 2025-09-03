@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
 import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
+import { isRTL, formatTextDirection, formatCurrency } from "../utils/language";
+import "./Checkout.css";
 
 export default function Checkout() {
   const { cartItems, validateCartItems, cleanCartItems, clearCart, user } = useGlobalProvider();

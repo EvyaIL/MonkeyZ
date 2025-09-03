@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import SecondaryButton from "../buttons/SecondaryButton";
 import PrimaryButton from "../buttons/PrimaryButton";
-import PointButton from "../buttons/PointButton"; // Corrected import
+import PointButton from "../buttons/PointButton";
 import { useNavigate } from "react-router-dom";
 import { useGlobalProvider } from "../../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import Spinner from "../Spinner";
 import placeholderImage from '../../assets/placeholder-product.svg';
+import { isRTL, formatTextDirection } from "../../utils/language";
+import './ProductShowcase.css';
 
 const ProductShowcase = React.memo(({ products, title }) => {
   // Filter out invalid products
@@ -156,13 +158,17 @@ const ProductShowcase = React.memo(({ products, title }) => {
   };
 
   // Loading state
-  if (!isLoaded) {    return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
-        <h2 className="text-center text-primary dark:text-accent font-bold text-3xl mb-6">
-          {title}
+  if (!isLoaded) {
+    return (
+      <div className={`product-showcase ${isRTL() ? 'rtl' : 'ltr'}`}>
+        <h2 className="showcase-title">
+          {formatTextDirection(title)}
         </h2>
-        <div className="flex justify-center items-center h-[200px]">
+        <div className="showcase-loading">
           <Spinner />
+          <p className="showcase-loading-text">
+            {formatTextDirection(t("loading_products", "Loading products..."))}
+          </p>
         </div>
       </div>
     );
@@ -170,16 +176,16 @@ const ProductShowcase = React.memo(({ products, title }) => {
   // No products state
   if (validProducts.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 w-full max-w-6xl text-center text-gray-800 dark:text-white">
-        <h2 className="text-center text-primary dark:text-accent font-bold text-3xl mb-6">
-          {title}
+      <div className={`product-showcase ${isRTL() ? 'rtl' : 'ltr'}`}>
+        <h2 className="showcase-title">
+          {formatTextDirection(title)}
         </h2>
-        <div className="py-8 flex flex-col items-center">
-          <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <div className="showcase-empty">
+          <svg className="showcase-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
           </svg>
-          <p className="text-lg">{t("no_products_to_display", "No products to display.")}</p>
-          <p className="text-sm text-gray-500 mt-2">{t("check_back_later", "Please check back later for our featured products.")}</p>
+          <p className="showcase-empty-text">{formatTextDirection(t("no_products_to_display", "No products to display."))}</p>
+          <p className="showcase-empty-subtitle">{formatTextDirection(t("check_back_later", "Please check back later for our featured products."))}</p>
         </div>
       </div>
     );
@@ -192,26 +198,29 @@ const ProductShowcase = React.memo(({ products, title }) => {
 
   return (
     <div 
-      className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl overflow-hidden backdrop-blur-sm"
+      className={`product-showcase ${isRTL() ? 'rtl' : 'ltr'}`}
       ref={showcaseRef}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onKeyDown={handleKeyDown}
       tabIndex="0"
       role="region"
-      aria-label={title}    >      <h2 className="text-center text-accent font-bold text-3xl mb-6">
-        {title}
+      aria-label={title}
+    >
+      <h2 className="showcase-title">
+        {formatTextDirection(title)}
       </h2>
       <>
-        {/* Product Carousel */}        <div 
-          className="relative overflow-hidden h-[280px] md:h-[300px] mb-6"
+        {/* Product Carousel */}
+        <div 
+          className="showcase-carousel"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          dir={lang === "he" ? "rtl" : "ltr"}
+          dir={isRTL() ? "rtl" : "ltr"}
         >
           <div
-            className="flex transition-transform duration-700 ease-in-out h-full"
+            className="showcase-slides"
             style={{ transform: getSlideTransform() }}
             aria-live="polite"
           >
@@ -229,9 +238,10 @@ const ProductShowcase = React.memo(({ products, title }) => {
               const productId = p.id;
               const isActive = index === currentIndex;
 
-              return (                <div
+              return (
+                <div
                   key={productId || `product-slide-${index}`}
-                  className={`min-w-full h-full flex flex-col md:flex-row gap-4 md:gap-6 items-center p-3 md:p-4 box-border transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'} cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/20 rounded-lg transition-colors`}
+                  className={`showcase-slide ${isActive ? 'active' : 'inactive'}`}
                   onClick={() => {
                     if (!productId) return;
                     const navigateToName = typeof nameToDisplay === 'object' ? (nameToDisplay.en || Object.values(nameToDisplay)[0]) : nameToDisplay;
@@ -245,18 +255,18 @@ const ProductShowcase = React.memo(({ products, title }) => {
                     }
                     navigate(`/product/${encodeURIComponent(navigateToName)}`);
                   }}
-                  tabIndex={isActive ? 0 : -1} // Only allow focus on current slide
+                  tabIndex={isActive ? 0 : -1}
                   role="group"
                   aria-label={`${t("showcase_for", "Showcase for")} ${nameToDisplay}`}
                   aria-hidden={!isActive}
-                  dir={lang === "he" ? "rtl" : "ltr"}
+                  dir={isRTL() ? "rtl" : "ltr"}
                 >
-                  <div className="w-full md:w-1/2 h-[140px] md:h-full rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden shadow-sm transition-transform hover:scale-[1.02] duration-200">
+                  <div className="showcase-image-container">
                     {imageToDisplay ? (
                       <img
                         src={imageToDisplay}
                         alt={nameToDisplay}
-                        className="object-cover w-full h-full" /* Changed from object-contain and removed p-2 */
+                        className="showcase-image"
                         loading="lazy"
                         onError={(e) => {
                           e.target.onerror = null;
@@ -264,81 +274,106 @@ const ProductShowcase = React.memo(({ products, title }) => {
                         }}
                       />
                     ) : (
-                      <img src={placeholderImage} alt={nameToDisplay} className="object-cover w-full h-full" /> /* Changed from object-contain and removed p-2 */
+                      <img src={placeholderImage} alt={nameToDisplay} className="showcase-image" />
                     )}
                   </div>
 
-                  <div className={`flex-1 text-gray-800 dark:text-white p-2 md:p-0 ${lang === "he" ? "text-right" : "text-left"}`}>
-                    <h3 className="text-start text-accent font-bold text-lg md:text-xl mb-2">
-                      {nameToDisplay}
+                  <div className="showcase-content">
+                    <h3 className="showcase-product-title">
+                      {formatTextDirection(nameToDisplay)}
                     </h3>
-                    <p className="break-words text-sm md:text-base leading-relaxed line-clamp-3 md:line-clamp-4">
-                      {descToDisplay}
+                    <p className="showcase-product-description">
+                      {formatTextDirection(descToDisplay)}
                     </p>
-                    <div className={`flex flex-wrap items-center gap-2 mt-3 ${lang === "he" ? "justify-end" : "justify-start"}`}>
-                      <p className="text-lg font-semibold text-accent">
+                    <div className="showcase-product-details">
+                      <p className="showcase-price">
                         ₪{priceToDisplay}
                       </p>
                       {p.percent_off > 0 && (
-                        <span className="px-2 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 text-xs font-semibold rounded">
-                          {p.percent_off}% {t("off", "OFF")}
+                        <span className="showcase-badge discount">
+                          {p.percent_off}% {formatTextDirection(t("off", "OFF"))}
                         </span>
                       )}
                       {p.inStock === false && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 text-xs font-semibold rounded">
-                          {t("out_of_stock", "Out of Stock")}
+                        <span className="showcase-badge out-of-stock">
+                          {formatTextDirection(t("out_of_stock", "Out of Stock"))}
                         </span>
                       )}
-                      {p.is_new && ( // Ensured is_new is used
-                        <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs font-semibold rounded">
-                          {t("new", "NEW")}
+                      {p.is_new && (
+                        <span className="showcase-badge new">
+                          {formatTextDirection(t("new", "NEW"))}
                         </span>
                       )}
                     </div>
                     
                     {/* Show Add to Cart button on mobile view */}
                     {isMobileView && (
-                      <div className="mt-3">
-                        <PrimaryButton
-                          title={t("add_to_cart")}
-                          ariaLabel={`${t("add")} ${nameToDisplay} ${t("to_cart")}`}
+                      <div style={{ marginTop: 'var(--spacing-3)' }}>
+                        <button
+                          className="showcase-badge"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleAddToCart(p);
                           }}
                           disabled={!p.id || p.inStock === false}
-                          otherStyle="text-sm py-1.5 px-3"
-                        />
+                          style={{ 
+                            background: 'var(--color-brand-primary)',
+                            color: 'white',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {formatTextDirection(t("add_to_cart"))}
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
               );
             })}
-          </div>          {/* Left/Right arrows for larger screens */}
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              prevProduct();
-            }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
-            aria-label={t("previous_product")}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              nextProduct();
-            }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-accent/80 hover:bg-accent text-white rounded-full p-2 hidden md:block transition-colors duration-200 shadow-md"
-            aria-label={t("next_product")}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+          </div>
+          
+          {/* Navigation controls */}
+          <div className="showcase-controls">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                prevProduct();
+              }}
+              className="showcase-nav-btn"
+              aria-label={t("previous_product")}
+              disabled={validProducts.length <= 1}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+              </svg>
+            </button>
+            
+            <div className="showcase-indicators">
+              {validProducts.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentIndex(index)}
+                  className={`showcase-indicator ${index === currentIndex ? 'active' : ''}`}
+                  aria-label={`${t("go_to_slide")} ${index + 1}`}
+                />
+              ))}
+            </div>
+            
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                nextProduct();
+              }}
+              className="showcase-nav-btn"
+              aria-label={t("next_product")}
+              disabled={validProducts.length <= 1}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+                <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Desktop Add to Cart Button */}

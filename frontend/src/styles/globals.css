@@ -7,15 +7,15 @@
 
 /* CSS Custom Properties (Design Tokens) */
 :root {
-  /* Colors */
+  /* Light Mode Colors (Default) */
   --color-brand-primary: #2563eb;
   --color-brand-secondary: #64748b;
-  --color-brand-accent: #f59e0b;
+  --color-brand-accent: #10b981;
   
-  --color-semantic-success: #10b981;
-  --color-semantic-warning: #f59e0b;
-  --color-semantic-error: #ef4444;
-  --color-semantic-info: #3b82f6;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
   
   --color-gray-50: #f8fafc;
   --color-gray-100: #f1f5f9;
@@ -28,15 +28,21 @@
   --color-gray-800: #1e293b;
   --color-gray-900: #0f172a;
   
+  /* Light Mode Background Colors */
   --color-background-primary: #ffffff;
   --color-background-secondary: #f8fafc;
-  --color-background-dark: #0f172a;
-  --color-background-dark-secondary: #1e293b;
+  --color-background-tertiary: #f1f5f9;
   
+  /* Light Mode Text Colors */
   --color-text-primary: #0f172a;
   --color-text-secondary: #64748b;
-  --color-text-inverse: #ffffff;
   --color-text-muted: #94a3b8;
+  --color-text-inverse: #ffffff;
+  
+  /* Light Mode Border Colors */
+  --color-border-primary: #e2e8f0;
+  --color-border-secondary: #cbd5e1;
+  --color-border-focus: #2563eb;
   
   /* Typography */
   --font-family-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -84,11 +90,13 @@
   --border-radius-2xl: 1rem;
   --border-radius-full: 9999px;
   
-  /* Shadows */
+  /* Shadows with better light mode contrast */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
   
   /* Transitions */
   --transition-fast: 150ms ease-in-out;
@@ -108,10 +116,42 @@
 
 /* Dark Mode Variables */
 [data-theme="dark"] {
-  --color-background-primary: var(--color-background-dark);
-  --color-background-secondary: var(--color-background-dark-secondary);
-  --color-text-primary: var(--color-text-inverse);
-  --color-text-secondary: var(--color-gray-400);
+  --color-background-primary: #0f172a;
+  --color-background-secondary: #1e293b;
+  --color-background-tertiary: #334155;
+  
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  
+  --color-border-primary: #334155;
+  --color-border-secondary: #475569;
+}
+
+/* RTL Support for Hebrew */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .grid {
+  direction: rtl;
+}
+
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Hebrew Font Support */
+html[lang="he"],
+html[lang="he-IL"] {
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans Hebrew', Arial, sans-serif;
+}
+
+[lang="he"] *,
+[lang="he-IL"] * {
+  font-family: 'Segoe UI', Tahoma, 'Noto Sans Hebrew', Arial, sans-serif;
 }
 
 /* Reset and Base Styles */

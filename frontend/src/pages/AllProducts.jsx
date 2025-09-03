@@ -8,6 +8,7 @@ import PrimaryInput from "../components/inputs/PrimaryInput";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
+import { isRTL, formatTextDirection, formatCurrency } from "../utils/language";
 import "./AllProducts.css";
 
 const AllProducts = React.memo(() => {
@@ -275,10 +276,12 @@ const AllProducts = React.memo(() => {
         <meta property="og:description" content={t("all_products_meta_description") || "Browse all MonkeyZ products. Find the best digital products and services for your needs."} />
         <meta property="og:type" content="website" />
         <link rel="canonical" href={window.location.href.split('?')[0]} />
-      </Helmet>      <div className="all-products-container">
+      </Helmet>
+
+      <div className={`all-products-container ${isRTL() ? 'rtl' : 'ltr'}`}>
         <div className="all-products-header">
           <h1 className="all-products-title" tabIndex={0}>
-            {t("all_products")}
+            {formatTextDirection(t("all_products"))}
           </h1>
         </div>
 
@@ -287,8 +290,8 @@ const AllProducts = React.memo(() => {
           <div className="mobile-filters-toggle lg:hidden">
             <details>
               <summary className="mobile-filters-summary">
-                <span>{t("filters")}</span>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span>{formatTextDirection(t("filters"))}</span>
+                <svg className={`w-5 h-5 ${isRTL() ? 'rtl-arrow' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </summary>
