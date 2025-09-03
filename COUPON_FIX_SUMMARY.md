@@ -1,4 +1,74 @@
-# Coupon Bug Fix Summary
+# Coupon Max Usage Fix Summary
+
+## Critical Bug Fixed
+
+**Problem**: The "max uses overall doesn't work" issue was caused by manual order creation using `validate_coupon()` instead of `apply_coupon()`.
+
+## Root Cause Analysis
+
+### System Architecture
+The coupon system has two distinct methods:
+- `validate_coupon()`: Preview mode - checks if coupon is valid but DOESN'T increment usage
+- `apply_coupon()`: Application mode - validates AND increments usage count
+
+### Where Each Method Should Be Used
+- **Frontend validation**: `validate_coupon()` ✅ Correct
+- **PayPal orders**: `apply_coupon()` ✅ Already fixed 
+- **Manual orders**: ❌ Was using `validate_coupon()` - **FIXED**
+
+## The Bug
+
+**Location**: `backend/src/routers/orders.py` line 527
+
+**Before (broken)**:
+```python
+discount_amount, coupon_obj, coupon_error = await coupon_service.validate_coupon(coupon_code, original_total, order_data.email)
+```
+
+**After (fixed)**:
+```python
+discount_amount, coupon_obj, coupon_error = await coupon_service.apply_coupon(coupon_code, original_total, order_data.email)
+```
+
+## Impact
+
+### Before Fix:
+- Frontend validation: ✅ Working (doesn't increment usage)
+- PayPal orders: ✅ Working (increments usage correctly)  
+- Manual orders: ❌ **BROKEN** (didn't increment usage - allowed unlimited usage)
+
+### After Fix:
+- Frontend validation: ✅ Working (doesn't increment usage)
+- PayPal orders: ✅ Working (increments usage correctly)
+- Manual orders: ✅ **FIXED** (now increments usage correctly)
+
+## How This Caused "Max Uses Overall Doesn't Work"
+
+1. User would create manual orders with coupons
+2. Manual order creation called `validate_coupon()` instead of `apply_coupon()`
+3. Usage count was never incremented in the database
+4. Coupon appeared to work unlimited times
+5. Max usage limits were never enforced
+
+## Testing
+
+Run the test script to verify the fix:
+```bash
+python test_coupon_fix_final.py
+```
+
+The test verifies:
+1. ✅ Validation doesn't increment usage (correct behavior)
+2. ✅ Application increments usage (fixed behavior)  
+3. ✅ Max usage limits are enforced (now working)
+
+## Additional Notes
+
+- PayPal orders were already working correctly (fixed in previous session)
+- Frontend validation was already working correctly
+- The issue only affected manual order creation
+- This fix ensures all order types (manual and PayPal) consistently increment usage counts
+- All max usage limits (overall and per-user) now work correctly
 
 ## Problem Identified
 The coupons worked perfectly on localhost but had several issues on DigitalOcean:

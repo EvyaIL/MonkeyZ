@@ -188,13 +188,23 @@ const AdminDashboard = React.memo(() => {
   const handleCouponSubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
+    
+    // Parse numeric values with proper handling for 0
+    const maxUses = formData.get('maxUses');
+    const maxUsagePerUser = formData.get('maxUsagePerUser');
+    
     const couponData = {
         code: formData.get('code'),
-        discountPercentage: parseInt(formData.get('discountPercentage')),
-        startDate: formData.get('startDate'),
-        endDate: formData.get('endDate'),
-        description: formData.get('description')
+        discountType: 'percentage', // Set default type
+        discountValue: parseFloat(formData.get('discountPercentage')), // Backend expects discountValue
+        maxUses: maxUses === '' || maxUses === null ? null : parseInt(maxUses),
+        maxUsagePerUser: maxUsagePerUser === '' || maxUsagePerUser === null ? 0 : parseInt(maxUsagePerUser),
+        expiresAt: formData.get('endDate') ? new Date(formData.get('endDate')).toISOString() : null,
+        active: formData.get('active') === 'true',
+        description: formData.get('description') || ''
     };
+    
+    console.log('Submitting coupon data:', couponData); // Debug log
     
     try {
       if (editingCoupon?.id) { // Ensure editingCoupon has an id
@@ -636,7 +646,7 @@ const AdminDashboard = React.memo(() => {
 
       {editingCoupon && (
         <form onSubmit={handleCouponSubmit} className="mb-8 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
                 {t('admin.couponCode')}
@@ -656,38 +666,65 @@ const AdminDashboard = React.memo(() => {
               <input
                 type="number"
                 name="discountPercentage"
-                defaultValue={editingCoupon.discountPercentage}
+                defaultValue={editingCoupon.discountValue || editingCoupon.discountPercentage || ''}
                 min="0"
                 max="100"
+                step="0.01"
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
                 required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Max Uses (0 = unlimited)
+              </label>
+              <input
+                type="number"
+                name="maxUses"
+                defaultValue={editingCoupon.maxUses || ''}
+                min="0"
+                placeholder="0 for unlimited"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
-                {t('admin.startDate')}
-              </label>
-              <input
-                type="date"
-                name="startDate"
-                defaultValue={editingCoupon.startDate}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                {t('admin.endDate')}
+                Expires At (optional)
               </label>
               <input
                 type="date"
                 name="endDate"
-                defaultValue={editingCoupon.endDate}
+                defaultValue={editingCoupon.expiresAt ? editingCoupon.expiresAt.split('T')[0] : ''}
                 className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
-                required
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Max Uses Per User (0 = unlimited)
+              </label>
+              <input
+                type="number"
+                name="maxUsagePerUser"
+                defaultValue={editingCoupon.maxUsagePerUser || ''}
+                min="0"
+                placeholder="0 for unlimited"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Active
+              </label>
+              <select
+                name="active"
+                defaultValue={editingCoupon.active !== false ? 'true' : 'false'}
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-accent focus:border-transparent"
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
             </div>
           </div>
           <div>

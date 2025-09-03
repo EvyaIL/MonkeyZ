@@ -42,6 +42,86 @@ paypal_client = PayPalHttpClient(environment)
 router = APIRouter()
 
 # TEMPORARY DEBUG ENDPOINT - Remove this after testing!
+@router.post("/debug/create-test-coupons")
+async def debug_create_test_coupons():
+    """
+    TEMPORARY DEBUG ENDPOINT - Creates test coupons for debugging.
+    Remove this after testing!
+    """
+    try:
+        from datetime import datetime, timezone, timedelta
+        
+        db = await mongo_db.get_db()
+        admin_db = db.client.get_database("admin")
+        coupons_collection = admin_db.get_collection("coupons")
+        
+        # Create comprehensive test coupons
+        test_coupons = [
+            {
+                "code": "TEST10",
+                "discountType": "percentage",
+                "discountValue": 10,
+                "maxUses": 2,
+                "maxUsagePerUser": 1,
+                "usageCount": 0,
+                "userUsages": {},
+                "active": True,
+                "expiresAt": datetime.now(timezone.utc) + timedelta(days=30),
+                "createdAt": datetime.now(timezone.utc),
+                "description": "Test: 10% off, 2 max total, 1 per user"
+            },
+            {
+                "code": "SAVE20",
+                "discountType": "fixed",
+                "discountValue": 20,
+                "maxUses": 5,
+                "maxUsagePerUser": 2,
+                "usageCount": 0,
+                "userUsages": {},
+                "active": True,
+                "expiresAt": datetime.now(timezone.utc) + timedelta(days=30),
+                "createdAt": datetime.now(timezone.utc),
+                "description": "Test: $20 off, 5 max total, 2 per user"
+            },
+            {
+                "code": "UNLIMITED",
+                "discountType": "percentage", 
+                "discountValue": 5,
+                "maxUses": 0,  # 0 = unlimited
+                "maxUsagePerUser": 0,  # 0 = unlimited per user
+                "usageCount": 0,
+                "userUsages": {},
+                "active": True,
+                "expiresAt": datetime.now(timezone.utc) + timedelta(days=30),
+                "createdAt": datetime.now(timezone.utc),
+                "description": "Test: 5% off, unlimited usage"
+            }
+        ]
+        
+        created_count = 0
+        for coupon in test_coupons:
+            # Remove existing coupon if it exists
+            await coupons_collection.delete_many({"code": coupon["code"]})
+            
+            # Insert new coupon
+            result = await coupons_collection.insert_one(coupon)
+            created_count += 1
+            logger.info(f"DEBUG: Created test coupon {coupon['code']}")
+        
+        # Verify creation
+        total_coupons = await coupons_collection.count_documents({})
+        
+        return {
+            "message": f"Created {created_count} test coupons",
+            "coupons_created": [c["code"] for c in test_coupons],
+            "total_coupons_in_db": total_coupons,
+            "test_instructions": "Use codes: TEST10, SAVE20, UNLIMITED"
+        }
+        
+    except Exception as e:
+        logger.error(f"DEBUG: Error creating test coupons: {e}")
+        return {"error": f"Failed to create test coupons: {str(e)}"}
+
 @router.post("/debug/apply-coupon")
 async def debug_apply_coupon(payload: dict):
     """
@@ -212,10 +292,11 @@ async def validate_coupon_public(request: Request):
         else:
             logger.warning("No coupons found in admin database!")
         
-        # Initialize coupon service with the main database (it will auto-use admin for coupons)
+        # Initialize coupon service with the main database (where orders are stored)
+        # Note: Coupons are in admin_db, but orders are in main_db
         try:
             coupon_service = CouponService(main_db)
-            logger.info("CouponService initialized successfully")
+            logger.info("CouponService initialized with main database for order counting")
         except Exception as service_error:
             logger.error(f"CouponService initialization failed: {service_error}")
             return JSONResponse({
@@ -442,11 +523,14 @@ async def create_order(
     coupon_obj = None
     coupon_error = None
     if coupon_code:
-        coupon_service = CouponService(db)
-        # Step 1: Validate the coupon. This does NOT increment usage counts.
-        discount_amount, coupon_obj, coupon_error = await coupon_service.validate_coupon(coupon_code, original_total, order_data.email)
+        # Use main database and let CouponService handle admin database access
+        from ..lib.database_manager import mongo_db
+        main_db = await mongo_db.get_db()
+        coupon_service = CouponService(main_db)
+        # CRITICAL FIX: Use apply_coupon instead of validate_coupon to increment usage counts
+        discount_amount, coupon_obj, coupon_error = await coupon_service.apply_coupon(coupon_code, original_total, order_data.email)
         if coupon_error:
-            # If validation fails, raise an HTTP exception to stop order creation.
+            # If application fails, raise an HTTP exception to stop order creation.
             raise HTTPException(status_code=400, detail=coupon_error)
 
     order_data.discount_amount = discount_amount
@@ -1100,15 +1184,21 @@ async def create_paypal_order(
     # Calculate original total from validated items
     original_total = sum(item.get("price", 0) * item.get("quantity", 0) for item in valid_items_for_db)
     
-    # Apply coupon discount if provided
+    # Apply coupon discount if provided - USE APPLY_COUPON TO INCREMENT USAGE
     discount = 0
     if coupon_code and coupon_code.strip():
-        coupon_service = CouponService((await mongo_db.get_db()))
-        discount, _, error = await coupon_service.validate_coupon(coupon_code, original_total, customer_email)
+        # Use main database and let CouponService handle admin database access
+        main_db = await mongo_db.get_db()
+        coupon_service = CouponService(main_db)
+        # CRITICAL FIX: Use apply_coupon instead of validate_coupon to prevent double usage
+        # This ensures usage count is incremented at order creation, not capture
+        discount, coupon_obj, error = await coupon_service.apply_coupon(coupon_code, original_total, customer_email)
         if error:
-            logger.warning(f"Coupon validation failed for {coupon_code}: {error}")
-            # Continue with full amount if coupon is invalid
-            discount = 0
+            logger.warning(f"Coupon application failed for {coupon_code}: {error}")
+            # Fail the order creation if coupon fails (don't allow invalid coupons)
+            raise HTTPException(status_code=400, detail=f"Coupon error: {error}")
+        else:
+            logger.info(f"Successfully applied coupon {coupon_code} at order creation: discount={discount}")
     
     net_total = original_total - discount
     logger.info(f"PayPal order: original_total={original_total}, discount={discount}, net_total={net_total}, coupon='{coupon_code}'")
@@ -1310,40 +1400,17 @@ async def capture_paypal_order(
     # Update coupon analytics if completed
     logger.info(f"PayPal Capture: current_order_status={current_order_status}, coupon_code='{coupon_code}'")
     
-    # CRITICAL FIX: Apply coupon for ALL non-failed orders, not just COMPLETED
-    if coupon_code and current_order_status not in [StatusEnum.CANCELLED, StatusEnum.FAILED]:
-        logger.info(f"PayPal Capture: Starting coupon application for {coupon_code} (status: {current_order_status})")
+    # UPDATED: Since we now apply coupon at creation, just update analytics for completed orders
+    if coupon_code and current_order_status == StatusEnum.COMPLETED:
+        logger.info(f"PayPal Capture: Order completed - updating analytics for {coupon_code} (usage already applied at creation)")
         
-        # APPLY the coupon (increment usage count) - this was the missing piece!
+        # Just update analytics since coupon was already applied at order creation
         coupon_service = CouponService(db)
         
-        logger.info(f"PayPal Capture: Applying coupon {coupon_code} for email {customer_email}, amount {original_total}")
+        # Force sync the usage count display (should already be correct)
+        await coupon_service.update_coupon_usage_count(coupon_code)
         
-        # Force usage count sync first
-        real_usage_before = await coupon_service.get_real_usage_count(coupon_code)
-        logger.info(f"PayPal Capture: Real usage before apply: {real_usage_before}")
-        
-        discount_applied, coupon_obj, apply_error = await coupon_service.apply_coupon(
-            coupon_code, original_total, customer_email
-        )
-        
-        if apply_error:
-            logger.error(f"PayPal Capture: Failed to apply coupon {coupon_code} during capture: {apply_error}")
-        else:
-            logger.info(f"PayPal Capture: Successfully applied coupon {coupon_code} for order {order_id}, discount: {discount_applied}")
-            
-            # Force sync the usage count to display
-            await coupon_service.update_coupon_usage_count(coupon_code)
-            
-            # Log coupon object details for debugging
-            if coupon_obj:
-                logger.info(f"PayPal Capture: Coupon object after apply: usageCount={coupon_obj.get('usageCount', 'unknown')}, maxUses={coupon_obj.get('maxUses', 'unknown')}")
-        
-        # Verify the fix worked
-        real_usage_after = await coupon_service.get_real_usage_count(coupon_code)
-        logger.info(f"PayPal Capture: Real usage after apply: {real_usage_after}")
-        
-        # Also recalculate analytics for admin panel
+        # Update analytics for admin panel
         try:
             from .admin_router import recalculate_coupon_analytics
             await recalculate_coupon_analytics(coupon_code, db)
@@ -1352,9 +1419,9 @@ async def capture_paypal_order(
             logger.error(f"PayPal Capture: Failed to recalculate analytics for {coupon_code}: {analytics_error}")
     else:
         if not coupon_code:
-            logger.info("PayPal Capture: No coupon code found - skipping coupon application")
+            logger.info("PayPal Capture: No coupon code found - skipping analytics update")
         else:
-            logger.info(f"PayPal Capture: Order status is {current_order_status} - skipping coupon application for failed order")
+            logger.info(f"PayPal Capture: Order status is {current_order_status} - skipping analytics update (only done for completed orders)")
 
     # Update order in DB with unified structure
     now = datetime.now(timezone.utc)

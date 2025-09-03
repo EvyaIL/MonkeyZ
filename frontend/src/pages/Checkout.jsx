@@ -28,7 +28,7 @@ export default function Checkout() {
   const paypalPerformanceRef = useRef(null);
   const cleanupTimeoutRef = useRef(null);
   const isComponentMountedRef = useRef(true);
-  const validateTimerRef = useRef(null); // Fix: Add missing validateTimer ref
+  const validateTimerRef = useRef(null); // Timer for delayed coupon validation
 
   // Performance monitoring instance with cleanup tracking
   if (!paypalPerformanceRef.current) {
@@ -177,6 +177,12 @@ export default function Checkout() {
         cleanupTimeoutRef.current = null;
       }
       
+      // Clean up validation timer
+      if (validateTimerRef.current) {
+        clearTimeout(validateTimerRef.current);
+        validateTimerRef.current = null;
+      }
+      
       // Reset PayPal loaded state to prevent stale renders
       setPaypalLoaded(false);
     };
@@ -189,14 +195,31 @@ export default function Checkout() {
   );
   const total = subtotal - discount;
 
-  // Apply coupon
+  // Watch for cart changes and re-validate coupon if needed
+  useEffect(() => {
+    // If coupon is applied and cart changes, re-validate
+    if (coupon && discount > 0 && subtotal > 0) {
+      // Re-validate coupon with new cart total after a short delay
+      if (validateTimerRef.current) {
+        clearTimeout(validateTimerRef.current);
+      }
+      
+      validateTimerRef.current = setTimeout(() => {
+        if (isComponentMountedRef.current && coupon && discount > 0) {
+          handleCoupon(true); // Skip email check since this is automatic re-validation
+        }
+      }, 500);
+    }
+  }, [subtotal]); // Re-run when subtotal changes
+
+  // Apply coupon with improved error handling and validation
   const handleCoupon = async (skipEmailCheck = false) => {
     setCouponMsg("");
     setDiscount(0);
     setCouponValidating(true);
     
     try {
-      if (!coupon) {
+      if (!coupon || !coupon.trim()) {
         setCouponMsg("Enter a coupon code");
         return;
       }
@@ -207,16 +230,18 @@ export default function Checkout() {
         return;
       }
     
-      // Debug logging for environment differences
+      // Calculate current subtotal for accurate validation
+      const currentSubtotal = cartArray.reduce(
+        (acc, item) => acc + item.price * item.count,
+        0
+      );
+      
       const apiUrl = process.env.REACT_APP_API_URL || 'https://api.monkeyz.co.il';
-      console.log('Coupon validation - API URL:', apiUrl);
-      console.log('Coupon validation - Environment:', process.env.NODE_ENV);
-      console.log('Coupon validation - Current host:', window.location.host);
       
       const requestData = {
-        code: coupon,
-        amount: subtotal,
-        email: email || user?.email || null, // Include user email for per-user validation
+        code: coupon.trim(),
+        amount: currentSubtotal,
+        email: email || user?.email || null,
       };
       
       console.log('Coupon validation request:', requestData);
@@ -225,55 +250,58 @@ export default function Checkout() {
       
       console.log('Coupon validation response:', res.data);
       
-      // Check if coupon validation was successful
-      // Handle both old format (discount only) and new format (valid field)
-      const isValid = res.data.valid !== false && !res.data.error && res.data.discount > 0;
-      const hasError = res.data.valid === false || res.data.error;
-      
-      if (hasError) {
-        // Handle specific error cases
+      // Enhanced error handling - check for explicit failure first
+      if (res.data.valid === false || res.data.error) {
         const errorMessage = res.data.message || res.data.error || "Invalid coupon";
         setCouponMsg(errorMessage);
         setDiscount(0);
+        
+        // If error mentions email requirement, ensure email check isn't skipped next time
+        if (errorMessage.toLowerCase().includes('email')) {
+          // Force email requirement for future validations
+        }
         return;
       }
       
-      // Check for valid discount (works with both old and new API format)
+      // Check for valid discount
       if (res.data.discount && res.data.discount > 0) {
         setDiscount(res.data.discount);
         setCouponMsg(`Coupon applied - ₪${res.data.discount.toFixed(2)} off`);
         
-        // Check if coupon is near its usage limit (if coupon object is provided)
+        // Enhanced usage tracking display
         if (res.data.coupon) {
           const { usageCount, maxUses } = res.data.coupon;
-          if (maxUses && usageCount !== undefined && maxUses > 0) {
+          if (maxUses && maxUses > 0 && usageCount !== undefined) {
             const remainingUses = maxUses - usageCount;
             const usagePercentage = (usageCount / maxUses) * 100;
             
-            // Show notification when coupon is over 70% used
+            // Show warning when coupon is near limit
             if (usagePercentage >= 70 && remainingUses > 0) {
               setCouponMsg(prev => `${prev} (${remainingUses} uses left)`);
             }
             
-            // Show warning when coupon is almost fully used (over 90%)
+            // Show critical warning when almost fully used
             if (usagePercentage >= 90 && remainingUses > 0) {
-              setCouponMsg(prev => `${prev} - This coupon is almost fully used!`);
+              setCouponMsg(prev => `${prev} ⚠️ Almost fully used!`);
             }
           }
         }
-      } else {
-        // Handle case where discount is 0 but no explicit error
-        const message = res.data.message || "Coupon is not applicable";
+      } else if (res.data.valid !== false) {
+        // Handle case where coupon exists but gives no discount
+        const message = res.data.message || "Coupon gives no discount for this order";
         setCouponMsg(message);
+        setDiscount(0);
+      } else {
+        // Default case for invalid coupons
+        setCouponMsg("Invalid coupon code");
         setDiscount(0);
       }
     } catch (err) {
       console.error('Coupon validation error:', err);
       console.error('Error response:', err.response?.data);
-      console.error('Error status:', err.response?.status);
       
-      // Extract error message from response
-      let errorMessage = "Invalid coupon";
+      // Enhanced error message extraction
+      let errorMessage = "Unable to validate coupon";
       if (err.response?.data) {
         errorMessage = err.response.data.message || err.response.data.error || errorMessage;
       } else if (err.message) {
@@ -365,20 +393,41 @@ export default function Checkout() {
               <input
                 type="text"
                 value={coupon}
-                onChange={(e) => setCoupon(e.target.value)}
+                onChange={(e) => {
+                  setCoupon(e.target.value);
+                  // Clear discount and message when coupon code changes
+                  if (discount > 0) {
+                    setDiscount(0);
+                    setCouponMsg("");
+                  }
+                }}
                 className="flex-1 border p-2 rounded-l"
+                disabled={discount > 0} // Disable input when coupon is applied
               />
-              <button
-                onClick={handleCoupon}
-                disabled={couponValidating}
-                className={`px-4 rounded-r transition-colors ${
-                  couponValidating 
-                    ? 'bg-gray-400 text-white cursor-not-allowed' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {couponValidating ? 'Validating...' : 'Apply'}
-              </button>
+              {discount > 0 ? (
+                <button
+                  onClick={() => {
+                    setCoupon("");
+                    setDiscount(0);
+                    setCouponMsg("");
+                  }}
+                  className="px-4 rounded-r bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  onClick={handleCoupon}
+                  disabled={couponValidating}
+                  className={`px-4 rounded-r transition-colors ${
+                    couponValidating 
+                      ? 'bg-gray-400 text-white cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {couponValidating ? 'Validating...' : 'Apply'}
+                </button>
+              )}
             </div>
             {couponMsg && (
               <p className={`mt-2 text-sm ${
@@ -399,14 +448,23 @@ export default function Checkout() {
               onChange={(e) => {
                 setEmail(e.target.value);
                 
-                // If coupon is already applied, re-validate with new email
+                // If coupon is already applied, clear discount immediately and re-validate with new email
                 if (coupon && discount > 0) {
-                  // Re-validate after short delay to avoid too many API calls
+                  // Clear discount immediately to avoid showing stale discount
+                  setDiscount(0);
+                  setCouponMsg("Validating coupon with new email...");
+                  
+                  // Clear previous timer to avoid multiple API calls
                   if (validateTimerRef.current) {
                     clearTimeout(validateTimerRef.current);
                   }
+                  
+                  // Re-validate after user stops typing
                   validateTimerRef.current = setTimeout(() => {
-                    handleCoupon(false); // Don't skip email check since email just changed
+                    // Only re-validate if component is still mounted and coupon is still entered
+                    if (isComponentMountedRef.current && coupon) {
+                      handleCoupon(false);
+                    }
                   }, 1000);
                 }
               }}

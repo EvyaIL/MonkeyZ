@@ -15,6 +15,26 @@ class CouponAnalyticsService:
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         
+    async def _get_coupons_collection(self):
+        """Helper method to get the coupons collection from admin database."""
+        try:
+            # Check if we're already connected to admin database
+            if hasattr(self.db, 'name') and self.db.name == "admin":
+                return self.db.coupons
+            
+            # Otherwise, access admin database through client
+            if hasattr(self.db, 'client'):
+                admin_db = self.db.client.get_database("admin")
+                return admin_db.coupons
+            
+            # Fallback - assume we're in the right database
+            return self.db.coupons
+            
+        except Exception as e:
+            logger.error(f"Error accessing coupons collection: {e}")
+            # Fallback to current database
+            return self.db.coupons
+        
     async def sync_all_coupon_analytics(self) -> Dict[str, Any]:
         """
         Synchronize all coupon analytics to match real order data.
@@ -23,9 +43,8 @@ class CouponAnalyticsService:
         try:
             logger.info("=== STARTING COUPON ANALYTICS SYNC ===")
             
-            # Get all active coupons
-            admin_db = self.db.client.get_database("admin")
-            coupons_collection = admin_db.get_collection("coupons")
+            # Get all active coupons using helper method
+            coupons_collection = await self._get_coupons_collection()
             
             coupons = await coupons_collection.find({'active': True}).to_list(None)
             logger.info(f"Found {len(coupons)} active coupons to sync")

@@ -1,6 +1,7 @@
 from src.mongodb.orders_collection import OrdersCollection
 from src.models.order import normalize_status, StatusEnum
 import re  # Add import for regex operations
+import logging  # Add logging import
 # --- COUPON ANALYTICS RECALCULATION ---
 async def recalculate_coupon_analytics(coupon_code: str, db):
     """
@@ -63,9 +64,17 @@ async def recalculate_coupon_analytics(coupon_code: str, db):
     }
 
     # Update the coupon using case-insensitive search
-    # Use admin database where coupons are stored
-    admin_db = db.client.get_database("admin") if hasattr(db, 'client') else db
-    coupons_collection = admin_db.coupons if hasattr(admin_db, 'coupons') else admin_db.get_collection("coupons")
+    # Use admin database where coupons are stored - improved access pattern
+    try:
+        if hasattr(db, 'client'):
+            admin_db = db.client.get_database("admin")
+            coupons_collection = admin_db.coupons
+        else:
+            # Fallback to current database
+            coupons_collection = db.coupons
+    except Exception as e:
+        logging.error(f"Error accessing admin database: {e}")
+        coupons_collection = db.coupons
     
     # Try both the original and normalized code
     update_result = await coupons_collection.update_one(
