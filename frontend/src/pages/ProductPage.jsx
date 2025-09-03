@@ -69,18 +69,50 @@ const ProductPage = () => {
   // Fetch related products
   const fetchRelatedProducts = useCallback(async () => {
     const productId = product.id || product._id;
+    const category = product.category;
     if (!productId) return;
 
     setLoadingRelated(true);
-    const { data, error } = await apiService.get(`/product/related/${productId}`);
-    if (!error && data && Array.isArray(data)) {
-      setRelatedProducts(data.slice(0, 4));
+    
+    // Try to fetch related products by product ID first
+    let { data, error } = await apiService.get(`/product/related/${productId}`);
+    
+    // If no related endpoint or no results, fetch by category as fallback
+    if (error || !data || !Array.isArray(data) || data.length === 0) {
+      if (category) {
+        const categoryResult = await apiService.get(`/product/category/${encodeURIComponent(category)}`);
+        if (!categoryResult.error && categoryResult.data && Array.isArray(categoryResult.data)) {
+          // Filter out the current product and limit to 4
+          data = categoryResult.data
+            .filter(p => (p.id || p._id) !== productId)
+            .slice(0, 4);
+        }
+      }
+      
+      // If still no results, fetch latest products as final fallback
+      if (!data || data.length === 0) {
+        const latestResult = await apiService.get('/product/homepage', { limit: 4 });
+        if (!latestResult.error && latestResult.data && Array.isArray(latestResult.data)) {
+          data = latestResult.data
+            .filter(p => (p.id || p._id) !== productId)
+            .slice(0, 4);
+        }
+      }
     }
+    
+    if (data && Array.isArray(data)) {
+      setRelatedProducts(data.slice(0, 4));
+    } else {
+      setRelatedProducts([]);
+    }
+    
     setLoadingRelated(false);
   }, [product]);
 
   useEffect(() => {
     fetchProduct();
+    // Scroll to top when product changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [fetchProduct]);
 
   useEffect(() => {
@@ -203,6 +235,21 @@ const ProductPage = () => {
                         alt={displayName || t("product_image")}
                         className="product-image"
                         loading="lazy"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.parentElement.innerHTML = `
+                            <div class="product-image-placeholder">
+                              <svg viewBox="0 0 24 24" class="placeholder-icon" fill="currentColor">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                              </svg>
+                              <span>${formatTextDirection(t("image_not_available", "Image not available"))}</span>
+                            </div>
+                          `;
+                        }}
+                        onLoad={(e) => {
+                          e.target.style.opacity = '1';
+                        }}
+                        style={{ opacity: '0', transition: 'opacity 0.3s ease' }}
                       />
                     ) : (
                       <div className="product-image-placeholder">
@@ -295,27 +342,39 @@ const ProductPage = () => {
                 </div>
               </main>
 
-              {relatedProducts.length > 0 && (
-                <section className="related-products-section">
-                  <h2 className="related-products-title">
-                    {formatTextDirection(t("related_products", "Related Products"))}
-                  </h2>
-                  {loadingRelated ? (
-                    <div className="loading-container">
-                      <Spinner />
-                    </div>
-                  ) : (
-                    <div className="related-products-grid">
-                      {relatedProducts.map((relatedProduct) => (
-                        <ProductCard 
-                          key={relatedProduct.id || relatedProduct._id} 
-                          product={relatedProduct} 
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
+              {/* Related Products Section */}
+              <section className="related-products-section">
+                <h2 className="related-products-title">
+                  {formatTextDirection(t("related_products", "Related Products"))}
+                </h2>
+                {loadingRelated ? (
+                  <div className="related-products-loading">
+                    <Spinner />
+                    <p className="loading-text">
+                      {formatTextDirection(t("loading_related_products", "Loading related products..."))}
+                    </p>
+                  </div>
+                ) : relatedProducts.length > 0 ? (
+                  <div className="related-products-grid">
+                    {relatedProducts.map((relatedProduct) => (
+                      <ProductCard 
+                        key={relatedProduct.id || relatedProduct._id} 
+                        product={relatedProduct} 
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="related-products-empty">
+                    <svg className="related-products-empty-icon" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                    </svg>
+                    <p>{formatTextDirection(t("no_related_products", "No related products found"))}</p>
+                    <Link to="/products" className="error-link" style={{ marginTop: 'var(--spacing-4)' }}>
+                      {formatTextDirection(t("browse_all_products", "Browse All Products"))}
+                    </Link>
+                  </div>
+                )}
+              </section>
             </>
           )}
         </div>

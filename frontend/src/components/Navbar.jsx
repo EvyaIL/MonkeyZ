@@ -4,6 +4,7 @@ import PrimaryButton from "./buttons/PrimaryButton";
 import SecondaryButton from "./buttons/SecondaryButton";
 import { useState, useEffect, useRef, memo, useCallback, useMemo } from "react";
 import LanguageSwitcher from "./LanguageSwitcher";
+import ThemeToggle from "./ThemeToggle";
 import { useTranslation } from "react-i18next";
 
 const Navbar = memo(() => {
@@ -185,9 +186,10 @@ const Navbar = memo(() => {
             </Link>
           </div>
 
-          {/* Language + Auth + Cart Controls */}
+          {/* Language + Theme + Auth + Cart Controls */}
           <div className="flex items-center gap-4 md:gap-6">
-            <div className="hidden md:block">
+            <div className="hidden md:flex items-center gap-3">
+              <ThemeToggle />
               <LanguageSwitcher />
             </div>
 
@@ -341,7 +343,8 @@ const Navbar = memo(() => {
               {t("blog")}
             </Link>
             
-            <div className="pt-2 border-t border-gray-700">
+            <div className="pt-2 border-t border-gray-700 flex flex-col gap-3">
+              <ThemeToggle />
               <LanguageSwitcher />
             </div>
             

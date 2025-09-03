@@ -295,5 +295,11 @@
   "errors": {
     "productNotFound": "המוצר לא נמצא. אנא בדקו את הכתובת ונסו שוב.",
     "generalError": "אירעה שגיאה בטעינת המוצר. אנא נסו שוב מאוחר יותר."
-  }
+  },
+  "related_posts": "פוסטים קשורים",
+  "tags": "תגיות",
+  "share_post": "שתף פוסט",
+  "post_not_found": "הפוסט לא נמצא",
+  "post_not_found_message": "הפוסט שאתה מחפש לא קיים או שהוסר.",
+  "monkeyz_team": "צוות MonkeyZ"
 }
