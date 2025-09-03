@@ -8,6 +8,7 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 import { validateEmail, validatePassword } from "../lib/authUtils";
 import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
+import "./SignIn.css";
 
 const SignIn = () => {
   // State initialization
@@ -162,70 +163,79 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="signin-container">
       <form
-        className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm space-y-6 w-full max-w-md"
+        className="signin-form"
         onSubmit={onClickSignIn}
         dir={isRTL ? "rtl" : "ltr"}
         aria-label="Sign in form"
       >
-        <h2 className="text-center text-2xl font-bold text-accent">{t("sign_in", "Login")}</h2>
+        <h2 className="signin-title">{t("sign_in", "Login")}</h2>
         
         <div
-          className={`text-center font-bold transition-all ${message.message ? "scale-100" : "scale-0"} w-full h-5`}
-          style={{ color: message.color }}
+          className={`signin-message ${message.color === "#DC2626" ? "error" : message.color === "#16A34A" ? "success" : ""}`}
           role={message.color === "#DC2626" ? "alert" : "status"}
           aria-live="polite"
+          style={{ opacity: message.message ? 1 : 0 }}
         >
           {message.message}
         </div>
 
-        <div className="space-y-4">
-          <PrimaryInput
-            title={t("username_or_email", "Username or Email")}
-            value={form.usernameOrEmail}
-            placeholder={t("enter_username_or_email", "Enter your username, email, or Google name")}
-            onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
-            autoComplete="username"
-            required
-            minLength={3}
-            maxLength={50}
-          />
-          <PrimaryInput
-            type="password"
-            title={t("password", "Password")}
-            value={form.password}
-            placeholder={t("enter_your_password", "Enter your password")}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            autoComplete="current-password"
-            required
-            minLength={8}
-          />
+        <div className="signin-fields">
+          <div className="input-group">
+            <label className="input-label" htmlFor="username-email">
+              {t("username_or_email", "Username or Email")}
+            </label>
+            <input
+              id="username-email"
+              className="input-field"
+              value={form.usernameOrEmail}
+              placeholder={t("enter_username_or_email", "Enter your username, email, or Google name")}
+              onChange={(e) => setForm({ ...form, usernameOrEmail: e.target.value })}
+              autoComplete="username"
+              required
+              minLength={3}
+              maxLength={50}
+            />
+          </div>
+          
+          <div className="input-group">
+            <label className="input-label" htmlFor="password">
+              {t("password", "Password")}
+            </label>
+            <input
+              id="password"
+              type="password"
+              className="input-field"
+              value={form.password}
+              placeholder={t("enter_your_password", "Enter your password")}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              autoComplete="current-password"
+              required
+              minLength={8}
+            />
+          </div>
         </div>
         
-        <PrimaryButton
-          title={isSubmit ? t("signing_in", "Signing in...") : t("sign_in", "Sign in")}
-          onClick={onClickSignIn}
-          otherStyle="w-full"
+        <button
+          type="submit"
+          className={`signin-button ${isSubmit ? "loading" : ""}`}
           disabled={isSubmit}
-        />
+        >
+          {isSubmit ? t("signing_in", "Signing in...") : t("sign_in", "Sign in")}
+        </button>
         
-        <div className="relative mt-4">
-          <div className="absolute inset-0 flex items-center">            <div className="w-full border-t border-accent/30 dark:border-accent/30"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-2 text-accent/70 bg-white dark:bg-gray-800">{t("or", "or")}</span>
-          </div>
+        <div className="divider">
+          {t("or", "or")}
         </div>
         
-        <div className="flex justify-center">
+        <div className="google-signin">
           <GoogleLogin
             onSuccess={onGoogleSignIn}
             onError={(error) => { 
               console.error('Google OAuth Error:', error);
               let errorMessage = 'Google sign in failed.';
               
-              // Provide more specific error messages
               if (error?.error === 'popup_blocked') {
                 errorMessage = 'Google sign-in popup was blocked. Please allow popups for this site.';
               } else if (error?.error === 'access_blocked') {
@@ -245,51 +255,75 @@ const SignIn = () => {
           />
         </div>
 
-        <SecondaryButton
-          title={t("forgot_password", "Forgot password?")}
-          onClick={() => setShowReset((v) => !v)}
-          otherStyle="w-full"
-        />
+        <div className="signin-links">
+          <button
+            type="button"
+            className="signin-link"
+            onClick={() => setShowReset((v) => !v)}
+          >
+            {t("forgot_password", "Forgot password?")}
+          </button>
+          
+          <button
+            type="button"
+            className="signin-link"
+            onClick={() => navigate("/sign-up")}
+          >
+            {t("dont_have_account", "Don't have an account? Sign Up")}
+          </button>
+        </div>
+      </form>
 
-        {showReset && (
-          <div className="p-4 mt-4 border border-accent/30 dark:border-accent/30 rounded-lg bg-gray-50 dark:bg-gray-800/50 space-y-3" dir={isRTL ? "rtl" : "ltr"}>
-            <h3 className="text-lg font-medium text-center mb-3">{t("reset_password", "Reset Password")}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+      {showReset && (
+        <div className="reset-modal" onClick={(e) => e.target.className.includes('reset-modal') && setShowReset(false)}>
+          <div className="reset-form" dir={isRTL ? "rtl" : "ltr"}>
+            <h3 className="reset-title">{t("reset_password", "Reset Password")}</h3>
+            <p className="text-sm text-gray-600 mb-4">
               {t("reset_password_instructions", "Enter your email address below and we'll send you a link to reset your password.")}
             </p>
-            <div>
-              <PrimaryInput
-                title={t("email", "Email")}
+            
+            <div className="input-group">
+              <label className="input-label" htmlFor="reset-email">
+                {t("email", "Email")}
+              </label>
+              <input
+                id="reset-email"
+                type="email"
+                className="input-field"
                 value={resetEmail}
                 placeholder={t("enter_email_for_reset", "Enter your email address")}
                 onChange={(e) => setResetEmail(e.target.value)}
                 autoComplete="email"
                 required
-                type="email"
               />
-              <div className="mt-3">
-                <PrimaryButton
-                  title={isResetSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
-                  onClick={onPasswordReset}
-                  otherStyle="w-full"
-                  disabled={isResetSubmit}
-                />
+            </div>
+            
+            {resetMsg && (
+              <div className={`signin-message ${resetMsg.includes("sent") ? "success" : "error"}`}>
+                {resetMsg}
               </div>
-              {resetMsg && (
-                <p className={`text-center p-2 mt-2 rounded ${resetMsg.includes("sent") ? "bg-green-100/70 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100/70 text-red-600 dark:bg-red-900/30 dark:text-red-300"}`}>
-                  {resetMsg}
-                </p>
-              )}
+            )}
+            
+            <div className="reset-buttons">
+              <button
+                type="button"
+                className="reset-button secondary"
+                onClick={() => setShowReset(false)}
+              >
+                {t("cancel", "Cancel")}
+              </button>
+              <button
+                type="button"
+                className={`reset-button primary ${isResetSubmit ? "loading" : ""}`}
+                onClick={onPasswordReset}
+                disabled={isResetSubmit}
+              >
+                {isResetSubmit ? t("sending", "Sending...") : t("send_reset_email", "Send Reset Email")}
+              </button>
             </div>
           </div>
-        )}
-
-        <SecondaryButton
-          title={t("dont_have_account", "Don't have an account? Sign Up")}
-          onClick={() => navigate("/sign-up")}
-          otherStyle="w-full"
-        />
-      </form>
+        </div>
+      )}
     </div>
   );
 };

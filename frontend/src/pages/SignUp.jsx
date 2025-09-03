@@ -8,6 +8,7 @@ import { useGlobalProvider } from "../context/GlobalProvider";
 import { validatePhone, validateEmail, validateStrongPassword, getPasswordStrength } from "../lib/authUtils";
 import { GoogleLogin } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
+import "./SignUp.css";
 
 const SignUp = () => {
   const { t, i18n } = useTranslation();
@@ -218,183 +219,214 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
+    <div className="signup-container">
       <form
-        className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 backdrop-blur-sm space-y-5 w-full max-w-md"
+        className="signup-form"
         onSubmit={otpSent ? onVerifyOtp : onSubmitSignUp}
         dir={i18n.language === 'he' ? "rtl" : "ltr"}
         aria-label="Sign up form"
       >
-        <h2 className="text-center text-2xl font-bold text-accent">
+        <h2 className="signup-title">
           {t("create_account", "Create An Account")}
         </h2>
         
         <div
-          className={`text-center font-bold transition-all ${message.message ? "scale-100" : "scale-0"} w-full h-5`}
-          style={{ color: message.color }}
+          className={`signin-message ${message.color === "#DC2626" ? "error" : message.color === "#16A34A" ? "success" : ""}`}
           role={message.color === "#DC2626" ? "alert" : "status"}
           aria-live="polite"
+          style={{ opacity: message.message ? 1 : 0 }}
         >
           {message.message}
         </div>
 
-        <div className="flex flex-col gap-6">
-
-          <div className="space-y-4">
-            <PrimaryInput
-              title={t("username", "Username")}
-              value={form.username}
-              placeholder={t("enter_your_username", "Enter your username")}
-              onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, "") })}
-              autoComplete="username"
-              required
-              minLength={3}
-              maxLength={32}
-            />
-            <PrimaryInput
-              type="password"
-              title={t("password", "Password")}
-              value={form.password}
-              placeholder={t("enter_your_password", "Enter your password")}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-            
-            {/* Password Strength Indicator */}
-            {form.password && (
-              <div className="mt-2">
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        passwordStrength <= 2 ? 'bg-red-500' :
-                        passwordStrength <= 4 ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
-                      style={{ width: `${(passwordStrength / 5) * 100}%` }}
-                    ></div>
-                  </div>
-                  <span className={`text-sm font-medium ${
-                    passwordStrength <= 2 ? 'text-red-500' :
-                    passwordStrength <= 4 ? 'text-yellow-500' : 'text-green-500'
-                  }`}>
-                    {passwordStrength <= 2 ? t('weak', 'Weak') :
-                     passwordStrength <= 4 ? t('medium', 'Medium') : t('strong', 'Strong')}
-                  </span>
+        {!otpSent ? (
+          <>
+            <div className="signup-fields">
+              <div className="signup-fields-grid">
+                <div className="input-group">
+                  <label className="input-label" htmlFor="username">
+                    {t("username", "Username")}
+                  </label>
+                  <input
+                    id="username"
+                    className="input-field"
+                    value={form.username}
+                    placeholder={t("enter_your_username", "Enter your username")}
+                    onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9_-]/g, "") })}
+                    autoComplete="username"
+                    required
+                    minLength={3}
+                    maxLength={32}
+                  />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('password_requirements', 'Use 8+ characters with uppercase, lowercase, numbers & symbols')}
-                </p>
+                
+                <div className="input-group field-full-width">
+                  <label className="input-label" htmlFor="email">
+                    {t("email", "Email")}
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    className="input-field"
+                    value={form.email}
+                    placeholder={t("enter_your_email", "Enter your email")}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+                
+                <div className="input-group">
+                  <label className="input-label" htmlFor="password">
+                    {t("password", "Password")}
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    className="input-field"
+                    value={form.password}
+                    placeholder={t("enter_your_password", "Enter your password")}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                  />
+                  {form.password && (
+                    <div className={`password-strength-indicator password-strength-${passwordStrength <= 2 ? 'weak' : passwordStrength <= 4 ? 'medium' : 'strong'}`}>
+                      <div className="password-strength-bar">
+                        <div className="password-strength-fill"></div>
+                      </div>
+                      <span>{passwordStrength <= 2 ? t('weak', 'Weak') : passwordStrength <= 4 ? t('medium', 'Medium') : t('strong', 'Strong')} Password</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="input-group">
+                  <label className="input-label" htmlFor="confirm-password">
+                    {t("confirm_password", "Confirm Password")}
+                  </label>
+                  <input
+                    id="confirm-password"
+                    type="password"
+                    className="input-field"
+                    value={confirmPassword}
+                    placeholder={t("confirm_your_password", "Confirm your password")}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                  />
+                </div>
+                
+                <div className="input-group field-full-width">
+                  <label className="input-label" htmlFor="phone">
+                    {t("phone_number", "Phone Number (Optional)")}
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    className="input-field"
+                    value={form.phone_number}
+                    placeholder="Enter your phone number"
+                    onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
+                    autoComplete="tel"
+                    minLength={10}
+                    maxLength={15}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className={`signup-button ${isSubmit ? "loading" : ""}`}
+              disabled={isSubmit}
+            >
+              {isSubmit ? t("signing_up", "Signing up...") : t("sign_up", "Sign Up")}
+            </button>
+
+            <div className="divider">
+              {t("or", "or")}
+            </div>
+
+            <div className="google-signin">
+              <GoogleLogin
+                onSuccess={onGoogleAuth}
+                onError={(error) => { 
+                  console.error('Google OAuth Error:', error);
+                  setMessage({ 
+                    message: t('google_signin_failed') || 'Google sign in failed. Please check your internet connection and try again.', 
+                    color: '#DC2626' 
+                  }); 
+                  setGoogleLoading(false); 
+                }}
+                locale={document.documentElement.lang || 'en'}
+                theme="filled_blue"
+                text="signup_with"
+                shape="pill"
+                disabled={googleLoading}
+              />
+            </div>
+
+            <div className="signin-links">
+              <button
+                type="button"
+                className="signin-link"
+                onClick={() => navigate("/sign-in")}
+              >
+                {t("already_have_account", "Already have an account? Sign In")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="otp-section">
+            <h3 className="otp-title">
+              {t("verify_email", "Verify Your Email")}
+            </h3>
+            <p className="otp-description">
+              {t("otp_sent_to", "We've sent a verification code to")} {form.email}
+            </p>
+            
+            <div className="input-group">
+              <label className="input-label" htmlFor="otp">
+                {t("enter_otp", "Enter Verification Code")}
+              </label>
+              <input
+                id="otp"
+                className="otp-input"
+                value={enteredOtp}
+                placeholder={t("enter_the_otp", "Enter the 6-digit code")}
+                onChange={(e) => setEnteredOtp(e.target.value)}
+                maxLength={6}
+                required
+              />
+            </div>
+            
+            {otpError && (
+              <div className="signin-message error">
+                {otpError}
               </div>
             )}
             
-            <PrimaryInput
-              type="password"
-              title={t("confirm_password", "Confirm Password")}
-              value={confirmPassword}
-              placeholder={t("confirm_your_password", "Confirm your password")}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={8}
-            />
-            
-            <PrimaryInput
-              type="email"
-              title={t("email", "Email")}
-              value={form.email}
-              placeholder={t("enter_your_email", "Enter your email")}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              autoComplete="email"
-              required
-            />
-            <PrimaryInput
-              title={t("phone_number", "Phone Number (Optional)")}
-              type="tel"
-              value={form.phone_number}
-              placeholder="Enter your phone number"
-              onChange={(e) => setForm({ ...form, phone_number: e.target.value.replace(/[^0-9+]/g, "") })}
-              autoComplete="tel"
-              minLength={10}
-              maxLength={15}
-            />
-          </div>
-
-          <div className="relative mb-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 text-gray-500 bg-white dark:bg-gray-800">{t("or", "or")}</span>
+            <div className="otp-buttons">
+              <button
+                type="button"
+                className="otp-button secondary"
+                onClick={onResendOtp}
+                disabled={isSubmit}
+              >
+                {t("resend_otp", "Resend Code")}
+              </button>
+              <button
+                type="submit"
+                className={`otp-button primary ${isSubmit ? "loading" : ""}`}
+                disabled={isSubmit}
+              >
+                {isSubmit ? t("verifying", "Verifying...") : t("verify_otp", "Verify")}
+              </button>
             </div>
           </div>
-
-          <div className="flex justify-center mb-4">
-            <GoogleLogin
-              onSuccess={onGoogleAuth}
-              onError={(error) => { 
-                console.error('Google OAuth Error:', error);
-                setMessage({ 
-                  message: t('google_signin_failed') || 'Google sign in failed. Please check your internet connection and try again.', 
-                  color: '#DC2626' 
-                }); 
-                setGoogleLoading(false); 
-              }}
-              locale={document.documentElement.lang || 'en'}
-              theme="filled_blue"
-              text="signup_with"
-              shape="pill"
-              disabled={googleLoading}
-            />
-          </div>
-
-          {otpSent && (
-            <div className="space-y-4">
-              <PrimaryInput
-                title={t("enter_otp", "Enter OTP")}
-                value={enteredOtp}
-                placeholder={t("enter_the_otp", "Enter the OTP sent to your email")}
-                onChange={(e) => setEnteredOtp(e.target.value)}
-                required
-              />
-              {otpError && <p className="text-red-500 text-center">{otpError}</p>}
-              <div className="flex flex-col gap-2">
-                <PrimaryButton
-                  title={isSubmit ? t("signing_up") : t("verify_otp")}
-                  onClick={onVerifyOtp}
-                  otherStyle="w-full"
-                  disabled={isSubmit}
-                />
-                <SecondaryButton
-                  title={t("resend_otp")}
-                  onClick={onResendOtp}
-                  otherStyle="w-full text-xs py-1"
-                  disabled={isSubmit}
-                />
-              </div>
-            </div>
-          )}
-
-          {!otpSent && (
-            <PrimaryButton
-              title={isSubmit ? t("signing_up") : t("sign_up")}
-              onClick={onSubmitSignUp}
-              otherStyle="w-full"
-              disabled={isSubmit}
-            />
-          )}
-          
-          <SecondaryButton
-            title={t("already_have_account")}
-            onClick={() => navigate("/sign-in")}
-            otherStyle="w-full"
-          />
-          
-          {message.message && message.color === '#DC2626' && (
-            <p className="text-red-500 text-center">{message.message}</p>
-          )}
-        </div>
+        )}
       </form>
     </div>
   );
