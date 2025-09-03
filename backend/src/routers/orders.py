@@ -1344,49 +1344,95 @@ async def capture_paypal_order(
     if not order_doc:
         raise HTTPException(404, "Order not found in database")
 
-    # Step 3: Build a full Order object (like manual order creation)
-    # Use the same logic as create_order to assign keys, set status, and update coupon analytics
+    # Step 3: Build a full Order object using SAME LOGIC as manual order creation
+    # This ensures PayPal orders support partial fulfillment exactly like manual orders
     order_items = [OrderItem(**item) for item in order_doc.get("items", [])]
     current_order_status = StatusEnum.PENDING
     all_items_have_keys = True
+    partial_fulfillment_items = []  # Track items that are partially fulfilled
+    pending_items = []  # Track items waiting for stock
 
-    for item in order_items:
+    for item_index, item in enumerate(order_items):
         if item.quantity <= 0:
             continue
+
         product = await product_collection.get_product_by_id(item.productId)
         if not product:
             all_items_have_keys = False
             continue
+
         if product.manages_cd_keys:
             assigned_keys = []
+            # Use Beanie model for updating and saving
             product_doc = await ProductModel.get(product.id)
             available_keys = [k for k in product_doc.cdKeys if not k.isUsed]
-            if len(available_keys) < item.quantity:
+            
+            # NEW LOGIC: Always assign what's available, track what's pending (same as manual orders)
+            available_count = len(available_keys)
+            requested_count = item.quantity
+            
+            if available_count < requested_count:
                 all_items_have_keys = False
+                # Log the insufficient stock
                 await db.Product.update_one(
                     {"_id": product.id},
                     {"$inc": {"failed_key_assignments": 1}}
                 )
-                logger.warning("Order %s, Item %s: Not enough available keys. Marked for AWAITING_STOCK", order_id, item.productId)
-            else:
-                for i in range(item.quantity):
-                    key_obj = available_keys[i]
-                    key_obj.isUsed = True
-                    key_obj.usedAt = datetime.now(timezone.utc)
-                    # PayPal order_id is not a valid ObjectId, so store as string only if valid, else None
-                    from bson import ObjectId as BsonObjectId
-                    try:
-                        # If order_id is a valid ObjectId, store as ObjectId, else as string
-                        key_obj.orderId = BsonObjectId(order_id)
-                    except Exception:
-                        # If not a valid ObjectId, store as string (for PayPal orders)
-                        key_obj.orderId = str(order_id) if order_id else None
-                    assigned_keys.append(key_obj.key)
+                logger.warning(f"PayPal Order {order_id}, Item {item.productId}: Requested {requested_count}, available {available_count}. Partial fulfillment.")
+                
+                # Track partial fulfillment details
+                if available_count > 0:
+                    partial_fulfillment_items.append({
+                        "productId": item.productId,
+                        "productName": item.name,
+                        "assigned": available_count,
+                        "pending": requested_count - available_count,
+                        "total": requested_count
+                    })
+                else:
+                    pending_items.append({
+                        "productId": item.productId,
+                        "productName": item.name,
+                        "pending": requested_count,
+                        "total": requested_count
+                    })
+            
+            # Assign all available keys (even if partial)
+            keys_to_assign = min(available_count, requested_count)
+            for i in range(keys_to_assign):
+                key_obj = available_keys[i]
+                key_obj.isUsed = True
+                key_obj.usedAt = datetime.now(timezone.utc)
+                # PayPal order_id is not a valid ObjectId, so store as string only if valid, else None
+                from bson import ObjectId as BsonObjectId
+                try:
+                    # If order_id is a valid ObjectId, store as ObjectId, else as string
+                    key_obj.orderId = BsonObjectId(order_id)
+                except Exception:
+                    # If not a valid ObjectId, store as string (for PayPal orders)
+                    key_obj.orderId = str(order_id) if order_id else None
+                assigned_keys.append(key_obj.key)
+            
+            # Save the updated product with used keys (only if we assigned any)
+            if keys_to_assign > 0:
                 await product_doc.save()
+            
             item.assigned_keys = assigned_keys
+            # Add fulfillment metadata to the item
+            item.fulfillment_status = {
+                "assigned": keys_to_assign,
+                "pending": requested_count - keys_to_assign,
+                "total_requested": requested_count
+            }
 
+    # Determine order status based on fulfillment (same logic as manual orders)
     if not all_items_have_keys:
-        current_order_status = StatusEnum.AWAITING_STOCK
+        # Check if we have any fulfilled items
+        has_fulfilled_items = any(len(item.assigned_keys) > 0 for item in order_items if hasattr(item, 'assigned_keys'))
+        if has_fulfilled_items:
+            current_order_status = StatusEnum.PARTIALLY_FULFILLED  # Now supported for PayPal!
+        else:
+            current_order_status = StatusEnum.AWAITING_STOCK
     else:
         current_order_status = StatusEnum.COMPLETED
 
@@ -1455,66 +1501,124 @@ async def capture_paypal_order(
         update_fields["customerEmail"] = customer_email
     await db.orders.update_one({"_id": order_id}, {"$set": update_fields})
 
-    # Send confirmation email if completed
+    # COMPREHENSIVE EMAIL LOGIC - Same as manual orders
+    email_service = EmailService()
+    
     if current_order_status == StatusEnum.COMPLETED:
-        email_service = EmailService()
-        all_keys = [key for item in order_items for key in (item.assigned_keys or [])]
-        recipient = order_doc.get("email") or order_doc.get("customerEmail")
+        # Full fulfillment - send complete order email with all keys
+        assigned_keys = []
+        products_for_email = []
+        for item in order_items:
+            if hasattr(item, 'assigned_keys') and item.assigned_keys:
+                assigned_keys.extend(item.assigned_keys)
+                products_for_email.append({"name": item.name, "id": item.productId})
         
-        # Send product keys to customer
-        if recipient and all_keys:
+        if assigned_keys and customer_email:
             try:
-                products_for_email = [
-                    {"name": item.name, "id": item.productId}
-                    for item in order_items if item.assigned_keys
-                ]
                 await email_service.send_order_email(
-                    to=recipient,
-                    subject=f"Your MonkeyZ Order ({order_id})",
+                    to=customer_email,
+                    subject=f"Your MonkeyZ Order ({order_id}) - CD Key(s)",
                     products=products_for_email,
-                    keys=all_keys
+                    keys=assigned_keys
                 )
-                logger.info("Successfully sent order confirmation email to customer: %s", recipient)
+                logger.info("PayPal Order: Successfully sent complete order email to customer: %s", customer_email)
             except Exception as e:
-                logger.error("Failed to send CD key email for order %s: %s", order_id, e)
+                logger.error("PayPal Order: Failed to send complete order email: %s", e)
+    
+    elif current_order_status == StatusEnum.PARTIALLY_FULFILLED:
+        # Partial fulfillment - send immediate keys + notify about pending
+        assigned_keys = []
+        products_for_email = []
+        for item in order_items:
+            if hasattr(item, 'assigned_keys') and item.assigned_keys:
+                assigned_keys.extend(item.assigned_keys)
+                products_for_email.append({"name": item.name, "id": item.productId})
         
-        # Send notification to admin (support@monkeyz.co.il)
-        try:
-            from ..services.email_service import EMAIL_ENABLED, conf
-            if EMAIL_ENABLED and conf:
-                admin_email = os.getenv("ADMIN_EMAIL", "support@monkeyz.co.il")
-                admin_subject = f"New Order Completed - {order_id}"
-                admin_body = f"""
-                <h2>New Order Notification</h2>
-                <p><strong>Order ID:</strong> {order_id}</p>
-                <p><strong>Customer:</strong> {order_doc.get('customerName', 'N/A')} ({recipient})</p>
-                <p><strong>Phone:</strong> {order_doc.get('phone', 'N/A')}</p>
-                <p><strong>Total Paid:</strong> ${paid_amount:.2f}</p>
-                <p><strong>Original Total:</strong> ${original_total:.2f}</p>
-                <p><strong>Discount:</strong> ${discount_amount:.2f}</p>
-                {f"<p><strong>Coupon Used:</strong> {coupon_code}</p>" if coupon_code else ""}
-                <p><strong>Products:</strong></p>
-                <ul>
-                {"".join([f"<li>{item.name} (x{item.quantity}) - Keys: {', '.join(item.assigned_keys or ['None'])}</li>" for item in order_items])}
-                </ul>
-                <p><strong>Status:</strong> {current_order_status.value}</p>
-                """
+        if customer_email:
+            try:
+                # Send immediate keys first
+                if assigned_keys:
+                    await email_service.send_order_email(
+                        to=customer_email,
+                        subject=f"Your MonkeyZ Order ({order_id}) - Partial Delivery (Keys Inside)",
+                        products=products_for_email,
+                        keys=assigned_keys
+                    )
+                    logger.info("PayPal Order: Successfully sent partial fulfillment keys to customer: %s", customer_email)
                 
-                from fastapi_mail import MessageSchema, FastMail
-                
-                admin_message = MessageSchema(
-                    subject=admin_subject,
-                    recipients=[admin_email],
-                    body=admin_body,
-                    subtype="html"
+                # Send pending stock notification
+                await email_service.send_pending_stock_email(
+                    to=customer_email,
+                    order_id=order_id,
+                    partial_fulfillment_items=partial_fulfillment_items,
+                    pending_items=pending_items
                 )
-                fm = FastMail(conf)
-                await fm.send_message(admin_message)
-                logger.info("Successfully sent admin notification email for order: %s", order_id)
+                logger.info("PayPal Order: Successfully sent pending stock notification to customer: %s", customer_email)
+                
+            except Exception as e:
+                logger.error("PayPal Order: Failed to send partial fulfillment emails: %s", e)
+    
+    elif current_order_status == StatusEnum.AWAITING_STOCK:
+        # Complete stock shortage - send pending notification only
+        if customer_email:
+            try:
+                await email_service.send_pending_stock_email(
+                    to=customer_email,
+                    order_id=order_id,
+                    partial_fulfillment_items=None,
+                    pending_items=pending_items
+                )
+                logger.info("PayPal Order: Successfully sent awaiting stock notification to customer: %s", customer_email)
+            except Exception as e:
+                logger.error("PayPal Order: Failed to send awaiting stock email: %s", e)
+
+    # Send admin notification email for ALL PayPal orders (not just completed)
+    try:
+        from ..services.email_service import EMAIL_ENABLED, conf
+        if EMAIL_ENABLED and conf:
+            admin_email = os.getenv("ADMIN_EMAIL", "support@monkeyz.co.il")
+            
+            # Determine admin subject based on order status
+            if current_order_status == StatusEnum.COMPLETED:
+                admin_subject = f"PayPal Order Completed - {order_id}"
+            elif current_order_status == StatusEnum.PARTIALLY_FULFILLED:
+                admin_subject = f"PayPal Order Partially Fulfilled - {order_id}"
             else:
-                logger.warning("Email service disabled - cannot send admin notification for order: %s", order_id)
-        except Exception as e:
-            logger.error("Failed to send admin notification email for order %s: %s", order_id, e)
+                admin_subject = f"PayPal Order Awaiting Stock - {order_id}"
+            
+            admin_body = f"""
+            <h2>PayPal Order Notification</h2>
+            <p><strong>Order ID:</strong> {order_id}</p>
+            <p><strong>Customer:</strong> {order_doc.get('customerName', 'N/A')} ({customer_email})</p>
+            <p><strong>Phone:</strong> {order_doc.get('phone', 'N/A')}</p>
+            <p><strong>Total Paid:</strong> ${paid_amount:.2f}</p>
+            <p><strong>Original Total:</strong> ${original_total:.2f}</p>
+            <p><strong>Discount:</strong> ${discount_amount:.2f}</p>
+            {f"<p><strong>Coupon Used:</strong> {coupon_code}</p>" if coupon_code else ""}
+            <p><strong>Status:</strong> {current_order_status.value}</p>
+            <p><strong>Products:</strong></p>
+            <ul>
+            {"".join([f"<li>{item.name} (x{item.quantity}) - Keys: {', '.join(item.assigned_keys or ['Pending'])}</li>" for item in order_items])}
+            </ul>
+            
+            {f"<p><strong>⚠️ Action Required:</strong> Stock shortage - {sum(len(pending_items), sum(item.get('pending', 0) for item in partial_fulfillment_items))} items pending</p>" if current_order_status != StatusEnum.COMPLETED else ""}
+            """
+            
+            from fastapi_mail import MessageSchema, FastMail
+            
+            admin_message = MessageSchema(
+                subject=admin_subject,
+                recipients=[admin_email],
+                body=admin_body,
+                subtype="html"
+            )
+            fm = FastMail(conf)
+            await fm.send_message(admin_message)
+            logger.info("PayPal Order: Successfully sent admin notification email for order: %s", order_id)
+        else:
+            logger.warning("PayPal Order: Email service disabled - cannot send admin notification for order: %s", order_id)
+    except Exception as e:
+        logger.error("PayPal Order: Failed to send admin notification email for order %s: %s", order_id, e)
 
     return {"message": f"Order {current_order_status.value.lower()}"}
 
