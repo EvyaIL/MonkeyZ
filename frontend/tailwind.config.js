@@ -21,6 +21,17 @@ module.exports = {
         success: '#16A34A',       // Success green
         info: '#12c2e9',         // Info blue
         warning: '#ffd803',       // Warning yellow
+        
+        // Enhanced modern color palette
+        'brand-primary': '#6366f1',    // Modern indigo
+        'brand-secondary': '#8b5cf6',  // Purple
+        'brand-accent': '#06b6d4',     // Cyan
+        'surface-primary': '#ffffff',   // Clean white
+        'surface-secondary': '#f8fafc', // Light surface
+        'surface-tertiary': '#f1f5f9',  // Lighter gray
+        'text-primary': '#0f172a',      // Dark text
+        'text-secondary': '#64748b',    // Medium gray text
+        'text-accent': '#3b82f6',       // Blue text
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -103,6 +114,9 @@ module.exports = {
         'bounce-light': 'bounce-light 2s infinite'      },      
       backgroundImage: {
         'gradient-accent': 'linear-gradient(90deg, var(--color-accent-dark) 0%, var(--color-accent) 100%)',
+        'gradient-hero': 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%)',
+        'gradient-card': 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+        'gradient-surface': 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
       },
     },
   },

@@ -265,104 +265,146 @@ const AllProducts = React.memo(() => {
         <meta property="og:description" content={t("all_products_meta_description") || "Browse all MonkeyZ products. Find the best digital products and services for your needs."} />
         <meta property="og:type" content="website" />
         <link rel="canonical" href={window.location.href.split('?')[0]} />
-      </Helmet>      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <h1 className="text-accent font-bold text-2xl md:text-3xl mb-4 md:mb-6" tabIndex={0}>
-          {t("all_products")}
-        </h1>
+      </Helmet>
+      
+      {/* Header Section */}
+      <section className="bg-gradient-hero text-white py-16 px-6">
+        <div className="container mx-auto max-w-7xl text-center">
+          <h1 className="text-4xl lg:text-5xl font-bold mb-4" tabIndex={0}>
+            {t("all_products", "All Products")}
+          </h1>
+          <p className="text-xl opacity-90">
+            {t("products_subtitle", "Discover our complete collection of premium digital products")}
+          </p>
+        </div>
+      </section>
 
-        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-7xl flex flex-col lg:flex-row gap-6 backdrop-blur-sm">
-          {/* Filters - Mobile Toggle */}          <div className="lg:hidden w-full mb-4">
-            <details className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
-              <summary className="text-accent font-semibold p-4 cursor-pointer flex items-center justify-between">
-                <span>{t("filters")}</span>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <div className="bg-gradient-surface min-h-screen py-12">
+        <div className="container mx-auto max-w-7xl px-6">
+          
+          {/* Mobile Filters Toggle */}
+          <div className="lg:hidden mb-6">
+            <details className="card-modern">
+              <summary className="text-brand-primary font-semibold p-4 cursor-pointer flex items-center justify-between">
+                <span className="flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                  </svg>
+                  {t("filters", "Filters")}
+                </span>
+                <svg className="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </summary><div className="p-4 border-t border-gray-200 dark:border-gray-700">
-                {/* Filter Content - Mobile */}
+              </summary>
+              <div className="p-6 border-t border-gray-100">
                 {renderFilters()}
               </div>
             </details>
           </div>
           
-          {/* Filters - Desktop */}          <section
-            className="hidden lg:block w-full lg:w-1/4 bg-white dark:bg-gray-800 p-4 rounded-lg sticky top-4 self-start border border-accent/30 dark:border-accent/30"
-            aria-label={t("product_filters")}
-          >
-            {renderFilters()}
-          </section>
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Desktop Filters Sidebar */}
+            <aside className="hidden lg:block w-80 flex-shrink-0" aria-label={t("product_filters")}>
+              <div className="card-modern p-6 sticky top-6">
+                <div className="flex items-center mb-6">
+                  <svg className="w-6 h-6 text-brand-primary mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                  </svg>
+                  <h2 className="text-2xl font-bold text-text-primary">{t("filters", "Filters")}</h2>
+                </div>
+                {renderFilters()}
+              </div>
+            </aside>
 
-          {/* Products */}
-          <section className="w-full lg:w-3/4" aria-label={t("product_list")}>
-            <div className="flex flex-wrap justify-between items-center mb-6">
-              <h2 className="text-accent font-bold text-xl mb-2 md:mb-0">
-                {t("new_products")}
-              </h2>
-              
-              {/* Sort Dropdown */}
-              <div className="flex items-center">
-                <label htmlFor="sort-products" className="mr-2 text-gray-800 dark:text-white text-sm hidden sm:block">
-                  {t("sort_by", "Sort by:")}
-                </label>
-                <select 
-                  id="sort-products"
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-gray-700 text-accent dark:text-white rounded-lg px-3 py-2 focus:ring-accent focus:border-accent text-sm"
-                  aria-label={t("sort_products", "Sort products")}
-                >
-                  {sortOptions.map(option => (
-                    <option key={option.value} value={option.value} className="text-gray-900 dark:text-white">
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+            {/* Main Content */}
+            <main className="flex-1" aria-label={t("product_list")}>
+              {/* Sort Bar */}
+              <div className="card-modern p-4 mb-8">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-text-primary mb-1">
+                      {t("new_products", "Latest Products")}
+                    </h2>
+                    {!loading && !errorMsg && filteredProducts.length > 0 && (
+                      <p className="text-text-secondary">
+                        {`${filteredProducts.length} ${t("products_found", "products found")}`}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <label htmlFor="sort-products" className="text-text-secondary font-medium whitespace-nowrap">
+                      {t("sort_by", "Sort by:")}
+                    </label>
+                    <select 
+                      id="sort-products"
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value)}
+                      className="bg-white border border-gray-200 text-text-primary rounded-lg px-4 py-2 focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-all duration-200 min-w-[160px]"
+                      aria-label={t("sort_products", "Sort products")}
+                    >
+                      {sortOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Products Grid */}
               {loading ? (
-              <div className="flex flex-col items-center justify-center p-8">
-                <Spinner />
-                <p className="text-gray-900 dark:text-white text-center mt-4" aria-live="polite">
-                  {t("loading_products", "Loading products...")}
-                </p>
-              </div>
-            ) : errorMsg ? (
-              <div className="text-center p-8">
-                <p className="text-red-500 text-lg mb-4" role="alert">
-                  {errorMsg}
-                </p>
-                <PrimaryButton
-                  title={t("try_again", "Try Again")}
-                  onClick={fetchAllProducts}
-                />
-              </div>
-            ) : filteredProducts.length === 0 ? (              <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg border border-accent/30 dark:border-accent/30">
-                <p className="text-gray-600 dark:text-gray-400 text-lg mb-4" aria-live="polite">
-                  {t("no_products_found")}
-                </p>                <PrimaryButton
-                  title={t("clear_filters", "Clear Filters")}
-                  onClick={clearFilters}
-                  otherStyle="mt-2 bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
-                {filteredProducts.map((product, idx) => (
-                  <ProductCard
-                    key={product.id || product._id || idx}
-                    product={product}
+                <div className="card-modern p-12 text-center">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mb-4"></div>
+                  <p className="text-text-secondary text-lg" aria-live="polite">
+                    {t("loading_products", "Loading amazing products...")}
+                  </p>
+                </div>
+              ) : errorMsg ? (
+                <div className="error-state-modern max-w-lg mx-auto">
+                  <div className="text-5xl mb-4">😅</div>
+                  <h3 className="text-2xl font-bold text-red-700 mb-2">{t("something_went_wrong", "Something went wrong")}</h3>
+                  <p className="text-red-600 mb-6">{errorMsg}</p>
+                  <PrimaryButton
+                    title={t("try_again", "Try Again")}
+                    onClick={fetchAllProducts}
                   />
-                ))}
-              </div>
-            )}
-            
-            {/* Results count */}
-            {!loading && !errorMsg && filteredProducts.length > 0 && (
-              <p className="text-gray-400 text-sm mt-4 text-center" aria-live="polite">
-                {`${t("showing_prefix", "Showing")} ${filteredProducts.length} ${t("products_suffix", "products")}`}
-              </p>
-            )}
-          </section>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="card-modern p-12 text-center">
+                  <div className="text-6xl mb-6">🔍</div>
+                  <h3 className="text-2xl font-bold text-text-primary mb-4">
+                    {t("no_products_found", "No products found")}
+                  </h3>
+                  <p className="text-text-secondary text-lg mb-8">
+                    {t("try_adjusting_filters", "Try adjusting your filters or search terms")}
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <PrimaryButton
+                      title={t("clear_filters", "Clear All Filters")}
+                      onClick={clearFilters}
+                    />
+                    <button 
+                      onClick={() => window.location.href = '/contact'}
+                      className="border-2 border-brand-primary text-brand-primary px-6 py-3 rounded-xl hover:bg-brand-primary hover:text-white transition-all duration-300"
+                    >
+                      {t("request_product", "Request a Product")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProducts.map((product, idx) => (
+                    <ProductCard
+                      key={product.id || product._id || idx}
+                      product={product}
+                    />
+                  ))}
+                </div>
+              )}
+            </main>
+          </div>
         </div>
       </div>
     </>

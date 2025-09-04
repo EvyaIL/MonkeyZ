@@ -128,47 +128,129 @@ const Home = React.memo(() => {
         <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
-          {t("home")}
-        </h1>
+      
+      {/* Hero Section */}
+      <section className="relative hero-gradient text-white py-24 px-6">
+        <div className="container mx-auto max-w-6xl">
+          <div className="flex flex-col lg:flex-row items-center justify-between">
+            <div className="flex-1 text-center lg:text-left mb-12 lg:mb-0">
+              <h1 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
+                {t("welcome_to")} <span className="text-cyan-300">MonkeyZ</span>
+              </h1>
+              <p className="text-xl lg:text-2xl mb-8 opacity-90 leading-relaxed">
+                {t("hero_subtitle", "Premium Digital Products & Services at Your Fingertips")}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <button 
+                  className="btn-modern-primary text-lg px-8 py-4 rounded-xl"
+                  onClick={() => window.location.href = '/products'}
+                >
+                  {t("explore_products", "Explore Products")}
+                </button>
+                <button 
+                  className="border-2 border-white/30 text-white px-8 py-4 rounded-xl hover:bg-white/10 transition-all duration-300"
+                  onClick={() => window.location.href = '/about'}
+                >
+                  {t("learn_more", "Learn More")}
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 lg:pl-12">
+              <div className="relative">
+                <div className="absolute inset-0 bg-white/10 rounded-3xl transform rotate-6"></div>
+                <div className="relative bg-white/20 backdrop-blur-sm rounded-3xl p-8 text-center">
+                  <div className="text-6xl mb-4">🐒</div>
+                  <h3 className="text-2xl font-bold mb-2">{t("trusted_by_thousands", "Trusted by Thousands")}</h3>
+                  <p className="opacity-90">{t("hero_trust_text", "Join our community of satisfied customers")}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Decorative elements */}
+        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
+        <div className="absolute bottom-20 right-10 w-32 h-32 bg-cyan-300/20 rounded-full blur-2xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl -z-10"></div>
+      </section>
 
-        <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
+      <div className="bg-gradient-surface min-h-screen py-16">
+        {/* Best Sellers Section */}
+        <section className="container mx-auto max-w-6xl px-6 mb-16" aria-label={t("best_sellers")}>
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-text-primary mb-4">{t("best_sellers", "Best Sellers")}</h2>
+            <p className="text-xl text-text-secondary">{t("best_sellers_subtitle", "Our most popular digital products")}</p>
+          </div>
+          
           {loadingBest ? (
             <ProductGridSkeleton count={8} />
           ) : errorBest ? (
-            <p className="text-error text-center bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-700" role="alert">
-              {errorBest}
-            </p>
+            <div className="error-state-modern max-w-md mx-auto">
+              <div className="text-5xl mb-4">📦</div>
+              <h3 className="text-2xl font-bold text-red-700 mb-2">{t("oops", "Oops!")}</h3>
+              <p className="text-red-600 mb-6">{errorBest}</p>
+              <button 
+                onClick={getBestSellers}
+                className="btn-modern-primary"
+              >
+                {t("try_again", "Try Again")}
+              </button>
+            </div>
           ) : bestSellers.length > 0 ? (
-            <ProductShowcase products={bestSellers} title={t("best_sellers")} />
+            <ProductShowcase products={bestSellers} title="" />
           ) : null}
         </section>
 
-        <section
-          className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-12 backdrop-blur-sm"
-          aria-label={t("featured_products")}
-        >
-          <h2 className="text-center text-accent font-bold text-3xl mb-8">
-            {t("featured_products")}
-          </h2>
-          {loadingHome ? (
-            <ProductGridSkeleton count={12} />
-          ) : errorHome ? (
-            <p className="text-error text-center text-lg p-4" role="alert">
-              {errorHome}
-            </p>
-          ) : homeProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-              {homeProducts.map((product) => (
-                <ProductCard key={product.id || product._id} product={product} />
-              ))}
+        {/* Featured Products Section */}
+        <section className="container mx-auto max-w-6xl px-6" aria-label={t("featured_products")}>
+          <div className="card-modern p-8 lg:p-12">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-text-primary mb-4">{t("featured_products", "Featured Products")}</h2>
+              <p className="text-xl text-text-secondary">{t("featured_products_subtitle", "Handpicked products just for you")}</p>
             </div>
-          ) : (
-            <p className="text-center text-gray-600 dark:text-gray-400 py-8">
-              {t("no_products_available")}
-            </p>
-          )}
+            
+            {loadingHome ? (
+              <ProductGridSkeleton count={12} />
+            ) : errorHome ? (
+              <div className="error-state-modern max-w-md mx-auto">
+                <div className="text-5xl mb-4">🔍</div>
+                <h3 className="text-2xl font-bold text-red-700 mb-2">{t("no_products_found", "No Products Found")}</h3>
+                <p className="text-red-600 mb-6">{errorHome}</p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button 
+                    onClick={getHomeProducts}
+                    className="btn-modern-primary"
+                  >
+                    {t("try_again", "Try Again")}
+                  </button>
+                  <button 
+                    onClick={() => window.location.href = '/products'}
+                    className="border-2 border-brand-primary text-brand-primary px-6 py-3 rounded-xl hover:bg-brand-primary hover:text-white transition-all duration-300"
+                  >
+                    {t("browse_all_products", "Browse All Products")}
+                  </button>
+                </div>
+              </div>
+            ) : homeProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                {homeProducts.map((product) => (
+                  <ProductCard key={product.id || product._id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="text-6xl mb-6">🚀</div>
+                <h3 className="text-2xl font-bold text-text-primary mb-4">{t("coming_soon", "Coming Soon!")}</h3>
+                <p className="text-lg text-text-secondary mb-8">{t("no_products_available", "We're working hard to bring you amazing products")}</p>
+                <button 
+                  onClick={() => window.location.href = '/contact'}
+                  className="btn-modern-primary"
+                >
+                  {t("get_notified", "Get Notified")}
+                </button>
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </>
