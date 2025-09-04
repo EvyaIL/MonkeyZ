@@ -2,7 +2,7 @@ const SecondaryButton = ({ title, onClick, otherStyle = "", ariaLabel }) => {
   return (
     <button
       type="button"
-      className={`bg-base-200 px-4 py-2 rounded-lg text-base-content font-semibold hover:bg-base-300 hover:scale-110 transition-all shadow-md ${otherStyle}`}
+      className={`border-2 border-brand-primary text-brand-primary px-6 py-3 rounded-xl hover:bg-brand-primary hover:text-white transition-all duration-300 font-medium ${otherStyle}`}
       onClick={onClick}
       aria-label={ariaLabel || title}
     >
