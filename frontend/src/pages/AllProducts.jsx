@@ -278,14 +278,14 @@ const AllProducts = React.memo(() => {
         <link rel="canonical" href={window.location.href.split('?')[0]} />
       </Helmet>
 
-      <div className={`all-products-container ${isRTL() ? 'rtl' : 'ltr'}`}>
+      <div className={`all-products-container ${isRTL() ? 'rtl' : 'ltr'} bg-gray-50 dark:bg-dark-primary text-gray-900 dark:text-dark-text-primary transition-colors duration-300`}>
         <div className="all-products-header">
           <h1 className="all-products-title" tabIndex={0}>
             {formatTextDirection(t("all_products"))}
           </h1>
         </div>
 
-        <div className="all-products-main">
+        <div className="all-products-main grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Filters - Mobile Toggle */}
           <div className="mobile-filters-toggle lg:hidden">
             <details>
@@ -303,14 +303,14 @@ const AllProducts = React.memo(() => {
           
           {/* Filters - Desktop */}
           <section
-            className="filters-section hidden lg:block"
+            className="filters-section hidden lg:block bg-white dark:bg-dark-secondary border border-gray-200 dark:border-dark-border rounded-xl p-4 shadow-sm dark:shadow-lg"
             aria-label={t("product_filters")}
           >
             {renderFilters()}
           </section>
 
           {/* Products */}
-          <section className="products-section" aria-label={t("product_list")}>
+          <section className="products-section lg:col-span-3" aria-label={t("product_list")}>
             <div className="products-header">
               <h2 className="products-title">
                 {t("new_products")}
@@ -325,7 +325,7 @@ const AllProducts = React.memo(() => {
                   id="sort-products"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value)}
-                  className="sort-select"
+                  className="sort-select bg-white dark:bg-dark-secondary border border-gray-200 dark:border-dark-border rounded-md px-3 py-2 text-sm"
                   aria-label={t("sort_products", "Sort products")}
                 >
                   {sortOptions.map(option => (
@@ -367,7 +367,7 @@ const AllProducts = React.memo(() => {
                 />
               </div>
             ) : (
-              <div className="products-grid">
+              <div className="products-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {filteredProducts.map((product, idx) => (
                   <ProductCard
                     key={product.id || product._id || idx}

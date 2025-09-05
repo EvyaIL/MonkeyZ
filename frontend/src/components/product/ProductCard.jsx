@@ -69,7 +69,7 @@ const ProductCard = memo(({ product, otherStyle }) => {
 
   return (
     <div
-      className={`bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 w-full flex flex-col transition-all duration-300 hover:shadow-xl backdrop-blur-sm group ${otherStyle}`}
+      className={`bg-white dark:bg-dark-secondary border border-accent/20 dark:border-dark-border rounded-xl shadow-sm dark:shadow-lg p-4 w-full flex flex-col transition-all duration-300 hover:shadow-md hover:border-accent/40 dark:hover:border-dark-accent group ${otherStyle}`}
       tabIndex={0}
       role="region"
       aria-label={`Product card for ${displayData.displayName}`}
@@ -86,7 +86,7 @@ const ProductCard = memo(({ product, otherStyle }) => {
             goToProductDetails();
           }
         }}
-      >        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-accent/5 dark:bg-gray-900 border border-accent/10 dark:border-accent/10 group-hover:border-accent/30 transition-colors duration-300">
+  >        <div className="w-full aspect-[4/3] relative rounded-lg overflow-hidden mb-4 bg-accent/5 dark:bg-dark-primary border border-accent/10 dark:border-dark-border group-hover:border-accent/30 dark:group-hover:border-dark-accent transition-colors duration-300">
           <LazyImage
             src={displayData.imageSource}
             alt={displayData.displayName}
@@ -115,22 +115,22 @@ const ProductCard = memo(({ product, otherStyle }) => {
           </div>
         </div>
 
-        <h3 className={`font-semibold text-lg text-gray-900 dark:text-white text-${lang === "he" ? "right" : "left"} group-hover:text-accent transition-colors duration-300`}>{displayData.displayName}</h3>
-        <p className={`text-accent/70 dark:text-gray-300 text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
+  <h3 className={`font-semibold text-lg text-gray-900 dark:text-dark-text-primary text-${lang === "he" ? "right" : "left"} group-hover:text-accent dark:group-hover:text-dark-accent transition-colors duration-300`}>{displayData.displayName}</h3>
+  <p className={`text-accent/70 dark:text-dark-text-secondary text-sm mt-2 line-clamp-3 flex-grow text-${lang === "he" ? "right" : "left"}`}>
           {displayData.displayDesc}
         </p>
       </div>
 
       <div className={`mt-4 w-full flex ${lang === "he" ? "flex-row-reverse" : ""} justify-between gap-2`}>
         <button
-          className="flex-1 bg-accent/5 dark:bg-gray-700 text-accent dark:text-white border border-accent/30 py-2 px-3 rounded-md hover:bg-accent/10 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
+          className="flex-1 bg-accent/5 dark:bg-dark-tertiary text-accent dark:text-dark-text-primary border border-accent/30 dark:border-dark-border py-2 px-3 rounded-md hover:bg-accent/10 dark:hover:bg-dark-secondary transition-all duration-200 font-medium"
           onClick={goToProductDetails}
           aria-label={`View details for ${displayData.displayName}`}
         >
           {t("details")}
         </button>
         <button
-          className="flex-1 bg-accent text-white py-2 px-3 rounded-md hover:bg-accent/80 transition-all duration-200 font-medium shadow-sm"
+          className="flex-1 bg-accent dark:bg-dark-accent text-white py-2 px-3 rounded-md hover:bg-accent/80 dark:hover:bg-dark-accent-light transition-all duration-200 font-medium shadow-sm"
           onClick={handleAddToCart}
           aria-label={`Add ${displayData.displayName} to cart`}
         >

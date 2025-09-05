@@ -137,9 +137,9 @@ const Navbar = memo(() => {
   }, []);
 
   return (
-    <header className="top-0 z-20 sticky">
+  <header className="top-0 z-20 sticky">
       <nav
-        className="p-4 bg-white dark:bg-gray-800 text-gray-800 dark:text-white shadow-md w-full"
+    className="p-4 bg-white/90 dark:bg-dark-secondary/80 backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-dark-secondary/60 text-gray-800 dark:text-dark-text-primary shadow-md w-full border-b border-gray-200 dark:border-dark-border"
         aria-label="Main navigation"
       >
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -153,34 +153,34 @@ const Navbar = memo(() => {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden md:flex gap-6 text-lg items-center">
+      <div className="hidden md:flex gap-6 text-lg items-center">
             <Link
               to="/products"
-              className="hover:text-accent transition-colors"
+        className="hover:text-accent dark:hover:text-dark-accent transition-colors"
             >
               {t("all_products")}
             </Link>
             <Link
               to="/about"
-              className="hover:text-accent transition-colors"
+        className="hover:text-accent dark:hover:text-dark-accent transition-colors"
             >
               {t("about_us")}
             </Link>
             <Link
               to="/contact"
-              className="hover:text-accent transition-colors"
+        className="hover:text-accent dark:hover:text-dark-accent transition-colors"
             >
               {t("contact")}
             </Link>
             <Link
               to="/faq"
-              className="hover:text-accent transition-colors"
+        className="hover:text-accent dark:hover:text-dark-accent transition-colors"
             >
               {t("faq")}
             </Link>
             <Link
               to="/blog"
-              className="hover:text-accent transition-colors"
+        className="hover:text-accent dark:hover:text-dark-accent transition-colors"
             >
               {t("blog")}
             </Link>

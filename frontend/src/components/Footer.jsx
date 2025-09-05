@@ -6,12 +6,14 @@ const Footer = () => {
   const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
   return (
-    <footer className="bg-white dark:bg-gray-800 text-gray-800 dark:text-white py-8 px-4 mt-12 border-t border-gray-200 dark:border-gray-700">
+    <footer className="relative bg-white dark:bg-dark-secondary text-gray-800 dark:text-dark-text-primary py-10 px-4 mt-12 border-t border-gray-200 dark:border-dark-border overflow-hidden">
+      {/* Top accent bar reacts to theme */}
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 dark:from-dark-accent dark:via-cyan-500 dark:to-emerald-500" />
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
         {/* Brand and copyright */}
         <div className="text-center md:text-start">
-          <span className="text-primary dark:text-accent font-bold text-xl">MonkeyZ</span> &copy; {currentYear}
-          <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">{t("premium_services")}</p>
+          <span className="text-primary dark:text-dark-accent font-bold text-xl">MonkeyZ</span> &copy; {currentYear}
+          <p className="text-gray-600 dark:text-dark-text-secondary text-sm mt-1">{t("premium_services")}</p>
         </div>
 
         {/* Navigation links */}
@@ -25,7 +27,7 @@ const Footer = () => {
         </nav>
         
         {/* Social media and verification links */}
-        <div className="flex gap-6 mt-2 md:mt-0">
+  <div className="flex gap-6 mt-2 md:mt-0">
           <a 
             href="https://discord.gg/3MZzKkd7qR" 
             target="_blank" 
@@ -74,7 +76,7 @@ const Footer = () => {
         </div>
       </div>
       {/* Legal */}
-      <div className="text-center text-xs text-gray-500 dark:text-gray-400 mt-8 max-w-7xl mx-auto">
+  <div className="text-center text-xs text-gray-500 dark:text-dark-text-muted mt-8 max-w-7xl mx-auto">
         <p>{`${t("copyright_prefix", "All rights reserved")} © ${currentYear} MonkeyZ`}</p>
         <p className="mt-2">
           {t("protected_by_recaptcha")} 

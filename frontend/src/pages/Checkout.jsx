@@ -610,7 +610,7 @@ export default function Checkout() {
                           console.error(`Cart item at position ${index + 1} has invalid quantity:`, quantity, i);
                           return null;
                         }
-                        return {
+                        return (
                           productId: productId.toString(),
                           id: productId.toString(),
                           name: typeof i.name === "object" ? i.name.en : i.name,
