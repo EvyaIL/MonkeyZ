@@ -1,13 +1,19 @@
 import React from 'react';
 import { useGlobalProvider } from '../context/GlobalProvider';
+import { useTranslation } from 'react-i18next';
 
 const ThemeToggle = React.memo(() => {
   const { theme, toggleTheme } = useGlobalProvider();
+  const { i18n } = useTranslation();
+  
+  // Theme toggle should be on the same side as cart (opposite side of language-specific direction)
+  const isRTL = i18n.language === 'he';
+  const positionClass = isRTL ? 'left-4' : 'right-4';
 
   return (
     <button
       onClick={toggleTheme}
-      className="fixed bottom-4 right-4 p-2 rounded-full bg-accent hover:bg-accent-light transition-colors z-50"
+      className={`fixed bottom-4 ${positionClass} p-2 rounded-full bg-accent hover:bg-accent-light transition-colors z-50`}
       aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
     >
       {theme === 'light' ? (

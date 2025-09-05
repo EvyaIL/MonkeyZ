@@ -1,0 +1,21 @@
+{
+  "order_summary": "סיכום הזמנה",
+  "subtotal": "סכום ביניים", 
+  "discount": "הנחה",
+  "total": "סה״כ לתשלום",
+  "coupon_code": "קוד קופון",
+  "apply": "החל",
+  "validating": "בודק...",
+  "email_address": "כתובת אימייל",
+  "full_name": "שם מלא",
+  "phone_number": "מספר טלפון",
+  "your_name": "השם שלך",
+  "payment_method_info": "לחץ על הכפתור למטה כדי לשלם עם כרטיס אשראי או חשבון PayPal",
+  "checkout": "לתשלום",
+  "accepted_payment_methods": "אמצעי תשלום מקובלים:",
+  "credit_cards": "כרטיסי אשראי:",
+  "click_button_to_pay": "לחץ על הכפתור למטה כדי לשלם עם כרטיס אשראי או חשבון PayPal",
+  "processing": "מעבד...",
+  "trustpilot_reviews": "צפה בביקורות שלנו בTrustpilot",
+  "trustpilot": "Trustpilot"
+}

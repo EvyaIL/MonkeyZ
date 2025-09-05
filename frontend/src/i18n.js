@@ -4,9 +4,12 @@ import { initReactI18next } from 'react-i18next';
 import he from './locales/he.json';
 import en from './locales/en.json';
 import heAccount from './locales/he-account.json';
+import heCheckout from './locales/he-checkout.json';
+import enCheckout from './locales/en-checkout.json';
 
-// Merge Hebrew translations with account translations
-const mergedHe = { ...he, ...heAccount };
+// Merge Hebrew translations with account and checkout translations
+const mergedHe = { ...he, ...heAccount, ...heCheckout };
+const mergedEn = { ...en, ...enCheckout };
 
 const savedLanguage = localStorage.getItem('i18nextLng');
 
@@ -15,9 +18,9 @@ i18n
   .init({
     resources: {
       he: { translation: mergedHe },
-      en: { translation: en },
+      en: { translation: mergedEn },
     },
-    lng: savedLanguage || 'en', // Use saved language or default to English
+    lng: savedLanguage || 'he', // Use saved language or default to Hebrew
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   });

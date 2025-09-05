@@ -14,6 +14,7 @@ import './lib/reactWarningSuppress'; // Suppress React warnings in development
 
 // Lazy load ThemeToggle to improve initial bundle size
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
+const TrustpilotWidget = React.lazy(() => import('./components/TrustpilotWidget'));
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
@@ -106,6 +107,9 @@ const MuiThemedAppStructure = () => {
         <AppContent />
         <React.Suspense fallback={<div>Loading...</div>}>
           <ThemeToggle />
+        </React.Suspense>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <TrustpilotWidget />
         </React.Suspense>
       </div>
     </ThemeProvider>

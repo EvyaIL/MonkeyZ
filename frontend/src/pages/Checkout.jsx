@@ -345,14 +345,14 @@ export default function Checkout() {
   };
 
   return (
-    <div className="container mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold mb-6 text-center">Checkout</h1>
+    <div className={`container mx-auto py-10 px-4 ${i18n.language === 'he' ? 'rtl' : 'ltr'}`} dir={i18n.language === 'he' ? 'rtl' : 'ltr'}>
+      <h1 className="text-3xl font-bold mb-6 text-center">{t("checkout")}</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Order Summary */}
         <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+          <h2 className="text-xl font-semibold mb-4">{t("order_summary", "Order Summary")}</h2>
           {cartArray.length === 0 ? (
-            <p>Your cart is empty.</p>
+            <p>{t("cart_empty", "Your cart is empty.")}</p>
           ) : (
             <ul className="divide-y">
               {cartArray.map((item, idx) => {
@@ -373,21 +373,21 @@ export default function Checkout() {
           )}
           <div className="mt-4">
             <div className="flex justify-between">
-              <span>Subtotal</span>
+              <span>{t("subtotal", "Subtotal")}</span>
               <span>₪{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Discount</span>
+              <span>{t("discount", "Discount")}</span>
               <span className="text-green-600">- ₪{discount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-lg">
-              <span>Total</span>
+              <span>{t("total", "Total")}</span>
               <span>₪{total.toFixed(2)}</span>
             </div>
           </div>
           {/* Coupon Input */}
           <div className="mt-6">
-            <label className="block mb-1">Coupon Code</label>
+            <label className="block mb-1">{t("coupon_code", "Coupon Code")}</label>
             <div className="flex">
               <input
                 type="text"
@@ -424,7 +424,7 @@ export default function Checkout() {
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  {couponValidating ? 'Validating...' : 'Apply'}
+                  {couponValidating ? t("validating", "Validating...") : t("apply", "Apply")}
                 </button>
               )}
             </div>
@@ -440,7 +440,7 @@ export default function Checkout() {
           </div>
           {/* Email Input */}
           <div className="mt-6">
-            <label className="block mb-1">Email Address</label>
+            <label className="block mb-1">{t("email_address", "Email Address")}</label>
             <input
               type="email"
               value={email}
@@ -483,18 +483,18 @@ export default function Checkout() {
           </div>
           {/* Name Input */}
           <div className="mt-6">
-            <label className="block mb-1">Full Name</label>
+            <label className="block mb-1">{t("full_name", "Full Name")}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Your Name"
+              placeholder={t("your_name", "Your Name")}
               className="w-full border p-2 rounded"
             />
           </div>
           {/* Phone Input */}
           <div className="mt-6">
-            <label className="block mb-1">Phone Number</label>
+            <label className="block mb-1">{t("phone_number", "Phone Number")}</label>
             <input
               type="tel"
               value={phone}
@@ -527,10 +527,7 @@ export default function Checkout() {
               <div className="bg-white px-2 py-1 rounded border text-xs font-bold text-blue-600">PayPal</div>
             </div>
             <p className="text-xs text-gray-600 mt-2">
-              {i18n.language === 'he' 
-                ? 'לחץ על הכפתור למטה כדי לשלם עם כרטיס אשראי או חשבון PayPal'
-                : 'Click the button below to pay with credit card or PayPal account'
-              }
+              {t("payment_method_info", "Click the button below to pay with credit card or PayPal account")}
             </p>
           </div>
 
