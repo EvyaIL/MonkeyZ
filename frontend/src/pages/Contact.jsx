@@ -3,7 +3,6 @@ import React, { useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { addStructuredData, generateBreadcrumbSchema } from "../lib/seo-helper";
-import "./Contact.css";
 
 // EmailJS config removed
 
@@ -24,7 +23,7 @@ const Contact = () => {
       "logo": "https://monkeyz.co.il/logo192.png",
       "contactPoint": {
         "@type": "ContactPoint",
-        "telephone": "+972-5391-88641",
+        "telephone": "+972-000-0000",
         "contactType": "customer service",
         "email": "support@monkeyz.co.il",
         "availableLanguage": ["Hebrew", "English"]
@@ -99,144 +98,58 @@ const Contact = () => {
         <meta name="twitter:description" content={t("contact_meta_description") || "Contact MonkeyZ for support, questions, feedback, or collaboration opportunities. Our team is ready to assist you with all your digital product needs."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/logo512.png" />
       </Helmet>
-      <div className="contact-container">
-        <div className="contact-content">
-          <div className="contact-header">
-            <h1 className="contact-title">
-              {t("contact")}
-            </h1>
-            <p className="contact-subtitle">
-              {t("contact_subtitle") || "We'd love to hear from you! Fill out the form below to get in touch."}
-            </p>
-          </div>
-
-          <div className="contact-main">
-            <div className="contact-info">
-              <div className="contact-info-card">
-                <h2 className="info-title">{t("get_in_touch", "Get in Touch")}</h2>
-                <div className="info-items">
-                  <div className="info-item">
-                    <div className="info-icon">
-                      📧
-                    </div>
-                    <div className="info-content">
-                      <div className="info-label">{t("email", "Email")}</div>
-                      <div className="info-value">
-                        <a href="mailto:support@monkeyz.co.il" className="info-link">
-                          support@monkeyz.co.il
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="info-item">
-                    <div className="info-icon">
-                      📞
-                    </div>
-                    <div className="info-content">
-                      <div className="info-label">{t("phone", "Phone")}</div>
-                      <div className="info-value">
-                        <a href="tel:+972-5391-88641" className="info-link">
-                          +972-5391-88641
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="info-item">
-                    <div className="info-icon">
-                      🌐
-                    </div>
-                    <div className="info-content">
-                      <div className="info-label">{t("discord", "Discord")}</div>
-                      <div className="info-value">
-                        <a href="https://discord.com/invite/3MZzKkd7qR" className="info-link">
-                          Our Discord Community
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="business-hours">
-                <h3 className="hours-title">{t("business_hours", "Business Hours")}</h3>
-                <div className="hours-list">
-                  <div className="hours-item">
-                    <span className="hours-day">{t("sunday_thursday", "Sunday - Thursday")}</span>
-                    <span className="hours-time">9:00 AM - 6:00 PM</span>
-                  </div>
-                  <div className="hours-item">
-                    <span className="hours-day">{t("friday", "Friday")}</span>
-                    <span className="hours-time">9:00 AM - 2:00 PM</span>
-                  </div>
-                  <div className="hours-item">
-                    <span className="hours-day">{t("saturday", "Saturday")}</span>
-                    <span className="hours-time">{t("closed", "Closed")}</span>
-                  </div>
-                </div>
-              </div>
+      <main className="py-12 md:py-20 flex items-center justify-center">
+        <div className="container mx-auto px-4">
+          {/* Breadcrumb */}
+          <nav className="w-full max-w-2xl mx-auto mb-4 text-sm text-gray-500 dark:text-gray-400">
+            <ol className="flex flex-wrap items-center space-x-1 rtl:space-x-reverse">
+              <li><a href="/" className="hover:text-accent">{t('home')}</a></li>
+              <li><span className="mx-1">›</span></li>
+              <li className="text-accent font-medium">{t('contact')}</li>
+            </ol>
+          </nav>
+          
+          <section className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-2xl mx-auto backdrop-blur-sm">
+            <div className="text-center mb-10">
+              <h1 className="text-4xl md:text-5xl font-bold text-primary dark:text-accent mb-3">
+                {t("contact")}
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-300">
+                {t("contact_subtitle") || "We'd love to hear from you! Fill out the form below to get in touch."}
+              </p>
             </div>
-
-            <div className="contact-form-container">
-              <div className="contact-form">
-                <h2 className="form-title">{t("send_message", "Send us a Message")}</h2>
-                <form ref={formRef} onSubmit={sendEmail} className="form-fields" aria-label="Contact form">
-                  <div className="form-group">
-                    <label htmlFor="from_name" className="form-label">{t("username")}</label>
-                    <input 
-                      id="from_name" 
-                      name="from_name" 
-                      type="text" 
-                      placeholder={t("enter_your_username")} 
-                      className="form-input" 
-                      required 
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="reply_to" className="form-label">{t("email")}</label>
-                    <input 
-                      id="reply_to" 
-                      name="reply_to" 
-                      type="email" 
-                      placeholder={t("enter_your_email")} 
-                      className="form-input" 
-                      required 
-                    />
-                  </div>
-                  
-                  <div className="form-group">
-                    <label htmlFor="message" className="form-label">{t("message")}</label>
-                    <textarea 
-                      id="message" 
-                      name="message" 
-                      placeholder={t("enter_your_message", "Tell us how we can help you...")} 
-                      className="form-input form-textarea" 
-                      rows={6} 
-                      required 
-                    />
-                  </div>
-                  
-                  <button 
-                    type="submit" 
-                    className={`form-button ${loading ? 'loading' : ''}`}
-                    disabled={loading}
-                  >
-                    {loading ? `${t("sending")}...` : t("send_message") || t("send")}
-                  </button>
-                </form>
-                
-                {status && (
-                  <div className={`form-status ${status === t("success") || status.includes("successfully") ? 'success' : 'error'}`}>
-                    {status}
-                  </div>
-                )}
+            <form ref={formRef} onSubmit={sendEmail} className="space-y-6" aria-label="Contact form">
+              <div>
+                <label htmlFor="from_name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 rtl:text-right">{t("username")}</label>
+                <input id="from_name" name="from_name" type="text" placeholder={t("enter_your_username")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition rtl:text-right" required />
               </div>
+              <div>
+                <label htmlFor="reply_to" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 rtl:text-right">{t("email")}</label>
+                <input id="reply_to" name="reply_to" type="email" placeholder={t("enter_your_email")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition rtl:text-right" required />
+              </div>
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1 rtl:text-right">{t("message")}</label>
+                <textarea id="message" name="message" placeholder={t("contact_subtitle")} className="w-full p-3 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-accent transition rtl:text-right" rows={6} required />
+              </div>
+              <button type="submit" className="w-full bg-accent text-white font-semibold py-3 px-6 rounded-lg hover:bg-accent-dark focus:outline-none focus:ring-4 focus:ring-accent focus:ring-opacity-50 transition-all duration-300 ease-in-out transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed" disabled={loading}>
+                {loading ? `${t("sending")}...` : t("send_message") || t("send")}
+              </button>
+            </form>
+            {status && (
+              <div className={`mt-6 p-3 rounded-md text-center font-medium ${status === t("success") ? 'bg-green-100 dark:bg-green-700 text-green-700 dark:text-green-100' : 'bg-red-100 dark:bg-red-700 text-red-700 dark:text-red-100'}`}>
+                {status}
+              </div>
+            )}
+            <div className="mt-8 text-center text-gray-600 dark:text-gray-400 text-sm rtl:text-right ltr:text-center">
+              <span>{t("or_email_us_directly") || "Or email us directly at "}</span>
+              {' '}
+              <a href="mailto:support@monkeyz.co.il" className="text-accent hover:text-accent-dark dark:hover:text-accent-light underline font-medium transition inline-block rtl:mr-1">
+                support@monkeyz.co.il
+              </a>
             </div>
-          </div>
+          </section>
         </div>
-      </div>
+      </main>
     </>
   );
 };

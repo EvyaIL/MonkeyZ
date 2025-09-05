@@ -51,25 +51,6 @@
     <meta name="keywords" content="MonkeyZ, premium software, digital products, VPN service, antivirus, cloud storage, password manager, software keys, cyber security, digital solutions, online store" />
     <meta name="author" content="MonkeyZ Team" />
     <meta name="theme-color" content="#222831" />
-
-    <!-- Initialize theme early to avoid flash of incorrect theme -->
-    <script>
-      (function() {
-        try {
-          var stored = localStorage.getItem('theme');
-          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var theme = stored || (prefersDark ? 'dark' : 'light');
-          var root = document.documentElement;
-          root.classList.remove('light', 'dark');
-          root.classList.add(theme);
-          // Set theme-color meta for PWA address bar tint
-          var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) {
-            meta.setAttribute('content', theme === 'dark' ? '#0f172a' : '#ffffff');
-          }
-        } catch (e) { /* no-op */ }
-      })();
-    </script>
     
     <!-- Additional SEO Meta Tags -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />

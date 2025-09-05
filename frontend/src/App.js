@@ -6,48 +6,16 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useTranslation } from "react-i18next";
 import { initAnalytics } from "./lib/analytics";
 import ErrorBoundary from './components/ErrorBoundary';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import { HelmetProvider } from 'react-helmet-async';
 import { initPerformanceOptimizations } from './lib/performanceOptimizer';
 import './lib/reactWarningSuppress'; // Suppress React warnings in development
-import './styles/globals.css'; // Import our design system CSS
-import './styles/darkmode.css'; // Import comprehensive dark mode styles
-
-// React Query imports for Phase 2
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { ToastProvider } from './components/ui/Toast';
-import GlobalLoadingIndicator from './components/GlobalLoadingIndicator';
 
 // Lazy load ThemeToggle to improve initial bundle size
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-
-// Create React Query client with optimized configuration for Phase 2
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-      retry: (failureCount, error) => {
-        // Don't retry on 4xx errors
-        if (error?.status >= 400 && error?.status < 500) {
-          return false
-        }
-        return failureCount < 3
-      },
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: 'always'
-    },
-    mutations: {
-      retry: 1,
-      onError: (error) => {
-        console.error('Mutation error:', error)
-        // Toast notifications will be handled by individual mutations
-      }
-    }
-  }
-});
 
 // Debug Google OAuth configuration in development
 if (process.env.NODE_ENV === 'development') {
@@ -89,9 +57,9 @@ const AppContent = () => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
   }, [i18n.language]);
-
-  return (
-    <div className="w-full min-h-screen bg-[var(--color-background-secondary)] text-[var(--color-text-primary)] flex flex-col">
+    return (
+    // This div's Tailwind background might be overridden or complemented by CssBaseline body background
+    <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white flex flex-col">
       <div className="flex-1">
         <AppRouter />
       </div>
@@ -100,23 +68,47 @@ const AppContent = () => {
   );
 };
 
-// Unified App Structure using our design system
-const UnifiedAppStructure = () => {
+// New component to provide MUI theme
+const MuiThemedAppStructure = () => {
   const { theme } = useGlobalProvider(); // Get theme from GlobalProvider
 
-  // Apply theme class to document root
-  useEffect(() => {
-    document.documentElement.className = theme === 'dark' ? 'dark' : 'light';
-  }, [theme]);
+  const muiTheme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: theme, // 'light' or 'dark'
+          primary: {
+            main: '#3182CE', // Aligned with Tailwind 'accent'
+          },
+          secondary: {
+            main: '#2C5282', // Aligned with Tailwind 'accent-dark'
+          },
+          // background: {
+          //   default: theme === 'dark' ? '#111827' : '#F7FAFC', // Example: Tailwind's gray-900 and gray-100/blue
+          //   paper: theme === 'dark' ? '#1F2937' : '#FFFFFF', // Example: Tailwind's gray-800 and white
+          // },
+        },
+        // typography: {
+        //   fontFamily: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'].join(','),
+        // },
+        // You can add other MUI theme customizations here
+      }),
+    [theme]
+  );
 
   return (
-    <div className="min-h-screen transition-colors duration-300">
-      <GlobalLoadingIndicator />
-      <AppContent />
-      <React.Suspense fallback={<div>Loading...</div>}>
-        <ThemeToggle />
-      </React.Suspense>
-    </div>
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline /> {/* Applies baseline styles and theme-aware body background */}
+      {/* The div below had Tailwind bg classes; CssBaseline now manages body background.
+          Individual MUI components like Paper/Card will use theme.palette.background.paper.
+          Tailwind's dark: on html tag will still apply for non-MUI components. */}
+      <div className="min-h-screen transition-colors duration-300">
+        <AppContent />
+        <React.Suspense fallback={<div>Loading...</div>}>
+          <ThemeToggle />
+        </React.Suspense>
+      </div>
+    </ThemeProvider>
   );
 };
 
@@ -130,26 +122,16 @@ const App = () => {
         <p className="mt-4 text-sm text-gray-500">Please check your environment variables or .env file.</p>
       </div>
     );
-  }
-  
-  return (
-    <QueryClientProvider client={queryClient}>
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <HelmetProvider>
-          <GlobalProvider>
-            <ToastProvider>
-              <ErrorBoundary>
-                <UnifiedAppStructure />
-                {/* React Query Devtools - only in development */}
-                {process.env.NODE_ENV === 'development' && (
-                  <ReactQueryDevtools initialIsOpen={false} />
-                )}
-              </ErrorBoundary>
-            </ToastProvider>
-          </GlobalProvider>
-        </HelmetProvider>
-      </GoogleOAuthProvider>
-    </QueryClientProvider>
+  }  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <HelmetProvider>
+        <GlobalProvider>
+          <ErrorBoundary>
+            <MuiThemedAppStructure />
+          </ErrorBoundary>
+        </GlobalProvider>
+      </HelmetProvider>
+    </GoogleOAuthProvider>
   );
 };
 

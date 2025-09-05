@@ -1,44 +1,16 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 // Corrected import: directly use blogPosts array
 import { blogPosts } from '../data/BlogData'; 
 import BlogPostPreview from '../components/blog/BlogPostPreview';
 import { addStructuredData } from '../lib/seo-helper';
-import "./BlogPage.css";
 
 const BlogPage = () => {
   const { t, i18n } = useTranslation();
   const lang = i18n.language || 'he';
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  
   // Corrected usage: directly use the imported array
-  const posts = blogPosts;
-  
-  const categories = useMemo(() => {
-    const cats = ["all", ...new Set(posts.map(post => post.category).filter(Boolean))];
-    return cats;
-  }, [posts]);
-
-  const filteredPosts = useMemo(() => {
-    let filtered = posts;
-    
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(post => post.category === selectedCategory);
-    }
-    
-    if (searchTerm) {
-      filtered = filtered.filter(post => {
-        const title = post.title[lang] || post.title.en || "";
-        const summary = post.summary[lang] || post.summary.en || "";
-        return title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               summary.toLowerCase().includes(searchTerm.toLowerCase());
-      });
-    }
-    
-    return filtered;
-  }, [posts, selectedCategory, searchTerm, lang]); 
+  const posts = blogPosts; 
   
   useEffect(() => {
     // Add structured data for blog page
@@ -99,77 +71,27 @@ const BlogPage = () => {
           content={t('blog_meta_description') || (lang === 'he' ? 'קראו את הפוסטים האחרונים בבלוג של MonkeyZ.' : 'Read the latest posts from the MonkeyZ blog.')}/>
         <meta name="twitter:image" content="https://monkeyz.co.il/images/blog/blog-header.jpg" />
       </Helmet>
-      <div className="blog-container">
-        <div className="blog-content">
-          <div className="blog-header">
-            <h1 className="blog-title">
+      <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <header className="mb-12 text-center">
+            <h1 className="text-5xl font-extrabold text-accent tracking-tight">
               {t('blog_header') || (lang === 'he' ? 'הבלוג שלנו' : 'Our Blog')}
-            </h1>
-            <p className="blog-subtitle">
+            </h1>            <p className="mt-4 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               {t('blog_subheader') || (lang === 'he' ? 'חדשות, עדכונים ומחשבות מצוות MonkeyZ.' : 'News, updates, and thoughts from the MonkeyZ team.')}
             </p>
-          </div>
+          </header>
 
-          <div className="blog-search">
-            <input
-              type="text"
-              className="blog-search-input"
-              placeholder={t("search_blog", "Search blog posts...")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <div className="blog-search-icon">🔍</div>
-          </div>
-
-          <div className="blog-categories">
-            {categories.map(category => (
-              <button
-                key={category}
-                className={`blog-category-filter ${selectedCategory === category ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category === "all" ? t("all_categories", "All") : category}
-              </button>
-            ))}
-          </div>
-
-          {filteredPosts.length > 0 ? (
-            <div className="blog-grid">
-              {filteredPosts.map(post => (
-                <div key={post.id} className="blog-post-card">
-                  <BlogPostPreview post={post} />
-                </div>
+          {posts.length > 0 ? (
+            <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
+              {posts.map(post => (
+                <BlogPostPreview key={post.id} post={post} />
               ))}
             </div>
           ) : (
-            <div className="blog-no-posts">
-              <h2 className="blog-no-posts-title">
-                {t('blog_no_posts_title', 'No posts found')}
-              </h2>
-              <p className="blog-no-posts-text">
-                {t('blog_no_posts') || (lang === 'he' ? 'אין פוסטים להצגה כרגע. חזרו בקרוב!' : 'No posts to display yet. Check back soon!')}
-              </p>
-            </div>
-          )}
-
-          <div className="blog-newsletter">
-            <h2 className="blog-newsletter-title">
-              {t("newsletter_title", "Stay Updated")}
-            </h2>
-            <p className="blog-newsletter-text">
-              {t("newsletter_text", "Subscribe to our newsletter to get the latest updates and insights directly to your inbox.")}
+            <p className="text-center text-gray-400 text-xl">
+              {t('blog_no_posts') || (lang === 'he' ? 'אין פוסטים להצגה כרגע. חזרו בקרוב!' : 'No posts to display yet. Check back soon!')}
             </p>
-            <div className="blog-newsletter-form">
-              <input
-                type="email"
-                className="blog-newsletter-input"
-                placeholder={t("newsletter_email", "Enter your email")}
-              />
-              <button className="blog-newsletter-button">
-                {t("subscribe", "Subscribe")}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </>

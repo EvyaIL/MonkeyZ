@@ -8,8 +8,6 @@ import PrimaryInput from "../components/inputs/PrimaryInput";
 import Spinner from "../components/Spinner";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
-import { isRTL, formatTextDirection, formatCurrency } from "../utils/language";
-import "./AllProducts.css";
 
 const AllProducts = React.memo(() => {
   const { search } = useLocation();
@@ -195,27 +193,20 @@ const AllProducts = React.memo(() => {
   // Render filters component
   const renderFilters = useCallback(() => {
     return (
-      <div className="filters-content">
-        <h2 className="filters-title">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
-          </svg>
-          {t("filters")}
-        </h2>
-        
-        <PrimaryInput
+      <>
+        <h2 className="text-accent text-xl font-semibold mb-4">{t("filters")}</h2>
+          <PrimaryInput
           type="search"
           title={t("search")}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("search_products_placeholder")}
           value={searchQuery}
-          otherStyle="search-input"
+          otherStyle="mb-6"
           aria-label={t("search_products")}
         />
         
-        <div className="price-range-section">
-          <label
-            className="price-range-label"
+        <div className="mb-6">          <label
+            className="block text-gray-900 dark:text-white text-sm font-medium mb-2"
             htmlFor="price-range"
           >
             {t("price_range")}: {lang === "he" ? `₪${filterPriceRange.max} - ₪${filterPriceRange.min}` : `₪${filterPriceRange.min} - ₪${filterPriceRange.max}`}
@@ -231,15 +222,14 @@ const AllProducts = React.memo(() => {
           )}
         </div>
         
-        <div className="categories-section">
-          <h3 className="categories-title">
-            {t("categories")}
-          </h3>
-          <div className="categories-grid">
+        <div className="mb-6">
+          <h3 className="text-accent text-lg font-semibold mb-4">{t("categories")}</h3>
+          <div className="flex flex-wrap gap-3">
             {categories.map((category) => (
               <label 
                 key={category} 
-                className={`category-checkbox ${selectedCategories.includes(category) ? 'selected' : ''}`}
+                className={`flex items-center justify-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 cursor-pointer group hover:shadow-xl focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-white dark:focus-within:ring-offset-gray-800 focus-within:ring-accent ${selectedCategories.includes(category) ? 'bg-accent border-accent text-white shadow-lg hover:bg-accent-dark transform scale-105' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 hover:border-accent hover:text-accent hover:bg-gray-200 dark:hover:bg-gray-700/50'}`}
+                style={{ minWidth: '100px' }}
               >
                 <input 
                   type="checkbox"
@@ -248,22 +238,21 @@ const AllProducts = React.memo(() => {
                   onChange={() => handleCategoryChange(category)}
                   aria-labelledby={`category-label-${category}`}
                 />
-                <span id={`category-label-${category}`}>{category}</span>
+                <span id={`category-label-${category}`} className="font-medium text-sm select-none">{category}</span>
               </label>
             ))}
           </div>
         </div>
-        
-        <button
+          <div className="pt-4 border-t border-gray-300 dark:border-gray-700">          <PrimaryButton
+            title={t("clear_filters", "Clear Filters")}
           onClick={clearFilters}
-          className="clear-filters-btn"
-          aria-label={t("clear_all_filters", "Clear all filters")}
-        >
-          {t("clear_filters", "Clear Filters")}
-        </button>
+          otherStyle="w-full bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
+          ariaLabel={t("clear_all_filters", "Clear all filters")}
+        />
       </div>
-    );
-  }, [t, searchQuery, setSearchQuery, filterPriceRange, setFilterPriceRange, categories, selectedCategories, handleCategoryChange, clearFilters, lang]);
+    </>
+  );
+  }, [t, searchQuery, setSearchQuery, filterPriceRange, setFilterPriceRange, categories, selectedCategories, handleCategoryChange, clearFilters]);
 
   // Removed unused getDemoCategories function
 
@@ -276,98 +265,88 @@ const AllProducts = React.memo(() => {
         <meta property="og:description" content={t("all_products_meta_description") || "Browse all MonkeyZ products. Find the best digital products and services for your needs."} />
         <meta property="og:type" content="website" />
         <link rel="canonical" href={window.location.href.split('?')[0]} />
-      </Helmet>
+      </Helmet>      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+        <h1 className="text-accent font-bold text-2xl md:text-3xl mb-4 md:mb-6" tabIndex={0}>
+          {t("all_products")}
+        </h1>
 
-      <div className={`all-products-container ${isRTL() ? 'rtl' : 'ltr'} bg-gray-50 dark:bg-dark-primary text-gray-900 dark:text-dark-text-primary transition-colors duration-300`}>
-        <div className="all-products-header">
-          <h1 className="all-products-title" tabIndex={0}>
-            {formatTextDirection(t("all_products"))}
-          </h1>
-        </div>
-
-        <div className="all-products-main grid grid-cols-1 lg:grid-cols-4 gap-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Filters - Mobile Toggle */}
-          <div className="mobile-filters-toggle lg:hidden">
-            <details>
-              <summary className="mobile-filters-summary">
-                <span>{formatTextDirection(t("filters"))}</span>
-                <svg className={`w-5 h-5 ${isRTL() ? 'rtl-arrow' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-7xl flex flex-col lg:flex-row gap-6 backdrop-blur-sm">
+          {/* Filters - Mobile Toggle */}          <div className="lg:hidden w-full mb-4">
+            <details className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg">
+              <summary className="text-accent font-semibold p-4 cursor-pointer flex items-center justify-between">
+                <span>{t("filters")}</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-              </summary>
-              <div className="mobile-filters-content">
+              </summary><div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                {/* Filter Content - Mobile */}
                 {renderFilters()}
               </div>
             </details>
           </div>
           
-          {/* Filters - Desktop */}
-          <section
-            className="filters-section hidden lg:block bg-white dark:bg-dark-secondary border border-gray-200 dark:border-dark-border rounded-xl p-4 shadow-sm dark:shadow-lg"
+          {/* Filters - Desktop */}          <section
+            className="hidden lg:block w-full lg:w-1/4 bg-white dark:bg-gray-800 p-4 rounded-lg sticky top-4 self-start border border-accent/30 dark:border-accent/30"
             aria-label={t("product_filters")}
           >
             {renderFilters()}
           </section>
 
           {/* Products */}
-          <section className="products-section lg:col-span-3" aria-label={t("product_list")}>
-            <div className="products-header">
-              <h2 className="products-title">
+          <section className="w-full lg:w-3/4" aria-label={t("product_list")}>
+            <div className="flex flex-wrap justify-between items-center mb-6">
+              <h2 className="text-accent font-bold text-xl mb-2 md:mb-0">
                 {t("new_products")}
               </h2>
               
               {/* Sort Dropdown */}
-              <div className="flex items-center gap-2">
-                <label htmlFor="sort-products" className="text-sm font-medium text-gray-700 hidden sm:block">
+              <div className="flex items-center">
+                <label htmlFor="sort-products" className="mr-2 text-gray-800 dark:text-white text-sm hidden sm:block">
                   {t("sort_by", "Sort by:")}
                 </label>
                 <select 
                   id="sort-products"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value)}
-                  className="sort-select bg-white dark:bg-dark-secondary border border-gray-200 dark:border-dark-border rounded-md px-3 py-2 text-sm"
+                  className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-gray-700 text-accent dark:text-white rounded-lg px-3 py-2 focus:ring-accent focus:border-accent text-sm"
                   aria-label={t("sort_products", "Sort products")}
                 >
                   {sortOptions.map(option => (
-                    <option key={option.value} value={option.value}>
+                    <option key={option.value} value={option.value} className="text-gray-900 dark:text-white">
                       {option.label}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
-            
-            {loading ? (
-              <div className="loading-spinner">
+              {loading ? (
+              <div className="flex flex-col items-center justify-center p-8">
                 <Spinner />
-                <p className="mt-4 text-gray-600" aria-live="polite">
+                <p className="text-gray-900 dark:text-white text-center mt-4" aria-live="polite">
                   {t("loading_products", "Loading products...")}
                 </p>
               </div>
             ) : errorMsg ? (
-              <div className="error-message">
-                <p role="alert">
+              <div className="text-center p-8">
+                <p className="text-red-500 text-lg mb-4" role="alert">
                   {errorMsg}
                 </p>
                 <PrimaryButton
                   title={t("try_again", "Try Again")}
                   onClick={fetchAllProducts}
-                  otherStyle="mt-4"
                 />
               </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="no-products">
-                <p aria-live="polite">
+            ) : filteredProducts.length === 0 ? (              <div className="text-center p-8 bg-white dark:bg-gray-800 rounded-lg border border-accent/30 dark:border-accent/30">
+                <p className="text-gray-600 dark:text-gray-400 text-lg mb-4" aria-live="polite">
                   {t("no_products_found")}
-                </p>
-                <PrimaryButton
+                </p>                <PrimaryButton
                   title={t("clear_filters", "Clear Filters")}
                   onClick={clearFilters}
-                  otherStyle="mt-4"
+                  otherStyle="mt-2 bg-gray-600 dark:bg-gray-600 hover:bg-gray-700 dark:hover:bg-gray-500 text-white border border-gray-500 dark:border-gray-500"
                 />
               </div>
             ) : (
-              <div className="products-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
                 {filteredProducts.map((product, idx) => (
                   <ProductCard
                     key={product.id || product._id || idx}
@@ -379,7 +358,7 @@ const AllProducts = React.memo(() => {
             
             {/* Results count */}
             {!loading && !errorMsg && filteredProducts.length > 0 && (
-              <p className="text-center text-gray-500 text-sm mt-6" aria-live="polite">
+              <p className="text-gray-400 text-sm mt-4 text-center" aria-live="polite">
                 {`${t("showing_prefix", "Showing")} ${filteredProducts.length} ${t("products_suffix", "products")}`}
               </p>
             )}

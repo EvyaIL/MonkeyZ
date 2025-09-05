@@ -1,34 +1,16 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { apiService } from "../lib/apiService";
+import PrimaryButton from "../components/buttons/PrimaryButton";
+import PrimaryInput from "../components/inputs/PrimaryInput";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import Spinner from "../components/Spinner";
-import ProductCard from "../components/product/ProductCard";
 import { generateProductSchema, addStructuredData } from "../lib/seo-helper";
-import { isRTL, formatTextDirection, formatCurrency } from "../utils/language";
-import { 
-  ShoppingCartIcon, 
-  HeartIcon, 
-  ShieldCheckIcon,
-  TruckIcon,
-  ClockIcon,
-  StarIcon,
-  ChevronRightIcon,
-  PhotoIcon,
-  CheckCircleIcon,
-  InformationCircleIcon,
-  CubeIcon,
-  TagIcon,
-  ShareIcon,
-  EyeIcon
-} from "@heroicons/react/24/outline";
-import { HeartIcon as HeartSolidIcon, StarIcon as StarSolidIcon } from "@heroicons/react/24/solid";
-import "./ProductPage.css";
 
 const ProductPage = () => {
-  const { productIdentifier } = useParams();
+  const { productIdentifier } = useParams(); // Changed from productName to productIdentifier
   const { addItemToCart, notify } = useGlobalProvider();
   const { i18n, t } = useTranslation();
   const lang = i18n.language || "he";
@@ -47,10 +29,8 @@ const ProductPage = () => {
   const [loadingRelated, setLoadingRelated] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [addedToCart, setAddedToCart] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [showFullDescription, setShowFullDescription] = useState(false);
 
-  // Memoize display values
+  // Memoize display values to prevent unnecessary recalculations
   const displayName = useMemo(() => {
     return typeof product.name === "object" ? (product.name[lang] || product.name.en) : product.name;
   }, [product.name, lang]);
@@ -61,85 +41,117 @@ const ProductPage = () => {
 
   const displayCategory = product.category || "";
   const formattedPrice = product.price ? product.price.toFixed(2) : "0.00";
-
-  // Fetch product data
-  const fetchProduct = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg("");
-
-    if (!productIdentifier) {
-      setErrorMsg(t("invalid_product_url", "Invalid product URL"));
-      setLoading(false);
-      return;
-    }
-
-    const { data, error } = await apiService.get(`/product/${productIdentifier}`);
-    if (error) {
-      console.error("Failed to fetch product:", error);
-      setErrorMsg(error.message || t("failed_to_load_product", "Failed to load product"));
-    } else if (!data) {
-      setErrorMsg(t("product_not_found", "Product not found"));
-    } else {
-      setProduct(data);
-    }
-    setLoading(false);
-  }, [productIdentifier, t]);
+  // Removed unused extractSearchTerm function
 
   // Fetch related products
   const fetchRelatedProducts = useCallback(async () => {
     const productId = product.id || product._id;
-    const category = product.category;
-    if (!productId) return;
-
-    setLoadingRelated(true);
-    
-    // Try to fetch related products by product ID first
-    let { data, error } = await apiService.get(`/product/related/${productId}`);
-    
-    // If no related endpoint or no results, fetch by category as fallback
-    if (error || !data || !Array.isArray(data) || data.length === 0) {
-      if (category) {
-        const categoryResult = await apiService.get(`/product/category/${encodeURIComponent(category)}`);
-        if (!categoryResult.error && categoryResult.data && Array.isArray(categoryResult.data)) {
-          // Filter out the current product and limit to 4
-          data = categoryResult.data
-            .filter(p => (p.id || p._id) !== productId)
-            .slice(0, 4);
-        }
-      }
-      
-      // If still no results, fetch latest products as final fallback
-      if (!data || data.length === 0) {
-        const latestResult = await apiService.get('/product/homepage', { limit: 4 });
-        if (!latestResult.error && latestResult.data && Array.isArray(latestResult.data)) {
-          data = latestResult.data
-            .filter(p => (p.id || p._id) !== productId)
-            .slice(0, 4);
-        }
-      }
-    }
-    
-    if (data && Array.isArray(data)) {
-      setRelatedProducts(data.slice(0, 4));
-    } else {
+    if (!productId || !product.category) { // Guard: Must have product ID and category
       setRelatedProducts([]);
+      setLoadingRelated(false); // Ensure loading is stopped
+      return;
     }
+    setLoadingRelated(true);
+    try {
+      // Use the public endpoint to fetch all products
+      const { data: allPublicProducts } = await apiService.get('/product/all');
+      let productsToShow = [];
+
+      if (allPublicProducts && Array.isArray(allPublicProducts) && allPublicProducts.length > 0) {
+        const currentProductId = productId; // Use the already computed productId
+        const currentProductCategory = product.category.toLowerCase();
+
+        // 1. Filter for active products in the same category, excluding the current product
+        // Assuming the /product/all endpoint already returns active products or suitable public products
+        const categoryMatches = allPublicProducts.filter(p => 
+          p && 
+          (p.id || p._id) !== currentProductId && 
+          // p.active !== false && // Assuming /product/all handles active status
+          p.category && 
+          p.category.toLowerCase() === currentProductCategory
+        );
+
+        // 2. Decide which products to show based on the number of matches
+        if (categoryMatches.length > 0) {
+          if (categoryMatches.length <= 4) {
+            productsToShow = categoryMatches;
+          } else {
+            // Shuffle and pick 4 if more than 4 matches
+            for (let i = categoryMatches.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [categoryMatches[i], categoryMatches[j]] = [categoryMatches[j], categoryMatches[i]];
+            }
+            productsToShow = categoryMatches.slice(0, 4);
+          }
+        }
+        // If no categoryMatches, productsToShow remains an empty array (default)
+      }
+      setRelatedProducts(productsToShow);
+    } catch (err) {
+      console.error("Error fetching related products:", err);
+      setRelatedProducts([]); // Set to empty on error
+    } finally {
+      setLoadingRelated(false);
+    }
+  }, [product.id, product._id, product.category, setLoadingRelated, setRelatedProducts]); // apiService is stable
+
+  // Fetch product data
+  const fetchProduct = useCallback(async () => {
+    if (!productIdentifier) return; // Changed from productName to productIdentifier
     
-    setLoadingRelated(false);
-  }, [product]);
+    setLoading(true);
+    setErrorMsg("");
+    try {
+      // The productIdentifier is already part of the URL, no need to extract from product.name here
+      // It will be the name (or slug, if backend supports it at this new unified endpoint)
+      const decodedIdentifier = decodeURIComponent(productIdentifier); // Changed from productName
+      
+      // The backend will handle if it's a name or slug
+      // No need for isHebrew or specific encoding logic here for the path param itself,
+      // as long as the server and client handle UTF-8 correctly in URLs.
+      // The `productIdentifier` from `useParams` is already decoded by react-router.
+      const response = await apiService.get(`/product/${encodeURIComponent(decodedIdentifier)}`); // Use productIdentifier directly
+      
+      if (response.data) {
+        setProduct(response.data); // This will trigger the useEffect for related products
+      } else {
+        throw new Error("Product data is empty");
+      }
+    } catch (error) {
+      console.error("Error fetching product:", error); // Keep original error for debugging
+      // setErrorMsg(t("errors.productNotFound")); // Simplified error message
+      notify({
+        type: "error",
+        message: error.response?.status === 404 ? 
+          t("errors.productNotFound") : 
+          t("errors.generalError", "An error occurred while fetching the product")
+      });
+      setProduct({ id: null, name: "", description: "", image: "", price: 0, category: "" }); // Reset product on error
+    } finally {
+      setLoading(false);
+    }
+  }, [productIdentifier, notify, t, setProduct, setLoading, setErrorMsg]); // Removed lang as it's not used in callback
 
+  // Effect to fetch main product data when 'productIdentifier' (from URL) or 'lang' changes
   useEffect(() => {
-    fetchProduct();
-    // Scroll to top when product changes
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [fetchProduct]);
+    const loadProductData = async () => {
+      // Reset product state before fetching new one if desired, or ensure loading states cover UI
+      // setProduct({ id: null, name: "", description: "", image: "", price: 0, category: "" });
+      // setRelatedProducts([]);
+      await fetchProduct();
+    };
+    if (productIdentifier) { // Changed from productName to productIdentifier
+        loadProductData();
+    }
+  }, [productIdentifier, lang, fetchProduct]); // Changed productName to productIdentifier, fetchProduct is a dependency
 
+  // Effect to fetch related products when the main product's data (id or category) changes
   useEffect(() => {
     const productId = product?.id || product?._id;
-    if (product && productId) {
+    if (product && productId) { // Ensure product is loaded
       fetchRelatedProducts();
     }
-  }, [product, fetchRelatedProducts]);
+  }, [product, fetchRelatedProducts]); // Added product to dependencies
 
   // Add structured data when product data changes
   useEffect(() => {
@@ -149,6 +161,7 @@ const ProductPage = () => {
         ...product,
         name: displayName,
         description: displayDesc,
+        // Prioritize imageUrl, then image for structured data
         imageUrl: product.imageUrl || product.image,
         inStock: true
       };
@@ -159,6 +172,7 @@ const ProductPage = () => {
   }, [product, displayName, displayDesc]);
 
   const handleAddToCart = useCallback(() => {
+    // Ensure we have a valid product ID - handle both MongoDB _id and id formats
     const productId = product.id || product._id;
     if (!productId) {
       console.error("Cannot add to cart: Product missing ID", product);
@@ -182,363 +196,233 @@ const ProductPage = () => {
   return (
     <>
       <Helmet>
-        <title>{displayName || t("product")} | MonkeyZ</title>
-        <meta name="description" content={displayDesc || t("premium_digital_products")} />
-        <meta name="keywords" content={`${displayName}, ${displayCategory}, MonkeyZ, digital products`} />
-        <link rel="canonical" href={`https://monkeyz.co.il/product/${productIdentifier}`} />
+        <title>{displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")}</title>
+        <meta name="description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
+        <meta name="keywords" content={`MonkeyZ, ${displayName}, ${displayCategory}, digital products, software, premium`} />
+        <link rel="canonical" href={`https://monkeyz.co.il/product/${encodeURIComponent(displayName)}`} />
         
-        <meta property="og:title" content={`${displayName} | MonkeyZ`} />
-        <meta property="og:description" content={displayDesc || t("premium_digital_products")} />
+        {/* Open Graph / Facebook */}
+        <meta property="og:title" content={displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")} />
+        <meta property="og:description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
+        {product.image && <meta property="og:image" content={product.image} />}
         <meta property="og:type" content="product" />
-        <meta property="og:url" content={`https://monkeyz.co.il/product/${productIdentifier}`} />
-        {(product.imageUrl || product.image) && <meta property="og:image" content={product.imageUrl || product.image} />}
+        <meta property="og:url" content={`https://monkeyz.co.il/product/${encodeURIComponent(displayName)}`} />
+        {product.price && <meta property="product:price:amount" content={formattedPrice} />}
+        <meta property="product:price:currency" content="ILS" />
+        {displayCategory && <meta property="product:category" content={displayCategory} />}
         
+        {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${displayName} | MonkeyZ`} />
-        <meta name="twitter:description" content={displayDesc || t("premium_digital_products")} />
+        <meta name="twitter:title" content={displayName ? `${displayName} | MonkeyZ` : "MonkeyZ - " + t("product")} />
+        <meta name="twitter:description" content={displayDesc || t("product_meta_description", "Explore our quality products at MonkeyZ.")} />
+        {/* Prioritize imageUrl, then image for Twitter card */}
         {(product.imageUrl || product.image) && <meta name="twitter:image" content={product.imageUrl || product.image} />}
       </Helmet>
-
-      <div className="modern-product-container">
-        <div className="modern-product-content">
+      <div className="p-4 md:p-9 flex flex-col items-center justify-center min-h-screen">
+        <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-5 backdrop-blur-sm">
           {loading ? (
-            <div className="modern-loading-container">
-              <div className="modern-loading-card">
-                <div className="loading-spinner">
-                  <div className="spinner-ring"></div>
-                </div>
-                <p className="loading-text">
-                  {formatTextDirection(t("loading_product", "Loading product..."))}
-                </p>
-              </div>
+            <div className="flex flex-col items-center justify-center p-8" aria-live="polite">
+              <Spinner />
+              <p className="text-white text-center mt-4">
+                {t("loading_product", "Loading product...")}
+              </p>
             </div>
           ) : errorMsg ? (
-            <div className="modern-error-container">
-              <div className="modern-error-card">
-                <div className="error-icon-wrapper">
-                  <PhotoIcon className="h-16 w-16 text-gray-400" />
-                </div>
-                <h3 className="error-title">{formatTextDirection(t("product_not_found", "Product Not Found"))}</h3>
-                <p className="error-message">{formatTextDirection(errorMsg)}</p>
-                <Link to="/products" className="modern-error-link">
-                  <ChevronRightIcon className="h-5 w-5" />
-                  {formatTextDirection(t("browse_products", "Browse Products"))}
-                </Link>
-              </div>
+            <div className="text-center p-8">
+              <p className="text-red-500 text-lg mb-4" role="alert">
+                {errorMsg}
+              </p>
+              <Link to="/products" className="text-accent hover:text-accent-light underline transition-colors">
+                {t("browse_all_products", "Browse all products")}
+              </Link>
             </div>
           ) : (
             <>
-              {/* Breadcrumb */}
-              <nav className="modern-breadcrumb" aria-label="Breadcrumb">
-                <div className="breadcrumb-container">
-                  <Link to="/" className="breadcrumb-link">
-                    {formatTextDirection(t("home"))}
-                  </Link>
-                  <ChevronRightIcon className="h-4 w-4 breadcrumb-separator" />
-                  <Link to="/products" className="breadcrumb-link">
-                    {formatTextDirection(t("all_products"))}
-                  </Link>
+              <nav aria-label="breadcrumb" className="mb-4 px-2">
+                <ol className="flex flex-wrap text-sm text-gray-400">
+                  <li className="after:content-['/'] after:mx-2">
+                    <Link to="/" className="hover:text-accent transition-colors">{t("home")}</Link>
+                  </li>
+                  <li className="after:content-['/'] after:mx-2">
+                    <Link to="/products" className="hover:text-accent transition-colors">{t("all_products")}</Link>
+                  </li>
                   {displayCategory && (
-                    <>
-                      <ChevronRightIcon className="h-4 w-4 breadcrumb-separator" />
+                    <li className="after:content-['/'] after:mx-2">
                       <Link 
                         to={`/products?category=${displayCategory}`} 
-                        className="breadcrumb-link"
+                        className="hover:text-accent transition-colors"
                       >
-                        {formatTextDirection(displayCategory)}
+                        {displayCategory}
                       </Link>
-                    </>
+                    </li>
                   )}
-                  <ChevronRightIcon className="h-4 w-4 breadcrumb-separator" />
-                  <span className="breadcrumb-current">{formatTextDirection(displayName || t("product_name"))}</span>
-                </div>
+                  <li className="text-accent" aria-current="page">
+                    {displayName || t("product_name")}
+                  </li>
+                </ol>
               </nav>
 
-              {/* Product Main Content */}
-              <main className="modern-product-main">
-                <div className="product-grid-modern">
+              <div className="flex flex-col md:flex-row gap-6 items-start p-4">
+                <div className="w-full md:w-1/2 h-[300px] md:h-[350px] rounded-lg border border-accent/10 dark:border-accent/10 bg-gray-100 dark:bg-gray-900 flex items-center justify-center overflow-hidden transition-all duration-300 hover:border-accent/30 group relative">
+                  {/* Prioritize imageUrl, then image for product display */}
+                  {(product.imageUrl || product.image) ? (
+                    <img
+                      src={product.imageUrl || product.image}
+                      alt={displayName || t("product_image")}
+                      className="object-cover w-full h-full transition-all duration-500 group-hover:scale-105" /* Changed from object-contain and removed p-4 */
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="text-gray-400 dark:text-gray-500 text-lg">{t("no_image_available", "No Image Available")}</span>
+                  )}
+                </div>
+
+                <div className="flex-1 text-white">
+                  <h1 className="text-start text-accent font-bold text-2xl mb-2">
+                    {displayName}
+                  </h1>
                   
-                  {/* Image Section */}
-                  <div className="modern-product-image-section">
-                    <div className="image-container">
-                      {(product.imageUrl || product.image) ? (
-                        <div className="image-wrapper">
-                          <img
-                            src={product.imageUrl || product.image}
-                            alt={displayName || t("product_image")}
-                            className="modern-product-image"
-                            loading="lazy"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const placeholder = document.createElement('div');
-                              placeholder.className = 'modern-image-placeholder';
-                              placeholder.innerHTML = `
-                                <div class="placeholder-content">
-                                  <svg class="h-16 w-16 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
-                                  </svg>
-                                  <span>${formatTextDirection(t("image_not_available", "Image not available"))}</span>
-                                </div>
-                              `;
-                              e.target.parentElement.appendChild(placeholder);
-                            }}
-                          />
-                          <div className="image-overlay">
-                            <button className="zoom-button" title={t("view_larger", "View Larger")}>
-                              <EyeIcon className="h-6 w-6" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="modern-image-placeholder">
-                          <div className="placeholder-content">
-                            <PhotoIcon className="h-16 w-16 text-gray-400" />
-                            <span>{formatTextDirection(t("no_image_available", "No Image Available"))}</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Enhanced Badges */}
-                      <div className="product-badges">
-                        {product.is_new && (
-                          <div className="product-badge new-badge">
-                            <div className="badge-shine"></div>
-                            {formatTextDirection(t("new", "NEW"))}
-                          </div>
-                        )}
-                        
-                        {product.percent_off > 0 && (
-                          <div className="product-badge discount-badge">
-                            <div className="badge-shine"></div>
-                            <TagIcon className="h-4 w-4" />
-                            {product.percent_off}% {formatTextDirection(t("off", "OFF"))}
-                          </div>
-                        )}
-                        
-                        <div className="product-badge verified-badge">
-                          <CheckCircleIcon className="h-4 w-4" />
-                          {formatTextDirection(t("verified", "Verified"))}
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    {product.is_new && (
+                      <span className="bg-emerald-500 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
+                        {t("new", "NEW")}
+                      </span>
+                    )}
+                    {product.percent_off > 0 && (
+                      <span className="bg-rose-500 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
+                        {product.percent_off}% {t("off", "OFF")}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Product Info Section */}
-                  <div className="modern-product-info-section">
-                    <div className="product-info-container">
-                      
-                      {/* Category */}
-                      {displayCategory && (
-                        <Link 
-                          to={`/products?category=${displayCategory}`}
-                          className="modern-product-category"
-                        >
-                          <CubeIcon className="h-4 w-4" />
-                          {formatTextDirection(displayCategory)}
-                        </Link>
-                      )}
-
-                      {/* Title */}
-                      <h1 className="modern-product-title">
-                        <span className="title-gradient">
-                          {formatTextDirection(displayName)}
-                        </span>
-                      </h1>
-                      
-                      {/* Enhanced Trust Indicators */}
-                      <div className="trust-indicators">
-                        <div className="trust-item">
-                          <div className="trust-icon">
-                            <ShieldCheckIcon className="h-5 w-5" />
-                          </div>
-                          <span>{t("authentic_license", "100% Authentic License")}</span>
-                        </div>
-                        <div className="trust-item">
-                          <div className="trust-icon">
-                            <TruckIcon className="h-5 w-5" />
-                          </div>
-                          <span>{t("instant_delivery", "Instant Digital Delivery")}</span>
-                        </div>
-                        <div className="trust-item">
-                          <div className="trust-icon">
-                            <ClockIcon className="h-5 w-5" />
-                          </div>
-                          <span>{t("247_support", "24/7 Customer Support")}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Enhanced Rating */}
-                      <div className="product-rating">
-                        <div className="stars">
-                          {[...Array(5)].map((_, i) => (
-                            <StarSolidIcon key={i} className="h-5 w-5 text-yellow-400" />
-                          ))}
-                        </div>
-                        <span className="rating-text">4.8 (127 {t("reviews", "reviews")})</span>
-                        <button className="rating-link">
-                          {t("read_reviews", "Read Reviews")}
-                        </button>
-                      </div>
-                      
-                      {/* Price */}
-                      <div className="modern-product-price">
-                        <div className="price-container">
-                          <span className="price-main">₪{formattedPrice}</span>
-                          {product.original_price && product.original_price > product.price && (
-                            <span className="price-original">₪{product.original_price.toFixed(2)}</span>
-                          )}
-                        </div>
-                        {product.percent_off > 0 && (
-                          <div className="savings-badge">
-                            {t("save", "Save")} ₪{(product.original_price - product.price).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Description */}
-                      <div className="modern-product-description">
-                        <h3 className="description-title">{t("product_description", "Product Description")}</h3>
-                        <div className={`description-content ${showFullDescription ? 'expanded' : ''}`}>
-                          {formatTextDirection(displayDesc || t("no_description_available", "No description available."))}
-                        </div>
-                        {displayDesc && displayDesc.length > 200 && (
-                          <button 
-                            onClick={() => setShowFullDescription(!showFullDescription)}
-                            className="description-toggle"
-                          >
-                            {showFullDescription ? t("show_less", "Show Less") : t("show_more", "Show More")}
-                          </button>
-                        )}
-                      </div>
-                      
-                      {/* Key Features */}
-                      <div className="product-features">
-                        <h3 className="features-title">{t("key_features", "Key Features")}</h3>
-                        <ul className="features-list">
-                          <li className="feature-item">
-                            <ShieldCheckIcon className="h-4 w-4" />
-                            <span>{t("feature_1", "Official licensing from verified distributors")}</span>
-                          </li>
-                          <li className="feature-item">
-                            <ClockIcon className="h-4 w-4" />
-                            <span>{t("feature_2", "Instant delivery within minutes")}</span>
-                          </li>
-                          <li className="feature-item">
-                            <TruckIcon className="h-4 w-4" />
-                            <span>{t("feature_3", "Full customer support included")}</span>
-                          </li>
-                        </ul>
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="modern-product-actions">
-                        <div className="quantity-section">
-                          <label className="quantity-label">
-                            {formatTextDirection(t("quantity", "Quantity"))}:
-                          </label>
-                          <div className="quantity-controls">
-                            <button 
-                              onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
-                              className="quantity-btn"
-                              type="button"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min={1}
-                              value={quantity}
-                              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                              className="quantity-input"
-                            />
-                            <button 
-                              onClick={() => setQuantity(prev => prev + 1)}
-                              className="quantity-btn"
-                              type="button"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="action-buttons">
-                          <button
-                            onClick={handleAddToCart}
-                            className={`modern-add-to-cart-btn ${addedToCart ? 'added' : ''}`}
-                            type="button"
-                          >
-                            <ShoppingCartIcon className="h-5 w-5" />
-                            {formatTextDirection(addedToCart ? t("added_to_cart", "Added!") : t("add_to_cart", "Add to Cart"))}
-                          </button>
-                          
-                          <button
-                            onClick={() => setIsFavorite(!isFavorite)}
-                            className={`wishlist-btn ${isFavorite ? 'favorited' : ''}`}
-                            type="button"
-                          >
-                            {isFavorite ? (
-                              <HeartSolidIcon className="h-5 w-5" />
-                            ) : (
-                              <HeartIcon className="h-5 w-5" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Security Notice */}
-                      <div className="security-notice">
-                        <ShieldCheckIcon className="h-6 w-6 text-green-600" />
-                        <div className="security-text">
-                          <h4>{t("secure_purchase", "Secure Purchase")}</h4>
-                          <p>{t("security_message", "Your payment information is protected with industry-standard encryption.")}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </main>
-
-              {/* Related Products Section */}
-              <section className="modern-related-products-section">
-                <div className="related-products-header">
-                  <h2 className="related-products-title">
-                    {formatTextDirection(t("related_products", "Related Products"))}
-                  </h2>
-                  <p className="related-products-subtitle">
-                    {formatTextDirection(t("related_products_subtitle", "You might also be interested in these products"))}
-                  </p>
-                </div>
-                
-                {loadingRelated ? (
-                  <div className="related-products-loading">
-                    <div className="loading-spinner">
-                      <div className="spinner-ring"></div>
-                    </div>
-                    <p className="loading-text">
-                      {formatTextDirection(t("loading_related_products", "Loading related products..."))}
+                  {displayCategory && (
+                    <Link 
+                      to={`/products?category=${displayCategory}`}
+                      className="inline-block bg-gray-700 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4 hover:bg-gray-600 transition-colors"
+                    >
+                      {displayCategory}
+                    </Link>
+                  )}
+                    <div className="prose dark:prose-invert max-w-none">
+                    <p className="text-lg leading-relaxed whitespace-pre-line text-gray-900 dark:text-white">
+                      {displayDesc || t("no_description_available", "No description available.")}
                     </p>
                   </div>
+                  
+                  <p className="text-2xl font-semibold text-accent mt-6">
+                    ₪{formattedPrice}
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center mt-6 space-y-4 sm:space-y-0 sm:space-x-2">
+                    <div className="flex items-center">
+                      <label htmlFor="quantity" className="text-gray-800 dark:text-white mr-3">{t("quantity", "Quantity")}:</label>
+                      <div className="flex items-center shadow-md">
+                        <button 
+                          onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                          className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2 px-4 rounded-l border border-gray-300 dark:border-gray-600"
+                          aria-label={t("decrease_quantity", "Decrease quantity")}
+                        >
+                          −
+                        </button>                        <PrimaryInput
+                          id="quantity"
+                          type="number"
+                          min={1}
+                          value={quantity}
+                          onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                          otherStyle="w-16 mx-0 bg-white dark:bg-gray-800 text-center h-10 rounded-none border-x-0 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
+                          aria-label={t("quantity", "Quantity")}
+                        />
+                        <button 
+                          onClick={() => setQuantity(prev => prev + 1)}
+                          className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-2 px-4 rounded-r border border-gray-300 dark:border-gray-600"
+                          aria-label={t("increase_quantity", "Increase quantity")}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <PrimaryButton
+                      title={addedToCart ? t("added_to_cart", "Added!") : t("add_to_cart")}
+                      otherStyle={`h-11 transition-all duration-300 ${addedToCart ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                      onClick={handleAddToCart}
+                      disabled={!(product.id || product._id)}
+                      aria-label={`${t("add")} ${displayName} ${t("to_cart")}`}
+                    />
+                  </div>
+                  
+                  {addedToCart && (
+                    <div 
+                      className="text-green-400 mt-2 animate-fade-in text-sm flex items-center"
+                      aria-live="polite"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {`${displayName} ${t("added_to_cart_suffix", "added to cart")}`}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Related Products Section */}
+              <div className="mt-12 border-t border-accent/30 pt-8">
+                <h2 className="text-center text-accent font-bold text-2xl mb-8">
+                  {t("related_products", "Related Products")}
+                </h2>
+                
+                {loadingRelated ? (
+                  <div className="flex justify-center p-4">
+                    <Spinner />
+                  </div>
                 ) : relatedProducts.length > 0 ? (
-                  <div className="modern-related-products-grid">
-                    {relatedProducts.map((relatedProduct) => (
-                      <ProductCard 
-                        key={relatedProduct.id || relatedProduct._id} 
-                        product={relatedProduct} 
-                      />
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {relatedProducts.map((relatedProduct, index) => {
+                      const relName = typeof relatedProduct.name === "object" 
+                        ? (relatedProduct.name[lang] || relatedProduct.name.en) 
+                        : relatedProduct.name;
+                      
+                      // Check if name contains Hebrew characters
+                      const isHebrew = /[\u0590-\u05FF]/.test(relName);
+                      const encodedName = isHebrew ? 
+                        encodeURI(relName) : 
+                        encodeURIComponent(relName);
+                      
+                      return (
+                        <Link 
+                          key={`related-${relatedProduct.id || index}-${relatedProduct.name || 'unknown'}`} 
+                          to={`/product/${encodedName}`} // Changed from /product/name/ to /product/
+                          className="group"
+                        >
+                          <div className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg p-4 shadow-lg transition-all duration-300 hover:shadow-xl backdrop-blur-sm h-full flex flex-col">
+                            <div className="h-40 mb-4 bg-gray-100 dark:bg-gray-900 rounded-lg border border-accent/10 dark:border-accent/10 flex items-center justify-center overflow-hidden group-hover:border-accent/30 transition-colors">
+                              {/* Prioritize imageUrl, then image for related product display */}
+                              {(relatedProduct.imageUrl || relatedProduct.image) ? (
+                                <img 
+                                  src={relatedProduct.imageUrl || relatedProduct.image} 
+                                  alt={relName} 
+                                  className="object-cover h-full w-full group-hover:scale-105 transition-all duration-500" /* Changed from object-contain and removed p-2 */
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-500 text-sm">{t("no_image", "No image")}</span>
+                              )}
+                            </div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-lg mb-2 group-hover:text-accent transition-colors line-clamp-2">
+                              {relName}
+                            </h3>
+                            <p className="text-primary dark:text-accent mt-auto font-semibold">₪{relatedProduct.price?.toFixed(2)}</p>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="related-products-empty">
-                    <PhotoIcon className="h-16 w-16 text-gray-400" />
-                    <h3 className="empty-title">{formatTextDirection(t("no_related_products", "No related products found"))}</h3>
-                    <p className="empty-text">{formatTextDirection(t("explore_more", "Explore our full catalog for more amazing products"))}</p>
-                    <Link to="/products" className="explore-link">
-                      {formatTextDirection(t("browse_all_products", "Browse All Products"))}
-                      <ChevronRightIcon className="h-4 w-4" />
-                    </Link>
-                  </div>
+                  <p className="text-gray-400 text-center">
+                    {t("no_related_products", "No related products found.")}
+                  </p>
                 )}
-              </section>
+              </div>
             </>
           )}
         </div>

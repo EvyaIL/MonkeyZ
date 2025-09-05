@@ -5,8 +5,6 @@ import { useTranslation } from "react-i18next";
 import { useGlobalProvider } from "../context/GlobalProvider";
 import { getCurrentNonce, verifyPayPalCSP, fixDevelopmentCSP } from "../lib/cspNonce";
 import { PAYPAL_CONFIG, getPayPalErrorMessage, preloadPayPalScript, measurePayPalPerformance } from "../lib/paypalConfig";
-import { isRTL, formatTextDirection, formatCurrency } from "../utils/language";
-import "./Checkout.css";
 
 export default function Checkout() {
   const { cartItems, validateCartItems, cleanCartItems, clearCart, user } = useGlobalProvider();
@@ -610,7 +608,7 @@ export default function Checkout() {
                           console.error(`Cart item at position ${index + 1} has invalid quantity:`, quantity, i);
                           return null;
                         }
-                        return (
+                        return {
                           productId: productId.toString(),
                           id: productId.toString(),
                           name: typeof i.name === "object" ? i.name.en : i.name,

@@ -204,28 +204,5 @@
   "errors": {
     "productNotFound": "Product not found. Please check the URL and try again.",
     "generalError": "An error occurred while fetching the product. Please try again later."
-  },
-  "related_posts": "Related Posts",
-  "tags": "Tags",
-  "share_post": "Share Post",
-  "post_not_found": "Post not found",
-  "post_not_found_message": "The post you're looking for doesn't exist or has been removed.",
-  "monkeyz_team": "MonkeyZ Team",
-  "customer_information": "Customer Information",
-  "full_name": "Full Name",
-  "enter_full_name": "Enter your full name",
-  "enter_email": "Enter your email address",
-  "enter_phone": "Enter your phone number",
-  "order_summary": "Order Summary",
-  "enter_coupon_code": "Enter coupon code",
-  "apply": "Apply",
-  "remove": "Remove",
-  "validating": "Validating...",
-  "subtotal": "Subtotal",
-  "discount": "Discount",
-  "secure_payment": "Secure Payment",
-  "add_items_to_checkout": "Add items to your cart to checkout",
-  "loading_payment": "Loading secure payment...",
-  "secure_ssl": "SSL Secured",
-  "money_back_guarantee": "Money Back Guarantee"
+  }
 }
