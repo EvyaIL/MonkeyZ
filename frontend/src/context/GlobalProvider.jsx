@@ -14,6 +14,13 @@ const GlobalProvider = React.memo(({ children }) => {
   const [cartItems, setCartItems] = useState({});
   const [openCart, setOpenCart] = useState(false);
   const [notification, setNotification] = useState(null);
+  // Beta design mode (A/B UI switch)
+  const [betaDesign, setBetaDesign] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('betaDesign') === 'true';
+    }
+    return false;
+  });
   // Coupon and customer email for checkout
   const [couponCode, setCouponCode] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -120,6 +127,29 @@ const GlobalProvider = React.memo(({ children }) => {
     document.documentElement.classList.remove(theme);
     document.documentElement.classList.add(newTheme);
   };
+
+  // Toggle beta design (independent from theme)
+  const toggleBetaDesign = useCallback(() => {
+    setBetaDesign(prev => {
+      const next = !prev;
+      try { localStorage.setItem('betaDesign', String(next)); } catch(e) { /* ignore */ }
+      if (next) {
+        document.documentElement.classList.add('beta');
+      } else {
+        document.documentElement.classList.remove('beta');
+      }
+      return next;
+    });
+  }, []);
+
+  // Initialize beta class on mount / change
+  useEffect(() => {
+    if (betaDesign) {
+      document.documentElement.classList.add('beta');
+    } else {
+      document.documentElement.classList.remove('beta');
+    }
+  }, [betaDesign]);
 
   // Initialize theme on mount
   useEffect(() => {
@@ -767,6 +797,8 @@ const GlobalProvider = React.memo(({ children }) => {
         setCouponCode,
         customerEmail,
         setCustomerEmail,
+  betaDesign,
+  toggleBetaDesign,
       }}
     >
       {children}

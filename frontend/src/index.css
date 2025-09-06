@@ -4,6 +4,7 @@
 
 /* Import modern accessibility styles */
 @import './styles/modernAccessibility.css';
+@import './styles/beta.css';
 
 /* Base styles */
 body {

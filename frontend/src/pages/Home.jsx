@@ -9,6 +9,7 @@ import { addStructuredData } from "../lib/seo-helper";
 import imagePreloadService from "../lib/imagePreloadService";
 import { usePerformanceMonitoring, trackRoutePerformance } from "../hooks/usePerformanceMonitoring";
 import { ProductGridSkeleton } from "../components/SkeletonLoaders";
+import { useGlobalProvider } from "../context/GlobalProvider";
 import LazyImage from "../components/LazyImage";
 
 const Home = React.memo(() => {
@@ -107,6 +108,8 @@ const Home = React.memo(() => {
     document.title = t("home");
   }, [t]);
 
+  const { betaDesign } = useGlobalProvider();
+
   return (
     <>
       <Helmet>
@@ -128,12 +131,15 @@ const Home = React.memo(() => {
         <meta name="twitter:description" content={t("home_meta_description") || "MonkeyZ offers premium digital products including software keys, VPN services, cloud storage, and security solutions."} />
         <meta name="twitter:image" content="https://monkeyz.co.il/og-image.jpg" />
       </Helmet>
-      <div className="min-h-screen flex flex-col items-center justify-center p-6">
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${betaDesign ? 'beta-home-frame relative overflow-hidden' : ''}`}>
+        {betaDesign && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 opacity-60 bg-[radial-gradient(circle_at_20%_20%,rgba(130,80,255,0.25),transparent_60%),radial-gradient(circle_at_80%_70%,rgba(255,120,80,0.18),transparent_55%)]" />
+        )}
         <h1 className="text-accent font-bold text-3xl mb-8" tabIndex={0}>
           {t("home")}
         </h1>
 
-        <section className="w-full max-w-6xl mb-12" aria-label={t("best_sellers")}>
+  <section className={`w-full max-w-6xl mb-12 ${betaDesign ? 'beta-section-panorama backdrop-blur-xl rounded-3xl border border-white/10 shadow-[0_8px_40px_-10px_rgba(0,0,0,.55)] p-4 md:p-8 bg-white/5 dark:bg-white/5' : ''}`} aria-label={t("best_sellers")}>        
           {loadingBest ? (
             <ProductGridSkeleton count={8} />
           ) : errorBest ? (
@@ -146,9 +152,10 @@ const Home = React.memo(() => {
         </section>
 
         <section
-          className="bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-12 backdrop-blur-sm"
+          className={`${betaDesign ? 'relative rounded-3xl p-8 w-full max-w-6xl mt-12 beta-feature-grid border border-white/10 bg-white/10 dark:bg-white/5 shadow-[0_12px_50px_-12px_rgba(0,0,0,.65)] backdrop-blur-2xl overflow-hidden' : 'bg-white dark:bg-gray-800 border border-accent/30 dark:border-accent/30 rounded-lg shadow-lg p-4 md:p-6 w-full max-w-6xl mt-12 backdrop-blur-sm'}`}
           aria-label={t("featured_products")}
         >
+          {betaDesign && <div className="absolute inset-0 pointer-events-none mix-blend-overlay bg-[linear-gradient(115deg,rgba(255,255,255,.12)_0%,rgba(255,255,255,0)_60%)]" />}
           <h2 className="text-center text-accent font-bold text-3xl mb-8">
             {t("featured_products")}
           </h2>

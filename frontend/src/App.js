@@ -15,6 +15,7 @@ import './lib/reactWarningSuppress'; // Suppress React warnings in development
 // Lazy load ThemeToggle to improve initial bundle size
 const ThemeToggle = React.lazy(() => import('./components/ThemeToggle'));
 const TrustpilotWidget = React.lazy(() => import('./components/TrustpilotWidget'));
+import BetaDesignToggle from './components/BetaDesignToggle';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
@@ -34,6 +35,7 @@ if (process.env.NODE_ENV === 'development') {
 
 const AppContent = () => {
   const { i18n } = useTranslation();
+  const { betaDesign } = useGlobalProvider();
   
   // Initialize analytics service only once
   useEffect(() => {
@@ -60,7 +62,7 @@ const AppContent = () => {
   }, [i18n.language]);
     return (
     // This div's Tailwind background might be overridden or complemented by CssBaseline body background
-    <div className="w-full min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white flex flex-col">
+  <div className={`w-full min-h-screen flex flex-col ${betaDesign ? 'design-switch-animate' : ''} ${betaDesign ? 'bg-transparent text-gray-100' : 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white'}`}>
       <div className="flex-1">
         <AppRouter />
       </div>
@@ -111,6 +113,7 @@ const MuiThemedAppStructure = () => {
         <React.Suspense fallback={<div>Loading...</div>}>
           <TrustpilotWidget />
         </React.Suspense>
+  <BetaDesignToggle />
       </div>
     </ThemeProvider>
   );
