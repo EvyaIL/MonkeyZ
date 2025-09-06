@@ -3,17 +3,18 @@ import { useTranslation } from 'react-i18next';
 
 const TrustpilotWidget = React.memo(() => {
   const { t, i18n } = useTranslation();
-  const isRTL = i18n.language === 'he';
+  const isRTL = i18n.language === 'en';
 
   const handleClick = () => {
     window.open('https://www.trustpilot.com/review/monkeyz.co.il', '_blank', 'noopener,noreferrer');
   };
 
-  // Trustpilot should be on the opposite side of cart
-  const positionClass = isRTL ? 'right-4' : 'left-4';
+  // Trustpilot on the right side to avoid collision with theme toggle
+  const positionClass = isRTL ? 'left-20' : 'right-20';
 
   return (
     <button
+      id="our-custom-trustpilot-button"
       onClick={handleClick}
       className={`fixed bottom-4 ${positionClass} p-3 rounded-full bg-green-600 hover:bg-green-700 transition-colors z-40 shadow-lg group`}
       aria-label={t("trustpilot_reviews", "View our Trustpilot reviews")}
@@ -21,8 +22,8 @@ const TrustpilotWidget = React.memo(() => {
     >
       <div className="flex items-center gap-2">
         <svg 
-          width="24" 
-          height="24" 
+          width="28" 
+          height="28" 
           viewBox="0 0 24 24" 
           fill="white" 
           xmlns="http://www.w3.org/2000/svg"

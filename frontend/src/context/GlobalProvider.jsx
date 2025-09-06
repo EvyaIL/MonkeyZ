@@ -772,9 +772,9 @@ const GlobalProvider = React.memo(({ children }) => {
       {children}
       
       {/* Notification Component */}
-      {notification && (
+      {notification && notification.message && notification.message.trim() && (
         <div 
-          className={`fixed bottom-4 ${i18n.language === 'he' ? 'left-4' : 'right-4'} z-50 max-w-md rounded-lg shadow-lg p-4 transition-all duration-300 animate-slide-in ${
+          className={`fixed bottom-32 ${i18n.language === 'he' ? 'left-4' : 'right-4'} z-50 max-w-md rounded-lg shadow-lg p-4 transition-all duration-300 animate-slide-in ${
             notification.type === 'error' 
               ? 'bg-red-600 text-white' 
               : notification.type === 'success' 

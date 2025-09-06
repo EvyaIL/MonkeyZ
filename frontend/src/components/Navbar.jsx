@@ -368,7 +368,7 @@ const Navbar = memo(() => {
       )}      {/* Shopping Cart Drawer */}
       <div
         ref={cartRef}
-        className={`fixed top-0 ${i18n.language === "he" ? "left-0 border-r rounded-r-md" : "right-0 border-l rounded-l-md"} h-full bg-white dark:bg-gray-800 shadow-lg border-gray-200 dark:border-gray-700 p-6 overflow-y-auto overflow-x-hidden w-full max-w-md ${
+  className={`fixed top-0 ${i18n.language === "he" ? "left-0 border-r rounded-r-md" : "right-0 border-l rounded-l-md"} h-full bg-white dark:bg-gray-800 shadow-lg border-gray-200 dark:border-gray-700 pt-4 px-4 pb-12 flex flex-col overflow-x-hidden w-full max-w-md ${
           openCart ? "translate-x-0" : i18n.language === "he" ? "-translate-x-full" : "translate-x-full"
         } transition-transform duration-300`}
         aria-label={t("cart")}
@@ -377,7 +377,7 @@ const Navbar = memo(() => {
         dir={i18n.language === "he" ? "rtl" : "ltr"}
       >
         {/* Cart Header */}
-        <div className={`flex justify-between items-center mb-4 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>
+  <div className={`flex justify-between items-center mb-2 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>
           <h2 className="text-xl font-bold text-primary dark:text-white">{t("cart")}</h2>
           <div className="flex items-center gap-2">
             {/* Refresh Cart Button */}
@@ -443,12 +443,12 @@ const Navbar = memo(() => {
             </button>
           </div>
         ) : (
-          <div className="space-y-4 flex flex-col h-[calc(100%-130px)]">
+          <div className="flex flex-col flex-1 min-h-0">
             {/* Cart Items List */}
-            <div className="flex-grow overflow-y-auto space-y-4 pr-2">              {Object.values(cartItems).map((item, idx) => (
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 min-h-0">              {Object.values(cartItems).map((item, idx) => (
                 <div
                   key={item.id || item.productId || `cart-item-${idx}`}
-                  className={`flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-4 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}
+                  className={`flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-2 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}
                 >                  <div className={`flex items-center gap-3 ${i18n.language === "he" ? "flex-row-reverse" : ""}`}>                    <div className="relative w-16 h-16 flex-shrink-0 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600 overflow-hidden">
                       <img 
                         src={
@@ -532,13 +532,13 @@ const Navbar = memo(() => {
             </div>
             
             {/* Cart Total & Checkout */}
-            <div className="sticky bottom-0 bg-white dark:bg-gray-800 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between font-bold text-lg mb-4 text-gray-800 dark:text-white">
+            <div className="bg-white dark:bg-gray-800 pt-2 pb-0 border-t border-gray-200 dark:border-gray-700 shrink-0">
+              <div className="flex justify-between font-bold text-lg mb-2 text-gray-800 dark:text-white">
                 <span>{t("total")}:</span>
                 <span>₪{cartStats.totalPrice}</span>
               </div>
               <button
-                className="w-full bg-accent text-white py-3 rounded font-semibold hover:bg-accent/80 transition-colors"
+        className="w-full bg-accent text-white py-2 rounded-t font-semibold hover:bg-accent/80 transition-colors"
                 onClick={() => {
                   setOpenCart(false);
                   navigate("/checkout");

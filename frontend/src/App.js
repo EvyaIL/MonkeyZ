@@ -103,7 +103,7 @@ const MuiThemedAppStructure = () => {
       {/* The div below had Tailwind bg classes; CssBaseline now manages body background.
           Individual MUI components like Paper/Card will use theme.palette.background.paper.
           Tailwind's dark: on html tag will still apply for non-MUI components. */}
-      <div className="min-h-screen transition-colors duration-300">
+      <div className="transition-colors duration-300">
         <AppContent />
         <React.Suspense fallback={<div>Loading...</div>}>
           <ThemeToggle />

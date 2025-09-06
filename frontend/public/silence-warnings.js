@@ -180,5 +180,29 @@
     }
   }
   
+  // Remove Trustpilot GTM floating widget
+  function removeTrustpilotGTMWidget() {
+    const trustpilotWrapper = document.getElementById('trustpilot-gtm-floating-wrapper');
+    if (trustpilotWrapper) {
+      trustpilotWrapper.remove();
+      console.log('🗑️ Removed Trustpilot GTM floating widget');
+    }
+    
+    // Also remove any trustpilot widgets that might be dynamically created
+    const trustpilotWidgets = document.querySelectorAll('[id*="trustpilot-gtm"], [class*="trustpilot-widget"]');
+    trustpilotWidgets.forEach(widget => {
+      if (widget.id !== 'our-custom-trustpilot-button') { // Preserve our custom button
+        widget.remove();
+      }
+    });
+  }
+  
+  // Run removal on page load and periodically
+  document.addEventListener('DOMContentLoaded', removeTrustpilotGTMWidget);
+  window.addEventListener('load', removeTrustpilotGTMWidget);
+  
+  // Set up interval to remove any dynamically added widgets
+  setInterval(removeTrustpilotGTMWidget, 2000);
+  
   console.log('🚫 Console spam blocker activated - warnings suppressed');
 })();
