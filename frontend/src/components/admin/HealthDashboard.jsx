@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { performanceMonitor, reportError } from '../lib/monitoring';
+import { performanceMonitor, reportError } from '../../lib/monitoring';
 
 // Simple health check component for admin monitoring
 const HealthDashboard = () => {

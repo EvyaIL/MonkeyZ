@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { checkPayPalProductionReadiness } from '../lib/paypalConfigValidator';
-import { performanceMonitor } from '../lib/monitoring';
+import { checkPayPalProductionReadiness } from '../../lib/paypalConfigValidator';
+import { performanceMonitor } from '../../lib/monitoring';
 
 const ProductionReadinessChecker = () => {
   const [checks, setChecks] = useState({

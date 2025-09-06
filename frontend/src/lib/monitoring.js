@@ -1,164 +1,204 @@
-import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
+/**
+ * Performance Monitoring and Error Tracking
+ * Ultra-fast monitoring without external dependencies
+ */
 
 // Environment-based configuration
 const isDevelopment = process.env.NODE_ENV === 'development';
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Initialize Sentry for error tracking and performance monitoring
-export const initializeMonitoring = () => {
-  // Only initialize in production or when explicitly enabled
-  if (!isProduction && !process.env.REACT_APP_ENABLE_SENTRY) {
-    console.log('Monitoring disabled in development');
-    return;
-  }
+// Performance metrics storage
+let performanceMetrics = {
+  pageLoadTime: 0,
+  apiResponseTimes: [],
+  errorCount: 0,
+  lastError: null
+};
 
-  Sentry.init({
-    dsn: process.env.REACT_APP_SENTRY_DSN || "YOUR_SENTRY_DSN_HERE",
-    environment: process.env.NODE_ENV || 'development',
-    integrations: [
-      new BrowserTracing({
-        // Set up automatic route tracking in React Router v6
-        routingInstrumentation: Sentry.reactRouterV6Instrumentation(
-          React.useEffect,
-          useLocation,
-          useNavigationType,
-          createRoutesFromChildren,
-          matchRoutes
-        ),
-      }),
-    ],
-    
-    // Performance Monitoring
-    tracesSampleRate: isProduction ? 0.1 : 1.0, // Lower sample rate in production
-    
-    // Release information
-    release: process.env.REACT_APP_VERSION || 'unknown',
-    
-    // Error filtering
-    beforeSend(event, hint) {
-      // Filter out development errors
-      if (isDevelopment) {
-        console.warn('Sentry Event (Dev Mode):', event);
-      }
-      
-      // Filter out known non-critical errors
-      const error = hint.originalException;
-      if (error && error.message) {
-        // Skip PayPal SDK errors that are not critical
-        if (error.message.includes('paypal') && error.message.includes('script')) {
-          return null;
-        }
-        
-        // Skip chunk loading errors (common with code splitting)
-        if (error.message.includes('Loading chunk') || error.message.includes('ChunkLoadError')) {
-          // Log for monitoring but don't send to Sentry
-          console.warn('Chunk loading error detected:', error.message);
-          return null;
-        }
-      }
-      
-      return event;
-    },
-    
-    // Additional options
-    debug: isDevelopment,
-    attachStacktrace: true,
-    autoSessionTracking: true,
-  });
+// Error handling functions
+const handleError = (event) => {
+  performanceMetrics.errorCount++;
+  performanceMetrics.lastError = {
+    message: event.error?.message || event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    timestamp: Date.now()
+  };
   
-  console.log('✅ Error tracking and performance monitoring initialized');
+  if (isDevelopment) {
+    console.error('[MonkeyZ] JavaScript Error:', event.error || event.message);
+  }
+};
+
+const handleUnhandledRejection = (event) => {
+  performanceMetrics.errorCount++;
+  performanceMetrics.lastError = {
+    message: event.reason?.message || 'Unhandled Promise Rejection',
+    type: 'unhandledrejection',
+    timestamp: Date.now()
+  };
+  
+  if (isDevelopment) {
+    console.error('[MonkeyZ] Unhandled Promise Rejection:', event.reason);
+  }
+};
+
+// Initialize monitoring system
+export const initializeMonitoring = () => {
+  if (isDevelopment) {
+    console.log('[MonkeyZ] Performance monitoring initialized');
+  }
+  
+  // Set up performance observers
+  if ('PerformanceObserver' in window) {
+    // Monitor navigation timing
+    const navObserver = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.entryType === 'navigation') {
+          performanceMetrics.pageLoadTime = entry.loadEventEnd - entry.loadEventStart;
+        }
+      }
+    });
+    
+    navObserver.observe({ entryTypes: ['navigation'] });
+  }
+  
+  // Set up global error handling
+  window.addEventListener('error', handleError);
+  window.addEventListener('unhandledrejection', handleUnhandledRejection);
 };
 
 // Performance monitoring utilities
 export const performanceMonitor = {
-  // Measure component performance
-  measureComponent: (componentName, fn) => {
-    return Sentry.withProfiler(fn, { name: componentName });
+  // Start timing an operation
+  startTimer: (name) => {
+    const startTime = performance.now();
+    return {
+      end: () => {
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        
+        if (isDevelopment) {
+          console.log(`[MonkeyZ] ${name} took ${duration.toFixed(2)}ms`);
+        }
+        
+        return duration;
+      }
+    };
   },
   
-  // Track custom metrics
-  trackMetric: (metricName, value, tags = {}) => {
-    Sentry.addBreadcrumb({
-      category: 'performance',
-      message: `${metricName}: ${value}`,
-      level: 'info',
-      data: { value, ...tags }
-    });
-  },
-  
-  // Track user interactions
-  trackUserAction: (action, details = {}) => {
-    Sentry.addBreadcrumb({
-      category: 'user',
-      message: action,
-      level: 'info',
-      data: details
-    });
-  },
-  
-  // Track API performance
-  trackApiCall: async (url, method, fn) => {
-    const transaction = Sentry.startTransaction({
-      name: `${method} ${url}`,
-      op: 'http.client'
+  // Track API response times
+  trackApiCall: (url, duration, success = true) => {
+    performanceMetrics.apiResponseTimes.push({
+      url,
+      duration,
+      success,
+      timestamp: Date.now()
     });
     
-    try {
-      const result = await fn();
-      transaction.setStatus('ok');
-      return result;
-    } catch (error) {
-      transaction.setStatus('internal_error');
-      Sentry.captureException(error);
-      throw error;
-    } finally {
-      transaction.finish();
+    // Keep only last 100 API calls
+    if (performanceMetrics.apiResponseTimes.length > 100) {
+      performanceMetrics.apiResponseTimes.shift();
     }
+  },
+  
+  // Get current performance metrics
+  getMetrics: () => ({...performanceMetrics}),
+  
+  // Mark performance milestone
+  mark: (name) => {
+    if ('performance' in window && performance.mark) {
+      performance.mark(name);
+    }
+  },
+  
+  // Measure between two marks
+  measure: (name, startMark, endMark) => {
+    if ('performance' in window && performance.measure) {
+      try {
+        performance.measure(name, startMark, endMark);
+        const measure = performance.getEntriesByName(name)[0];
+        return measure.duration;
+      } catch (error) {
+        if (isDevelopment) {
+          console.warn(`[MonkeyZ] Could not measure ${name}:`, error);
+        }
+        return 0;
+      }
+    }
+    return 0;
   }
 };
 
-// Error boundary component
-export const ErrorBoundary = Sentry.withErrorBoundary;
-
-// Hook for tracking page views
-export const usePageTracking = () => {
-  React.useEffect(() => {
-    // Track page view
-    Sentry.addBreadcrumb({
-      category: 'navigation',
-      message: `Page viewed: ${window.location.pathname}`,
-      level: 'info'
-    });
-  }, []);
-};
-
-// Production error reporter
+// Report error utility
 export const reportError = (error, context = {}) => {
-  if (isProduction) {
-    Sentry.withScope((scope) => {
-      scope.setContext('error_context', context);
-      Sentry.captureException(error);
-    });
-  } else {
-    console.error('Error:', error, 'Context:', context);
+  performanceMetrics.errorCount++;
+  performanceMetrics.lastError = {
+    message: error?.message || error,
+    context,
+    timestamp: Date.now()
+  };
+  
+  if (isDevelopment) {
+    console.error('[MonkeyZ] Reported Error:', error, context);
+  }
+  
+  // In production, could send to logging service
+  if (isProduction && window.fetch) {
+    // Placeholder for error reporting endpoint
+    // fetch('/api/errors', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ error: error?.message || error, context })
+    // }).catch(() => {}); // Silently fail if error reporting fails
   }
 };
 
-// Set user context for error tracking
-export const setUserContext = (user) => {
-  Sentry.setUser({
-    id: user.id,
-    email: user.email,
-    username: user.username || user.name
-  });
+// Health check utilities
+export const healthCheck = {
+  // Check if monitoring is working
+  isHealthy: () => {
+    return {
+      monitoring: true,
+      performance: 'PerformanceObserver' in window,
+      errorTracking: true,
+      timestamp: Date.now()
+    };
+  },
+  
+  // Get system information
+  getSystemInfo: () => {
+    return {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      platform: navigator.platform,
+      cookieEnabled: navigator.cookieEnabled,
+      onLine: navigator.onLine,
+      memory: performance.memory ? {
+        used: Math.round(performance.memory.usedJSHeapSize / 1048576),
+        total: Math.round(performance.memory.totalJSHeapSize / 1048576),
+        limit: Math.round(performance.memory.jsHeapSizeLimit / 1048576)
+      } : null
+    };
+  }
 };
 
+// Initialize automatically
+if (typeof window !== 'undefined') {
+  // Wait for DOM to be ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeMonitoring);
+  } else {
+    initializeMonitoring();
+  }
+}
+
+// Default export
 export default {
   initializeMonitoring,
   performanceMonitor,
-  ErrorBoundary,
-  usePageTracking,
   reportError,
-  setUserContext
+  healthCheck
 };
+
